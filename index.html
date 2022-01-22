@@ -1,25 +1,58 @@
-<!DOCTYPE html>
-<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>apparently this works</title>
-  <style>
-    body,html,iframe {
-      margin: 0;
-      width: 100%;
-      height: 100vh;
-      border: 0;
-      padding: 0;      
-    }
-  </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <link rel="icon" href="favicon.ico">
+    <style>
+        * {
+            color: white;
+            font-family: Arial
+        }
+        
+        body>div {
+            background-color: rgba(0, 0, 0, .8);
+        }
+
+        @keyframes shifting {
+            0% { background-position: 0% 0%; }
+            100% { background-position:64px 64px; }
+        }
+
+        body {
+            background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAA1SURBVGhD7dexEQAgEAIw9l8aLVzBwjepmICDAAAwStuTAAAAeJ+XBwAAm2EMfEj1AQA3JAsYPAv17NNH/wAAAABJRU5ErkJggg==");
+            animation:10s infinite linear shifting;
+        }
+    </style>
+    <title>monsieur's personal portal</title>
 </head>
-<body><iframe></iframe></body>
-<script>  
-  document.addEventListener("DOMContentLoaded",function(){
-    frame = document.getElementsByTagName('iframe')[0];
-    frame.src = document.location.search.substr(1)
-  })
-</script>
-</html>
+
+<body>
+    <div>
+        <h1>the epic portal</h1>
+        <h3>uhhh hello there</h3>
+        <div>
+            <p>
+                <a href="pyncmd">网易云</a>
+            </p>
+            <p>
+                <a href="http://ggpo.mos9527.club:7000">MOSCade - ggposrv3</a>
+            </p>
+            <hr>
+          <p><i>不保证能用：</i></p>
+            <p>
+                <a href="https://mos9527.tooo.top/kode/">壹号网盘</a>
+            </p>
+
+            <p>
+                <a href="https://mos9527.tooo.top/chat/">聊天室</a>
+            </p>            
+        </div>
+        <p>
+            <hr>
+            <a href="https://space.bilibili.com/661756831">Bilibili - mos9527</a>
+        </p>
+        <p>
+            <a href="https://github.com/greats3an">Github - greats3an</a>
+        </p>
+        <a href="http://steamcommunity.com/id/mos9527">Steam - monsieur 9527</a>
+    </div>
+</body>
