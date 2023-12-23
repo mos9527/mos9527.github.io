@@ -1,0 +1,51 @@
+baseURL: https://mos9527.github.io/
+title: mos9527
+defaultContentLanguage: cn
+theme: PaperMod
+
+params:
+  env: production
+  ShowReadingTime: true
+  ShowShareButtons: false
+  ShowPostNavLinks: true
+  ShowBreadCrumbs: true
+  ShowCodeCopyButtons: false
+  ShowWordCount: true
+  ShowRssButtonInSectionTermList: true
+  UseHugoToc: true
+  disableSpecial1stPost: false
+  disableScrollToTop: false
+  comments: false
+  hidemeta: false
+  hideSummary: false
+  showtoc: false
+  tocopen: false
+
+  homeInfoParams:
+      Title: "The Secret Lair™"
+      Content: >
+        CG, 算法笔记, 以及一些*奇奇怪怪*的东西🤔
+
+  socialIcons:
+    - name: github
+      url: "https://github.com/mos9527"
+    - name: Bilibili
+      url: "https://space.bilibili.com/661756831"
+    - name: Steam
+      url: "https://steamcommunity.com/id/mos9527"
+
+
+menu:
+  main:
+    - identifier: categories
+      name: categories
+      url: /categories/
+      weight: 10
+    - identifier: tags
+      name: tags
+      url: /tags/
+      weight: 20
+    - identifier: github
+      name: github
+      url: https://github.com/mos9527/mos9527.github.io/
+      weight: 30
