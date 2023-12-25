@@ -18,8 +18,8 @@ params:
   comments: false
   hidemeta: false
   hideSummary: false
-  showtoc: false
-  tocopen: false
+  showtoc: true
+  tocopen: true
 
   homeInfoParams:
       Title: "The Secret Lair™"
