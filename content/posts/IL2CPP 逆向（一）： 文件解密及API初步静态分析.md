@@ -6,6 +6,7 @@ categories: ["逆向"]
 series: ["Project SEKAI 逆向"]
 ShowToc: true
 TocOpen: true
+typora-root-url: ./..\..\static
 ---
 
 # IL2CPP 逆向（一）： 文件解密及API初步静态分析
