@@ -1,6 +1,6 @@
 ---
 author: mos9527
-title: IL2CPP 逆向（1）： 文件解密及API初步静态分析
+title: Project SEKAI 逆向（1）： 文件解密及API初步静态分析
 tags: ["逆向","pjsk","project sekai","miku"]
 categories: ["Project SEKAI 逆向", "逆向"]
 ShowToc: true
@@ -8,7 +8,7 @@ TocOpen: true
 typora-root-url: ./..\..\static
 ---
 
-# IL2CPP 逆向（1）： 文件解密及API初步静态分析
+# Project SEKAI 逆向（1）： 文件解密及API初步静态分析
 
 # 样例
 

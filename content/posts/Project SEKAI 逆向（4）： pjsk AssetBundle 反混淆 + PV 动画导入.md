@@ -1,6 +1,6 @@
 ---
 author: mos9527
-title: IL2CPP 逆向（4）： pjsk AssetBundle 反混淆 + PV 动画导入
+title: Project SEKAI 逆向（4）： pjsk AssetBundle 反混淆 + PV 动画导入
 tags: ["逆向","unity","pjsk","api","project sekai","miku", "3d","cg","blender","unity"]
 categories: ["Project SEKAI 逆向", "逆向"]
 ShowToc: true
@@ -8,7 +8,7 @@ TocOpen: true
 typora-root-url: ./..\..\static
 ---
 
-# IL2CPP 逆向（4）： pjsk AssetBundle 反混淆 + PV 动画导入
+# Project SEKAI 逆向（4）： pjsk AssetBundle 反混淆 + PV 动画导入
 
 本来想放假再弄的，不过没忍住（啊？
 
@@ -148,7 +148,7 @@ python -m sssekai apidecrypt .\AssetBundleInfo .\AssetBundleInfo.json
 
 或许以后更新的时候可以拿来做diff？暂时不知道有什么用orz
 
-### 4. 3D 模型资源？
+### 5. 资源使用？to be continued
 
 检查下模型列表，发现角色模型数出奇的少？
 
