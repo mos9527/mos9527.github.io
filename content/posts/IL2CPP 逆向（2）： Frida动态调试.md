@@ -1,15 +1,14 @@
 ---
 author: mos9527
-title: IL2CPP 逆向（二）： Frida动态调试及取API AES KEY/IV
+title: IL2CPP 逆向（2）： Frida动态调试及取API AES KEY/IV
 tags: ["逆向","frida","pjsk","api","project sekai","miku"]
-categories: ["逆向"]
-series: ["Project SEKAI 逆向"]
+categories: ["Project SEKAI 逆向", "逆向"]
 ShowToc: true
 TocOpen: true
 typora-root-url: ./..\..\static
 ---
 
-# IL2CPP 逆向（二）： Frida动态调试及取API AES KEY/IV
+# IL2CPP 逆向（2）： Frida动态调试及取API AES KEY/IV
 
 ### 0. 版本更新！
 

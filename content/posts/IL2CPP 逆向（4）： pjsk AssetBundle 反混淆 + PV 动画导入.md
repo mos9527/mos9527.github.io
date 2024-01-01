@@ -1,15 +1,14 @@
 ---
 author: mos9527
-title: IL2CPP 逆向（四）： pjsk AssetBundle 反混淆 + PV 动画导入
+title: IL2CPP 逆向（4）： pjsk AssetBundle 反混淆 + PV 动画导入
 tags: ["逆向","unity","pjsk","api","project sekai","miku", "3d","cg","blender","unity"]
-categories: ["逆向"]
-series: ["Project SEKAI 逆向"]
+categories: ["Project SEKAI 逆向", "逆向"]
 ShowToc: true
 TocOpen: true
 typora-root-url: ./..\..\static
 ---
 
-# IL2CPP 逆向（四）： pjsk AssetBundle 反混淆 + PV 动画导入
+# IL2CPP 逆向（4）： pjsk AssetBundle 反混淆 + PV 动画导入
 
 本来想放假再弄的，不过没忍住（啊？
 

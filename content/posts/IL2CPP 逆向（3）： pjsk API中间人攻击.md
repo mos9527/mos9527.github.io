@@ -1,15 +1,14 @@
 ---
 author: mos9527
-title: IL2CPP 逆向（三）： pjsk API中间人攻击 POC
+title: IL2CPP 逆向（3）： pjsk API中间人攻击 POC
 tags: ["逆向","mitm", "pjsk","project sekai","miku"]
-categories: ["逆向"]
-series: ["Project SEKAI 逆向"]
+categories: ["Project SEKAI 逆向", "逆向"]
 ShowToc: true
 TocOpen: true
 typora-root-url: ./..\..\static
 ---
 
-# IL2CPP 逆向（三）： pjsk API中间人攻击 POC
+# IL2CPP 逆向（3）： pjsk API中间人攻击 POC
 
 这里和il2cpp关系貌似不大；主要记录一下api包劫持可以用的手段
 
