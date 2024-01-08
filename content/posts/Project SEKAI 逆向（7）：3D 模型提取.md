@@ -23,7 +23,7 @@ typora-root-url: ./..\..\static
 
 **Code：** https://github.com/mos9527/sssekai/blob/main/sssekai/scripts/blender_mesh_importer.py
 
-**注：**仅测试于 Blender 4.0
+**注：** 仅测试于 Blender 4.0
 
 ### 1. 文件结构
 
@@ -90,13 +90,20 @@ pjsk发现的所有mesh在相应assetbundle中会有1个或更多`GameObject`的
 
 - Blender使用右手系，Unity/Direct3D使用左手系
 
+|坐标系|前|上|左|
+|-|-|-|-|
+|Unity|   Z     |   Y  |   X|
+|Blender|  -Y     |   Z  |  -X|
+
   - 意味着对向量需要如下转化
 
-    $\vec{V_{blender}}(X,Y,Z) = \vec(V_{unity}.X,V_{unity}.Z,V_{unity}.Y)$
+    $\vec{V_{blender}}(X,Y,Z) = \vec(-V_{unity}.X,-V_{unity}.Z,V_{unity}.Y)$
 
-  - 对四元数理应交换YZ足以，但Blender使用`WXYZ`格式（同时XYZ也得取负？不知道为什么）
+  - 对四元数XYZ部分
 
-    $\vec{Q_{blender}}(W,X,Y,Z) = \vec(V_{unity}.W,-V_{unity}.X,-V_{unity}.Z,-V_{unity}.Y)$
+    $\vec{Q_{blender}}(W,X,Y,Z) = \overline{\vec(V_{unity}.W,-V_{unity}.X,-V_{unity}.Z,V_{unity}.Y)}$
+    
+    不知道为什么还要取共轭...
 
 - Unity存储vector类型数据可能以2,3,4或其他个数浮点数读取，而vector不会额外封包，需要从flat float array中读取
 
