@@ -21,7 +21,7 @@ typora-root-url: ./..\..\static
 
 那就开始吧？
 
-**Code：** https://github.com/mos9527/sssekai/blob/main/sssekai/scripts/blender_mesh_importer.py
+**Code：** https://github.com/mos9527/sssekai_blender_io
 
 **注：** 仅测试于 Blender 4.0
 
