@@ -5,7 +5,7 @@ tags: ["逆向","pjsk","project sekai","miku"]
 categories: ["Project SEKAI 逆向", "逆向"]
 ShowToc: true
 TocOpen: true
-typora-root-url: ./..\..\static
+typora-root-url: ..\..\static
 ---
 
 # Project SEKAI 逆向（1）： 文件解密及API初步静态分析

@@ -5,7 +5,7 @@ tags: ["逆向","mitm", "pjsk","project sekai","miku"]
 categories: ["Project SEKAI 逆向", "逆向"]
 ShowToc: true
 TocOpen: true
-typora-root-url: ./..\..\static
+typora-root-url: ..\..\static
 ---
 
 # Project SEKAI 逆向（3）： pjsk API中间人攻击 POC

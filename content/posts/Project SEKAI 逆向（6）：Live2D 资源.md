@@ -5,7 +5,7 @@ tags: ["逆向","unity","pjsk","api","project sekai","miku","unity","live2d"]
 categories: ["Project SEKAI 逆向", "逆向"]
 ShowToc: true
 TocOpen: true
-typora-root-url: ./..\..\static
+typora-root-url: ..\..\static
 ---
 
 # Project SEKAI 逆向（6）：Live2D 资源

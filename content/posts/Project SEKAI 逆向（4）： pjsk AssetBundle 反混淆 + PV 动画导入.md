@@ -5,7 +5,7 @@ tags: ["逆向","unity","pjsk","api","project sekai","miku", "3d","cg","blender"
 categories: ["Project SEKAI 逆向", "逆向"]
 ShowToc: true
 TocOpen: true
-typora-root-url: ./..\..\static
+typora-root-url: ..\..\static
 ---
 
 # Project SEKAI 逆向（4）： pjsk AssetBundle 反混淆 + PV 动画导入

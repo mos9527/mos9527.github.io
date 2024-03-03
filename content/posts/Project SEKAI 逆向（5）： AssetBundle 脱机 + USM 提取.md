@@ -5,7 +5,7 @@ tags: ["逆向","unity","pjsk","api","project sekai","miku","unity","criware"]
 categories: ["Project SEKAI 逆向", "逆向"]
 ShowToc: true
 TocOpen: true
-typora-root-url: ./..\..\static
+typora-root-url: ..\..\static
 ---
 
 # Project SEKAI 逆向（5）： AssetBundle 脱机 + USM 提取

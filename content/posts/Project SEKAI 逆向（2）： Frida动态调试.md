@@ -5,7 +5,7 @@ tags: ["逆向","frida","pjsk","api","project sekai","miku"]
 categories: ["Project SEKAI 逆向", "逆向"]
 ShowToc: true
 TocOpen: true
-typora-root-url: ./..\..\static
+typora-root-url: ..\..\static
 ---
 
 # Project SEKAI 逆向（2）： Frida动态调试及取API AES KEY/IV

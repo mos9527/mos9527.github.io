@@ -5,7 +5,7 @@ tags: ["逆向","unity","pjsk","api","project sekai","miku","unity","3d","cg","b
 categories: ["Project SEKAI 逆向", "逆向","Tech Art"]
 ShowToc: true
 TocOpen: true
-typora-root-url: ./..\..\static
+typora-root-url: ..\..\static
 
 ---
 
