@@ -1,8 +1,8 @@
 ---
 author: mos9527
 lastmod: 1970-01-01T12:00:00.000000+08:00
-title: CF板子合集
-tags: ["ACM","算竞"]
+title: Codeforces 板子合集
+tags: ["ACM","算竞","Codeforces"]
 categories: ["合集","杂项"]
 ShowToc: true
 TocOpen: true

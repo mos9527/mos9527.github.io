@@ -3,7 +3,7 @@ author: mos9527
 lastmod: 2024-01-05T08:00:54.681672+08:00
 title: Project SEKAI 逆向（7）：3D 模型提取
 tags: ["逆向","unity","pjsk","api","project sekai","miku","unity","3d","cg","blender"]
-categories: ["Project SEKAI 逆向", "逆向","Tech Art"]
+categories: ["Project SEKAI 逆向", "逆向","技术美术"]
 ShowToc: true
 TocOpen: true
 typora-root-url: ..\..\static
