@@ -24,28 +24,100 @@ typora-root-url: ..\..\static
 #include <sstream>
 #include <string>
 #include <set>
+#include <cassert>
 
 using namespace std;
-typedef long long ll;
 typedef double lf;
+typedef long long ll;
+typedef unsigned long long ull;
 typedef vector<ll> v;
+typedef vector<ull> uv;
 #define EPS 0.0001F
 #define PRED(X) [](auto const& lhs, auto const& rhs) {return X;}
 #define PREDT(T,X) [](T const& lhs, T const& rhs) {return X;}
 #define PAIR2(T) pair<T,T>
 typedef PAIR2(ll) II;
-#define DIMENSION 1e5+1
+typedef PAIR2(ull) uII;
+#define DIMENSION 3e5+1
 #define BIT(X) (1LL << X)
 #define LOWBIT(X) (X & (-X))
 #define DIM (size_t)(DIMENSION)
 #define MOD (ll)(1e9 + 7)
+#ifdef _DEBUG
+#define LOG cerr
+#define REDIRECT_IN assert(std::freopen("input.in", "r", stdin));
+#define REDIRECT_OUT assert(std::freopen("input.out", "r", stdout));
+#else
+#define LOG if (false) cerr
+#define REDIRECT_IN
+#define REDIRECT_OUT
+#endif // _DEBUG
 
+```
+# 数学
 
-int main() {
-    // std::ios::sync_with_stdio(false); cin.tie(0); cout.tie(0);
-    return 0;
+## 矩阵
+
+```c++
+template<typename T, size_t Size> struct matrix {
+	T m[Size][Size]{};
+	struct identity {};
+	matrix() {}; // zero matrix
+	matrix(identity const&) { for (size_t i = 0; i < Size; i++) m[i][i] = 1; } // usage: matrix(matrix::identity{})
+	matrix(initializer_list<initializer_list<T>> l) { // usage: matrix({{1,2},{3,4}})
+		size_t i = 0;
+		for (auto& row : l) { size_t j = 0; for (auto& x : row) m[i][j++] = x; i++; }
+	}
+	matrix operator*(matrix const& other) const {
+		matrix res;
+		for (size_t i = 0; i < Size; i++)
+			for (size_t j = 0; j < Size; j++)
+				for (size_t k = 0; k < Size; k++)
+					res.m[i][j] = (res.m[i][j] + m[i][k] * other.m[k][j]) % MOD;
+		return res;
+	}
+};
+typedef matrix<ll, 2> mat2;
+typedef matrix<ll, 3> mat3;
+typedef matrix<ll, 4> mat4;
+```
+
+- https://codeforces.com/gym/105170/problem/C
+
+## 快速幂
+
+```c++
+template<typename T> T binpow(T a, T res, ll b) {
+	while (b > 0) {
+		if (b & 1) res = res * a;
+		a = a * a;
+		b >>= 1;
+	}
+	return res;
+}
+ll binpow_mod(ll a, ll b, ll m) {
+	a %= m;
+	ll res = 1;
+	while (b > 0) {
+		if (b & 1) res = res * a % m;
+		a = a * a % m;
+		b >>= 1;
+	}
+	return res;
 }
 ```
+
+## 组合数（递推）
+
+```c++
+ll C[DIM][DIM];
+for (ll i = 0; i < DIM; i++)
+    for (ll j = 0; j <= i; j++)
+        C[i][j] = j ? ((C[i - 1][j] + C[i - 1][j - 1]) % MOD) : 1;
+```
+
+- Lucas：$$\binom{n}{m}\bmod p = \binom{\left\lfloor n/p \right\rfloor}{\left\lfloor m/p\right\rfloor}\cdot\binom{n\bmod p}{m\bmod p}\bmod p$$
+
 ## 拓扑排序
 
 ## Khan BFS
@@ -526,3 +598,30 @@ struct graph {
 };
 ```
 
+## 字符串哈希
+
+```c++
+// https://oi-wiki.org/string/hash/
+namespace substring_hash
+{
+	const ull BASE = 3;	
+	static ull pow[DIM];
+	void init() {
+		pow[0] = 1;
+		for (ll i = 1; i < DIM; i++) pow[i] = (pow[i - 1] * substring_hash::BASE);
+	}
+	struct hash : public uv {
+		hash(const string& s) : uv(s.size() + 1, 0) {
+			for (ll i = 0; i < s.size(); i++) {
+				(*this)[i + 1] = ((*this)[i] * BASE) + s[i];
+			}
+		}
+		// string[0, size()) -> query[l, r)
+		ull query(ll l, ll r) {
+			return (*this)[r] - (*this)[l] * pow[r - l];
+		}
+	};
+};
+```
+
+- https://acm.hdu.edu.cn/showproblem.php?pid=7433
