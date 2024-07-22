@@ -53,6 +53,11 @@ typedef PAIR2(ull) uII;
 #define REDIRECT_OUT
 #endif // _DEBUG
 
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(0); std::cout.tie(0);
+    /* El Psy Kongroo */
+    return 0;
+}
 ```
 # 数学
 
@@ -598,30 +603,95 @@ struct graph {
 };
 ```
 
+# 字符串
+
+## AC自动机
+
+```c++
+struct AC {
+    int tr[DIM][26], tot;
+    int idx[DIM], fail[DIM], val[DIM], cnt[DIM];
+
+    void init() {
+        tot = 0;
+        memset(tr, 0, sizeof(tr));
+        memset(idx, 0, sizeof(idx));
+        memset(fail, 0, sizeof(fail));
+        memset(val, 0, sizeof(val));
+        memset(cnt, 0, sizeof(cnt));
+    }
+
+    void insert(string const& s, int id) {
+        int u = 0;
+        for (char c : s) {
+            if (!tr[u][c - 'A']) tr[u][c - 'A'] = ++tot;  // 如果没有则插入新节点
+            u = tr[u][c - 'A'];                              // 搜索下一个节点
+        }
+        idx[u] = id;  // 以 u 为结尾的字符串编号为 idx[u]
+    }
+
+
+    void build() {
+        queue<int> q;
+        for (int i = 0; i < 26; i++)
+            if (tr[0][i]) q.push(tr[0][i]);
+        while (q.size()) {
+            int u = q.front();
+            q.pop();
+            for (int i = 0; i < 26; i++) {
+                if (tr[u][i]) {
+                    fail[tr[u][i]] = tr[fail[u]][i];  // fail数组：同一字符可以匹配的其他位置
+                    q.push(tr[u][i]);
+                }
+                else
+                    tr[u][i] = tr[fail[u]][i];
+            }
+        }
+    }
+
+    void query(string const& s) {
+        int u = 0;
+        for (char c : s) {
+            u = tr[u][c - 'A'];  // 转移
+            for (int j = u; j; j = fail[j]) val[j]++;
+        }
+        for (int i = 0; i <= tot; i++)
+            if (idx[i]) cnt[idx[i]] = val[i];
+    }
+}
+```
+
+
+
 ## 字符串哈希
 
 ```c++
 // https://oi-wiki.org/string/hash/
 namespace substring_hash
 {
-	const ull BASE = 3;	
-	static ull pow[DIM];
-	void init() {
-		pow[0] = 1;
-		for (ll i = 1; i < DIM; i++) pow[i] = (pow[i - 1] * substring_hash::BASE);
-	}
-	struct hash : public uv {
-		hash(const string& s) : uv(s.size() + 1, 0) {
-			for (ll i = 0; i < s.size(); i++) {
+    const ull BASE = 3;
+    static ull pow[DIM];
+    void init() {
+        pow[0] = 1;
+        for (ll i = 1; i < DIM; i++) pow[i] = (pow[i - 1] * substring_hash::BASE);
+    }
+    struct hash : public uv {
+        void init(string const& s) { init(s.c_str(), s.size()); }
+        void init(const char* s) { init(s, strlen(s));}
+        void init(const char* s, ll n) {
+            resize(n + 1);
+			(*this)[0] = 0;
+			for (ll i = 0; i < n; i++) {
 				(*this)[i + 1] = ((*this)[i] * BASE) + s[i];
 			}
-		}
-		// string[0, size()) -> query[l, r)
-		ull query(ll l, ll r) {
-			return (*this)[r] - (*this)[l] * pow[r - l];
-		}
-	};
+		}    
+        // string[0, size()) -> query[l, r)
+        ull query(ll l, ll r) const {
+            return (*this)[r] - (*this)[l] * pow[r - l];
+        }
+    };
 };
 ```
 
 - https://acm.hdu.edu.cn/showproblem.php?pid=7433
+- https://acm.hdu.edu.cn/contest/problem?cid=1125&pid=1011
