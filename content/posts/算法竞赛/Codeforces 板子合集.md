@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 1970-01-01T12:00:00.000000+08:00
+lastmod: 2077-01-01T12:00:00.000000+08:00
 title: Codeforces 板子合集
 tags: ["ACM","算竞","Codeforces"]
 categories: ["合集","杂项"]
@@ -60,7 +60,6 @@ int main() {
 }
 ```
 # 数学
-
 ## 矩阵
 
 ```c++
@@ -121,11 +120,22 @@ for (ll i = 0; i < DIM; i++)
         C[i][j] = j ? ((C[i - 1][j] + C[i - 1][j - 1]) % MOD) : 1;
 ```
 
-- Lucas：$$\binom{n}{m}\bmod p = \binom{\left\lfloor n/p \right\rfloor}{\left\lfloor m/p\right\rfloor}\cdot\binom{n\bmod p}{m\bmod p}\bmod p$$
+- Lucas：$$\binom{n}{m}\bmod p = \binom{\left\lfloor n/p \right\rfloor}{\left\lfloor m/p\right\rfloor}\cdot\binom{n\bmod p}{m\bmod p}\bmod p$$​
 
+## 乘法逆元
+- https://acm.hdu.edu.cn/showproblem.php?pid=7437
+
+给定质数$m$,求$a$的逆元$a^{-1}$​
+
+- 欧拉定理知 $a^{\phi (m)} \equiv 1 \mod m$
+- 对质数 $m$, $\phi (m) = m - 1$
+- 此情景即为费马小定理，i.e. $a^{m - 1} \equiv 1 \mod m$
+- 左右同时乘$a^{-1}$,可得 $a ^ {m - 2} \equiv a ^ {-1} \mod m$
+- 即 `a_inv = binpow_mod(a, m - 2, m)`
+
+# 图论
 ## 拓扑排序
-
-## Khan BFS
+### Khan BFS
 
 ```c++
 struct graph {
@@ -157,7 +167,7 @@ struct graph {
 };
 ```
 
-## DFS
+### DFS
 
 ```c++
 struct graph {
@@ -199,9 +209,9 @@ struct graph {
 
 };
 ```
-# 最短路
+## 最短路
 
-## Floyd
+### Floyd
 
 ```c++
 ll F[DIM][DIM];
@@ -230,7 +240,7 @@ int main() {
 }
 ```
 
-## Dijkstra
+### Dijkstra
 
 ```c++
 #define INF 1e18
@@ -269,9 +279,9 @@ struct graph {
 };
 ```
 
-# 最小生成树
+## 最小生成树
 
-## Kruskal 
+### Kruskal 
 
 ```c++
 struct dsu {
@@ -303,9 +313,9 @@ int main() {
 }
 ```
 
-# 欧拉回路
+## 欧拉回路
 
-## Hierholzer
+### Hierholzer
 
 ```c++
 struct edge { ll to, weight; };
@@ -344,59 +354,6 @@ template<size_t Size> struct graph {
         reverse(euler_road_ans.begin(),euler_road_ans.end()
 		return euler_road_ans;
 	}
-};
-```
-
-# 优先队列（二叉堆）
-
-> ```c++
-> #define PREDT(T,X) [](T const& lhs, T const& rhs) {return X;}    
-> auto pp = PREDT( elem, lhs.w > rhs.w);
-> priority_queue < elem, vector<elem>, decltype(pp)> Q {pp};
-> ```
-
-# DSU
-
-- 不考虑边权
-
-```C++
-struct dsu {
-    vector<ll> pa;
-    dsu(const ll size) : pa(size) { iota(pa.begin(), pa.end(), 0); }; // 初始时，每个集合都是自己的父亲
-    inline bool is_root(const ll leaf) { return pa[leaf] == leaf; }
-    inline ll find(const ll leaf) { return is_root(leaf) ? leaf : find(pa[leaf]); } // 路径压缩
-    inline void unite(const ll x, const ll y) { pa[find(x)] = find(y); }
-};
-```
-
-- 需要计算到根距离
-
-```c++
-struct dsu {
-    vector<ll> pa, root_dis, set_size; // 父节点，到父亲距离，自己为父亲的集合大小
-    dsu(const ll size) : pa(size), root_dis(size, 0), set_size(size, 1) { iota(pa.begin(), pa.end(), 0);  }; // 同上
-    inline bool is_root(const ll leaf) { return pa[leaf] == leaf; }
-    inline ll find(const ll leaf) { 
-        if (is_root(leaf)) return leaf;
-        const ll f = find(pa[leaf]);
-        root_dis[leaf] += root_dis[pa[leaf]]; // 被压缩进去的集合到根距离变长
-        pa[leaf] = f;
-        return pa[leaf];
-    }
-    inline void unite(const ll x, const ll y) {
-        if (x == y) return;
-        const ll fx = find(x);
-        const ll fy = find(y);
-        pa[fx] = fy;
-        root_dis[fx] += set_size[fy]; // 同 find
-        set_size[fy] += set_size[fx]; // 根集合大小扩大
-    }
-    inline ll distance(const ll x, const ll y) {
-        const ll fx = find(x);
-        const ll fy = find(y);
-        if (fx != fy) return -1; // 同最终父亲才可能共享路径
-        return abs(root_dis[x] - root_dis[y]) - 1;
-    }
 };
 ```
 
@@ -540,7 +497,7 @@ struct graph {
 };
 ```
 
-# 树的直径
+## 树的直径
 
 ```c++
 struct edge { ll to, cost; };
@@ -603,9 +560,123 @@ struct graph {
 };
 ```
 
+# 数据结构 / DS
+## 优先队列（二叉堆）
+
+> ```c++
+> #define PREDT(T,X) [](T const& lhs, T const& rhs) {return X;}    
+> auto pp = PREDT( elem, lhs.w > rhs.w);
+> priority_queue < elem, vector<elem>, decltype(pp)> Q {pp};
+> ```
+
+## DSU
+
+- 不考虑边权
+
+```C++
+struct dsu {
+    vector<ll> pa;
+    dsu(const ll size) : pa(size) { iota(pa.begin(), pa.end(), 0); }; // 初始时，每个集合都是自己的父亲
+    inline bool is_root(const ll leaf) { return pa[leaf] == leaf; }
+    inline ll find(const ll leaf) { return is_root(leaf) ? leaf : find(pa[leaf]); } // 路径压缩
+    inline void unite(const ll x, const ll y) { pa[find(x)] = find(y); }
+};
+```
+
+- 需要计算到根距离
+
+```c++
+struct dsu {
+    vector<ll> pa, root_dis, set_size; // 父节点，到父亲距离，自己为父亲的集合大小
+    dsu(const ll size) : pa(size), root_dis(size, 0), set_size(size, 1) { iota(pa.begin(), pa.end(), 0);  }; // 同上
+    inline bool is_root(const ll leaf) { return pa[leaf] == leaf; }
+    inline ll find(const ll leaf) { 
+        if (is_root(leaf)) return leaf;
+        const ll f = find(pa[leaf]);
+        root_dis[leaf] += root_dis[pa[leaf]]; // 被压缩进去的集合到根距离变长
+        pa[leaf] = f;
+        return pa[leaf];
+    }
+    inline void unite(const ll x, const ll y) {
+        if (x == y) return;
+        const ll fx = find(x);
+        const ll fy = find(y);
+        pa[fx] = fy;
+        root_dis[fx] += set_size[fy]; // 同 find
+        set_size[fy] += set_size[fx]; // 根集合大小扩大
+    }
+    inline ll distance(const ll x, const ll y) {
+        const ll fx = find(x);
+        const ll fy = find(y);
+        if (fx != fy) return -1; // 同最终父亲才可能共享路径
+        return abs(root_dis[x] - root_dis[y]) - 1;
+    }
+};
+```
+## 树状数组
+```c++
+struct fenwick : public v {
+	using v::v;
+	void init(v const& a) {
+		for (ll i = 0; i < a.size(); i++) {
+			(*this)[i] += a[i]; // 求出该子节点
+			ll j = i + LOWBIT(i);
+			if (j < size()) (*this)[j] += (*this)[i]; // ...后更新父节点
+		}
+	}
+	// \sum_{i=1}^{n} a_i
+	ll sum(ll n) {
+		ll s = 0;
+		for (; n; n -= LOWBIT(n)) s += (*this)[n];
+		return s;
+	};
+	ll query(ll l, ll r) {
+		return sum(r) - sum(l - 1);
+	}
+	void add(ll n, ll k) {
+		for (; n < size(); n += LOWBIT(n)) (*this)[n] += k;
+	};
+};
+```
+### 区间问题 Example
+- 解释：https://oi-wiki.org/ds/fenwick/#区间加区间和
+- 题目：https://hydro.ac/d/ahuacm/p/Algo0304
+```c++
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(0); std::cout.tie(0);
+    /* El Psy Kongroo */
+	ll n, m; cin >> n >> m;
+	fenwick L(n + 1), R(n + 1);
+	auto add = [&](ll l, ll r, ll v) {
+		L.add(l, v); R.add(l, l * v);
+		L.add(r + 1, -v); R.add(r + 1, -(r + 1) * v);
+	};
+	auto sum = [&](ll l, ll r) {
+		return (r + 1) * L.sum(r) - l * L.sum(l - 1) - R.sum(r) + R.sum(l - 1);
+	};
+	for (ll i = 1; i <= n; i++) {
+		ll x; cin >> x;
+		add(i, i, x);
+	}
+	while (m--) {
+		ll op; cin >> op;
+		if (op == 1) {
+			ll x, y, k; cin >> x >> y >> k;
+			add(x, y, k);
+		}
+		else {
+			ll x; cin >> x;
+			cout << sum(x, x) << endl;
+		}
+	}
+    return 0;
+} 
+```
+
 # 字符串
 
 ## AC自动机
+- https://www.luogu.com.cn/problem/P3796
 
 ```c++
 struct AC {
@@ -664,7 +735,8 @@ struct AC {
 
 
 ## 字符串哈希
-
+- https://acm.hdu.edu.cn/showproblem.php?pid=7433
+- https://acm.hdu.edu.cn/contest/problem?cid=1125&pid=1011
 ```c++
 // https://oi-wiki.org/string/hash/
 namespace substring_hash
@@ -693,5 +765,3 @@ namespace substring_hash
 };
 ```
 
-- https://acm.hdu.edu.cn/showproblem.php?pid=7433
-- https://acm.hdu.edu.cn/contest/problem?cid=1125&pid=1011
