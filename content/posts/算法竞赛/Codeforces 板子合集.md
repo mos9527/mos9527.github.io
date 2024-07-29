@@ -10,6 +10,7 @@ typora-root-url: ..\..\static
 ---
 ## Header
 ```c++
+#pragma GCC optimize("O3","unroll-loops")
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <algorithm>
@@ -638,7 +639,47 @@ struct fenwick : public v {
 	};
 };
 ```
-### 区间问题 Example
+### 支持不可差分查询模板
+
+- 解释：https://oi-wiki.org/ds/fenwick/#树状数组维护不可差分信息
+- 题目：https://acm.hdu.edu.cn/showproblem.php?pid=7463
+
+```C++
+struct fenwick {
+    ll n;
+    v a, C, Cm;
+    fenwick(ll n) : n(n), a(n + 1), C(n + 1, -1e18), Cm(n + 1, 1e18) {}
+    ll getmin(ll l, ll r) {
+        ll ans = 1e18;
+        while (r >= l) {
+            ans = min(ans, a[r]); --r;
+            for (; r - LOWBIT(r) >= l; r -= LOWBIT(r)) ans = min(ans, Cm[r]);
+        }
+        return ans;
+    }
+    ll getmax(ll l, ll r) {
+        ll ans = -1e18;
+        while (r >= l) {
+            ans = max(ans, a[r]); --r;
+            for (; r - LOWBIT(r) >= l; r -= LOWBIT(r)) ans = max(ans, C[r]);
+        }
+        return ans;
+    }
+    void update(ll x, ll v) {
+        a[x] = v;
+        for (ll i = x; i <= n; i += LOWBIT(i)) {
+            C[i] = a[i]; Cm[i] = a[i];
+            for (ll j = 1; j < LOWBIT(i); j *= 2) {
+                C[i] = max(C[i], C[i - j]);
+                Cm[i] = min(Cm[i], Cm[i - j]);
+            }
+        }
+    }
+};
+```
+
+### 区间模板
+
 - 解释：https://oi-wiki.org/ds/fenwick/#区间加区间和
 - 题目：https://hydro.ac/d/ahuacm/p/Algo0304
 ```c++
