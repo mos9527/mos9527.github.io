@@ -25,6 +25,8 @@ typora-root-url: ..\..\static
 #include <sstream>
 #include <string>
 #include <set>
+#include <array>
+#include <random>
 #include <cassert>
 
 using namespace std;
@@ -92,6 +94,8 @@ typedef matrix<ll, 4> mat4;
 ## 快速幂
 
 ```c++
+// 注：爆int64考虑__int128或相关intrinsic
+// MSVC: https://codeforces.com/blog/entry/106396
 template<typename T> T binpow(T a, T res, ll b) {
 	while (b > 0) {
 		if (b & 1) res = res * a;
@@ -134,7 +138,112 @@ for (ll i = 0; i < DIM; i++)
 - 左右同时乘$a^{-1}$,可得 $a ^ {m - 2} \equiv a ^ {-1} \mod m$
 - 即 `a_inv = binpow_mod(a, m - 2, m)`
 
+## 数论
+
+### Euler 筛
+
+```c++
+namespace euler_sieve { // 欧拉筛法 + 区间筛
+    v primes;
+    bool not_prime[DIM];
+
+    void init(ll N) {
+        for (ll i = 2; i <= N; ++i) {
+            if (!not_prime[i]) primes.push_back(i);
+            for (auto j : primes) {
+                if (i * j > N) break;
+                not_prime[i * j] = true;
+                if (i % j == 0) break;
+            }
+        }
+    }
+    void update_range(ll l, ll r) {
+        for (auto p : primes) {
+            if (p * p > r) break;
+            for (ll j = max((ll)ceil(1.0 * l / p), p) * p; j <= r; j += p) not_prime[j] = true;
+    	}
+    }
+}
+```
+
+### Miller-Rabin
+
+```c++
+bool Miller_Rabin(ll p) {  // 判断素数
+    if (p < 2) return 0;
+    if (p == 2) return 1;
+    if (p == 3) return 1;
+    ll d = p - 1, r = 0;
+    while (!(d & 1)) ++r, d >>= 1;  // 将d处理为奇数
+    for (ll a : {2, 3, 5, 7, 11, 13, 17, 19, 23}) {
+        if (p == a) return 1;
+        ll x = binpow_mod(a, d, p);
+        if (x == 1 || x == p - 1) continue;
+        for (int i = 0; i < r - 1; ++i) {
+            x = x * x % p;
+            if (x == p - 1) break;
+        }
+        if (x != p - 1) return 0;
+    }
+    return 1;
+}
+```
+
+### Pollard-Rho
+
+```c++
+mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
+ll Pollard_Rho(ll x) {  // 找出x的一个非平凡因数
+    ll s = 0, t = 0;
+    ll c = ll(rng()) % (x - 1) + 1;
+    ll val = 1;
+    for (ll goal = 1; ; goal *= 2, s = t, val = 1) {
+        for (ll step = 1; step <= goal; step++) {
+            t = (t * t + c) % x;
+            val = val * abs(t - s) % x;
+            if (step % 127 == 0) {
+                ll g = gcd(val, x);
+                if (g > 1) return g;
+            }
+        }
+        ll d = gcd(val, x);
+        if (d > 1) return d;
+    }
+}
+```
+
+### 分解质因数
+
+```c++
+// MR+PR
+void Prime_Factor(ll x, v& res) {   
+    auto f = [&](auto f,ll x){
+        if (x == 1) return;
+        if (Miller_Rabin(x)) return res.push_back(x);
+        ll y = Pollard_Rho(x);
+        f(f,y),f(f,x / y);
+    };
+    f(f,x),sort(res.begin(),res.end());    
+}
+// Euler
+namespace euler_sieve {
+	void Prime_Factor(ll x, v& res) {
+        for (auto p : primes) {
+            if (p * p > x) break;
+            if (x % p == 0) {
+                res.push_back(p);
+                while (x % p == 0) x /= p;
+            }
+            if (x != 1) res.push_back(x);
+        }
+    }
+}
+```
+
+- https://ac.nowcoder.com/acm/contest/81603/E
+
 # 图论
+
 ## 拓扑排序
 ### Khan BFS
 
