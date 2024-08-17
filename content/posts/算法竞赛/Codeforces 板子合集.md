@@ -8,57 +8,147 @@ ShowToc: true
 TocOpen: true
 typora-root-url: ..\..\static
 ---
-## Header
+# Header
+
+- Setup: Visual Studio 2022, clang-cl, cmake
+
+- `bits/stdc++.h`
+```c++
+// C++ includes used for precompiling -*- C++ -*-
+
+// Copyright (C) 2003-2013 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file stdc++.h
+ *  This is an implementation file for a precompiled header.
+ */
+
+ // 17.4.1.2 Headers
+
+ // C
+#ifndef _GLIBCXX_NO_ASSERT
+#include <cassert>
+#endif
+#include <cctype>
+#include <cerrno>
+#include <cfloat>
+#include <ciso646>
+#include <climits>
+#include <clocale>
+#include <cmath>
+#include <csetjmp>
+#include <csignal>
+#include <cstdarg>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+
+#if __cplusplus >= 201103L
+#include <ccomplex>
+#include <cfenv>
+#include <cinttypes>
+#include <cstdbool>
+#include <cstdint>
+#include <ctgmath>
+#include <cwchar>
+#include <cwctype>
+#endif
+
+// C++
+#include <algorithm>
+#include <bitset>
+#include <complex>
+#include <deque>
+#include <exception>
+#include <fstream>
+#include <functional>
+#include <iomanip>
+#include <ios>
+#include <iosfwd>
+#include <iostream>
+#include <istream>
+#include <iterator>
+#include <limits>
+#include <list>
+#include <locale>
+#include <map>
+#include <memory>
+#include <new>
+#include <numeric>
+#include <ostream>
+#include <queue>
+#include <set>
+#include <sstream>
+#include <stack>
+#include <stdexcept>
+#include <streambuf>
+#include <string>
+#include <typeinfo>
+#include <utility>
+#include <valarray>
+#include <vector>
+
+#if __cplusplus >= 201103L
+#include <array>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <forward_list>
+#include <future>
+#include <initializer_list>
+#include <mutex>
+#include <random>
+#include <ratio>
+#include <regex>
+#include <scoped_allocator>
+#include <system_error>
+#include <thread>
+#include <tuple>
+#include <typeindex>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#endif
+```
+- Header
 ```c++
 #pragma GCC optimize("O3","unroll-loops")
-#define _CRT_SECURE_NO_WARNINGS
-#include <iostream>
-#include <algorithm>
-#include <numeric>
-#include <vector>
-#include <stdio.h>
-#include <cmath>
-#include <queue>
-#include <iomanip>
-#include <cstring>
-#include <map>
-#include <sstream>
-#include <string>
-#include <set>
-#include <array>
-#include <random>
-#include <cassert>
-
+#include "bits/stdc++.h"
 using namespace std;
-typedef double lf;
-typedef long long ll;
-typedef unsigned long long ull;
-typedef vector<ll> v;
-typedef vector<ull> uv;
-#define EPS 0.0001F
-#define PRED(X) [](auto const& lhs, auto const& rhs) {return X;}
-#define PREDT(T,X) [](T const& lhs, T const& rhs) {return X;}
-#define PAIR2(T) pair<T,T>
-typedef PAIR2(ll) II;
-typedef PAIR2(ull) uII;
-#define DIMENSION 3e5+1
-#define BIT(X) (1LL << X)
-#define LOWBIT(X) (X & (-X))
-#define DIM (size_t)(DIMENSION)
-#define MOD (ll)(1e9 + 7)
-#ifdef _DEBUG
-#define LOG cerr
-#define REDIRECT_IN assert(std::freopen("input.in", "r", stdin));
-#define REDIRECT_OUT assert(std::freopen("input.out", "r", stdout));
-#else
-#define LOG if (false) cerr
-#define REDIRECT_IN
-#define REDIRECT_OUT
-#endif // _DEBUG
-
+#define PRED(T,X) [](T const& lhs, T const& rhs) {return X;}
+typedef long long ll; typedef unsigned long long ull; typedef double lf; typedef long double llf;
+typedef __int128 i128; typedef unsigned __int128 ui128;
+typedef pair<ll, ll> II; typedef vector<ll> vec;
+const static void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0); cout.tie(0); }
+const static ll lowbit(const ll x) { return x & -x; }
+const ll DIM = 1e5;
+const ll MOD = 1e9 + 7;
+const ll INF = 1e9 + 7;
 int main() {
-    std::ios::sync_with_stdio(false); std::cin.tie(0); std::cout.tie(0);
+    fast_io();
     /* El Psy Kongroo */
+
     return 0;
 }
 ```
@@ -96,6 +186,7 @@ typedef matrix<ll, 4> mat4;
 ```c++
 // 注：爆int64考虑__int128或相关intrinsic
 // MSVC: https://codeforces.com/blog/entry/106396
+// Clang on Visual Studio: https://learn.microsoft.com/en-us/cpp/build/clang-support-cmake?view=msvc-170
 template<typename T> T binpow(T a, T res, ll b) {
 	while (b > 0) {
 		if (b & 1) res = res * a;
@@ -105,14 +196,14 @@ template<typename T> T binpow(T a, T res, ll b) {
 	return res;
 }
 ll binpow_mod(ll a, ll b, ll m) {
-	a %= m;
-	ll res = 1;
-	while (b > 0) {
-		if (b & 1) res = res * a % m;
-		a = a * a % m;
-		b >>= 1;
-	}
-	return res;
+    a %= m;
+    ll res = 1;
+    while (b > 0) {
+        if (b & 1) res = (__int128)res * a % m;
+        a = (__int128)a * a % m;
+        b >>= 1;
+    }
+    return res;
 }
 ```
 
@@ -175,12 +266,12 @@ bool Miller_Rabin(ll p) {  // 判断素数
     if (p == 3) return 1;
     ll d = p - 1, r = 0;
     while (!(d & 1)) ++r, d >>= 1;  // 将d处理为奇数
-    for (ll a : {2, 3, 5, 7, 11, 13, 17, 19, 23}) {
+    for (ll a : {2, 3, 5, 7, 11, 13, 17, 19, 23, 823}) {
         if (p == a) return 1;
         ll x = binpow_mod(a, d, p);
         if (x == 1 || x == p - 1) continue;
         for (int i = 0; i < r - 1; ++i) {
-            x = x * x % p;
+            x = (__int128)x * x % p;
             if (x == p - 1) break;
         }
         if (x != p - 1) return 0;
@@ -194,13 +285,14 @@ bool Miller_Rabin(ll p) {  // 判断素数
 ```c++
 mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
 ll Pollard_Rho(ll x) {  // 找出x的一个非平凡因数
+    if (x % 2 == 0) return 2;
     ll s = 0, t = 0;
     ll c = ll(rng()) % (x - 1) + 1;
     ll val = 1;
     for (ll goal = 1; ; goal *= 2, s = t, val = 1) {
         for (ll step = 1; step <= goal; step++) {
-            t = (t * t + c) % x;
-            val = val * abs(t - s) % x;
+            t = ((__int128)t * t + c) % x;
+            val = (__int128)val * abs((long long)(t - s)) % x;
             if (step % 127 == 0) {
                 ll g = gcd(val, x);
                 if (g > 1) return g;
@@ -913,5 +1005,14 @@ namespace substring_hash
         }
     };
 };
+```
+
+## 杂项
+
+### 二分
+
+- 最大值
+
+```c++
 ```
 
