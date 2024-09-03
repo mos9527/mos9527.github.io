@@ -459,7 +459,7 @@ struct graph {
 	const auto& dijkstra(ll start) {
 		fill(dis.begin(), dis.end(), INF);
         fill(vis.begin(), vis.end(), false);
-		const auto pp = PREDT(vert, lhs.dis > rhs.dis);
+		const auto pp = PRED(vert, lhs.dis > rhs.dis);
 		priority_queue<vert, vector<vert>, decltype(pp)> T{ pp }; // 最短路点
 		T.push(vert{ start, 0 });
 		dis[start] = 0;
@@ -766,8 +766,7 @@ struct graph {
 ## 优先队列（二叉堆）
 
 > ```c++
-> #define PREDT(T,X) [](T const& lhs, T const& rhs) {return X;}    
-> auto pp = PREDT( elem, lhs.w > rhs.w);
+> auto pp = PRED( elem, lhs.w > rhs.w);
 > priority_queue < elem, vector<elem>, decltype(pp)> Q {pp};
 > ```
 
