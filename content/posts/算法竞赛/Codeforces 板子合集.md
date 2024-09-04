@@ -250,7 +250,6 @@ namespace euler_sieve { // 欧拉筛法 + 区间筛
     }
     void update_range(ll l, ll r) {
         for (auto p : primes) {
-            if (p * p > r) break;
             for (ll j = max((ll)ceil(1.0 * l / p), p) * p; j <= r; j += p) not_prime[j] = true;
     	}
     }
@@ -321,7 +320,6 @@ void Prime_Factor(ll x, v& res) {
 namespace euler_sieve {
 	void Prime_Factor(ll x, v& res) {
         for (auto p : primes) {
-            if (p * p > x) break;
             if (x % p == 0) {
                 res.push_back(p);
                 while (x % p == 0) x /= p;
@@ -700,6 +698,8 @@ struct graph {
 ```
 
 ## 树的直径
+
+- https://oi-wiki.org/graph/tree-diameter/
 
 ```c++
 struct edge { ll to, cost; };
