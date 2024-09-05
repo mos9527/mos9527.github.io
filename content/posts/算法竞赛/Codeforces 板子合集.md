@@ -140,6 +140,7 @@ using namespace std;
 typedef long long ll; typedef unsigned long long ull; typedef double lf; typedef long double llf;
 typedef __int128 i128; typedef unsigned __int128 ui128;
 typedef pair<ll, ll> II; typedef vector<ll> vec;
+template<size_t size> using arr = array<ll, size>;
 const static void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0); cout.tie(0); }
 const static ll lowbit(const ll x) { return x & -x; }
 const ll DIM = 1e5;
@@ -238,7 +239,7 @@ namespace euler_sieve { // 欧拉筛法 + 区间筛
     v primes;
     bool not_prime[DIM];
 
-    void init(ll N) {
+    void init(ll N=DIM - 1) {
         for (ll i = 2; i <= N; ++i) {
             if (!not_prime[i]) primes.push_back(i);
             for (auto j : primes) {
@@ -318,14 +319,9 @@ void Prime_Factor(ll x, v& res) {
 }
 // Euler
 namespace euler_sieve {
-	void Prime_Factor(ll x, v& res) {
-        for (auto p : primes) {
-            if (x % p == 0) {
-                res.push_back(p);
-                while (x % p == 0) x /= p;
-            }
-            if (x != 1) res.push_back(x);
-        }
+    void Prime_Factor(ll x, set<ll>& res) {
+        for (ll i = 2; i * i <= x; i++) while (x % i == 0) res.insert(i), x /= i;
+        if (x != 1) res.insert(x);        
     }
 }
 ```
