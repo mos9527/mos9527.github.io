@@ -154,34 +154,6 @@ int main() {
 }
 ```
 # 数学
-## 矩阵
-
-```c++
-template<typename T, size_t Size> struct matrix {
-	T m[Size][Size]{};
-	struct identity {};
-	matrix() {}; // zero matrix
-	matrix(identity const&) { for (size_t i = 0; i < Size; i++) m[i][i] = 1; } // usage: matrix(matrix::identity{})
-	matrix(initializer_list<initializer_list<T>> l) { // usage: matrix({{1,2},{3,4}})
-		size_t i = 0;
-		for (auto& row : l) { size_t j = 0; for (auto& x : row) m[i][j++] = x; i++; }
-	}
-	matrix operator*(matrix const& other) const {
-		matrix res;
-		for (size_t i = 0; i < Size; i++)
-			for (size_t j = 0; j < Size; j++)
-				for (size_t k = 0; k < Size; k++)
-					res.m[i][j] = (res.m[i][j] + m[i][k] * other.m[k][j]) % MOD;
-		return res;
-	}
-};
-typedef matrix<ll, 2> mat2;
-typedef matrix<ll, 3> mat3;
-typedef matrix<ll, 4> mat4;
-```
-
-- https://codeforces.com/gym/105170/problem/C
-
 ## 快速幂
 
 ```c++
@@ -208,7 +180,60 @@ ll binpow_mod(ll a, ll b, ll m) {
 }
 ```
 
-## 组合数（递推）
+## 线性代数
+### 矩阵
+- https://codeforces.com/gym/105170/problem/C
+- https://codeforces.com/gym/105336 (D 编码器-解码器)
+```c++
+template<typename T, size_t Size> struct matrix {
+	T m[Size][Size]{};
+	struct identity {};
+	matrix() {}; // zero matrix
+	matrix(identity const&) { for (size_t i = 0; i < Size; i++) m[i][i] = 1; } // usage: matrix(matrix::identity{})
+	matrix(initializer_list<initializer_list<T>> l) { // usage: matrix({{1,2},{3,4}})
+		size_t i = 0;
+		for (auto& row : l) { size_t j = 0; for (auto& x : row) m[i][j++] = x; i++; }
+	}
+	matrix operator*(matrix const& other) const {
+		matrix res;
+		for (size_t i = 0; i < Size; i++)
+			for (size_t j = 0; j < Size; j++)
+				for (size_t k = 0; k < Size; k++)
+					res.m[i][j] = (res.m[i][j] + m[i][k] * other.m[k][j]) % MOD;
+		return res;
+	}
+};
+typedef matrix<ll, 2> mat2;
+typedef matrix<ll, 3> mat3;
+typedef matrix<ll, 4> mat4;
+```
+
+
+
+### 线性基
+
+- https://www.luogu.com.cn/article/zo12e4s5
+- https://codeforces.com/gym/105336 （J 找最小）
+
+```c++
+struct linear_base : array<ll, 64> {
+    void insert(ll x) {
+        for (ll i = 63; i >= 0; i--) if ((x >> i) & 1) {
+            if (!(*this)[i]) {
+                (*this)[i] = x;
+                break;
+            }
+            x ^= (*this)[i];
+        }
+    }
+};
+```
+
+
+
+
+
+## 组合数
 
 ```c++
 ll C[DIM][DIM];
@@ -219,7 +244,9 @@ for (ll i = 0; i < DIM; i++)
 
 - Lucas：$$\binom{n}{m}\bmod p = \binom{\left\lfloor n/p \right\rfloor}{\left\lfloor m/p\right\rfloor}\cdot\binom{n\bmod p}{m\bmod p}\bmod p$$​
 
-## 乘法逆元
+
+## 数论
+### 乘法逆元
 - https://acm.hdu.edu.cn/showproblem.php?pid=7437
 
 给定质数$m$,求$a$的逆元$a^{-1}$​
@@ -229,8 +256,6 @@ for (ll i = 0; i < DIM; i++)
 - 此情景即为费马小定理，i.e. $a^{m - 1} \equiv 1 \mod m$
 - 左右同时乘$a^{-1}$,可得 $a ^ {m - 2} \equiv a ^ {-1} \mod m$
 - 即 `a_inv = binpow_mod(a, m - 2, m)`
-
-## 数论
 
 ### Euler 筛
 
@@ -759,6 +784,73 @@ struct graph {
 ```
 
 # 数据结构 / DS
+## 线段树（仮）
+```c++
+#include<iostream>
+using namespace std;
+typedef long long ll;
+const int N=2e5+5;
+int len[4*N],L[4*N],R[4*N],S[4*N],H[4*N],ans[4*N];
+// 原数组，节点长度，左端点，右端点，符合条件的前缀，符合条件的后缀，符合条件的最大长度
+
+void work(int o,int k){//更新第o个节点 
+	S[o]=H[o]=ans[o]=1;
+	L[o]=R[o]=k;
+}
+
+void maintain(int o){
+	int lc=o<<1,rc=o<<1|1;
+	if(L[rc]^R[lc]==0){
+		ans[o]=max(ans[lc],ans[rc]);
+	}
+	else{
+		ans[o]=max(H[lc]+S[rc],max(ans[lc],ans[rc]));
+	}
+	L[o]=L[lc],R[o]=R[rc];
+	if(S[lc]==len[lc]&&L[rc]^R[lc])S[o]=S[lc]+S[rc];
+	else S[o]=S[lc];
+	if(H[rc]==len[rc]&&L[rc]^R[lc])H[o]=H[rc]+H[lc];
+	else H[o]=H[rc];
+} 
+
+void build(int o,int l,int r){
+	len[o]=r-l+1;
+	if(l==r){
+		work(o,0);
+		return;
+	}
+	int lc=o*2,rc=o*2+1,mid=l+r>>1;
+	build(lc,l,mid);
+	build(rc,mid+1,r);
+	maintain(o);
+}
+
+void change(int o,int l,int r,int x)
+{
+	if(l==r)                                
+	{
+		work(o,!L[o]);                //0变成1,1变成0
+		return;
+	}
+	int lc=o*2,rc=o*2+1,mid=l+r>>1;
+	if(x<=mid) change(lc,l,mid,x);
+	else change(rc,mid+1,r,x);
+	maintain(o);
+}
+
+int main(){
+	int n,q;
+	cin>>n>>q;
+	build(1,1,n);
+	while(q--){
+		int x;cin>>x;
+		change(1,1,n,x);
+		cout<<ans[1]<<endl;
+	}
+	return 0;
+}
+```
+
 ## 优先队列（二叉堆）
 
 > ```c++
@@ -812,27 +904,27 @@ struct dsu {
 ```
 ## 树状数组
 ```c++
-struct fenwick : public v {
-	using v::v;
-	void init(v const& a) {
-		for (ll i = 0; i < a.size(); i++) {
-			(*this)[i] += a[i]; // 求出该子节点
-			ll j = i + LOWBIT(i);
-			if (j < size()) (*this)[j] += (*this)[i]; // ...后更新父节点
-		}
-	}
-	// \sum_{i=1}^{n} a_i
-	ll sum(ll n) {
-		ll s = 0;
-		for (; n; n -= LOWBIT(n)) s += (*this)[n];
-		return s;
-	};
-	ll query(ll l, ll r) {
-		return sum(r) - sum(l - 1);
-	}
-	void add(ll n, ll k) {
-		for (; n < size(); n += LOWBIT(n)) (*this)[n] += k;
-	};
+struct fenwick : public vec {
+    using vec::vec;
+    void init(vec const& a) {
+        for (ll i = 0; i < a.size(); i++) {
+            (*this)[i] += a[i]; // 求出该子节点
+            ll j = i + lowbit(i);
+            if (j < size()) (*this)[j] += (*this)[i]; // ...后更新父节点
+        }
+    }
+    // \sum_{i=1}^{n} a_i
+    ll sum(ll n) {
+        ll s = 0;
+        for (; n; n -= lowbit(n)) s += (*this)[n];
+        return s;
+    };
+    ll query(ll l, ll r) {
+        return sum(r) - sum(l - 1);
+    }
+    void add(ll n, ll k) {
+        for (; n < size(); n += lowbit(n)) (*this)[n] += k;
+    };
 };
 ```
 ### 支持不可差分查询模板
@@ -1001,13 +1093,3 @@ namespace substring_hash
     };
 };
 ```
-
-## 杂项
-
-### 二分
-
-- 最大值
-
-```c++
-```
-
