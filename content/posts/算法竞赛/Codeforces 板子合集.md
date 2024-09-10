@@ -783,7 +783,69 @@ struct graph {
 };
 ```
 
+## Dinic 最大流
+
+- https://www.cnblogs.com/SYCstudio/p/7260613.html
+
+```c++
+struct graph {
+    ll n, cnt = 0;
+    vec V, W, Next, Head;
+    graph(ll n, ll e = DIM) : V(e), W(e), Next(e, -1), Head(e, -1), n(n) {}
+    void add_edge(ll u, ll v, ll w) {
+        Next[cnt] = Head[u];
+        V[cnt] = v, W[cnt] = w;
+        Head[u] = cnt;
+        cnt++;
+    }
+    void dinic_add_edge(ll u, ll v, ll w) {
+        add_edge(u, v, w); // W[i]
+        add_edge(v, u, 0); // W[i^1]
+    }
+private:
+    vec dinic_depth, dinic_cur;
+    bool dinic_bfs(ll s, ll t) /* 源点，汇点 */ {
+        queue<ll> Q;
+        dinic_depth.assign(n + 1, 0);        
+        dinic_depth[s] = 1; Q.push(s);
+        while (!Q.empty()){
+            ll u = Q.front(); Q.pop();
+            for (ll i = Head[u]; i != -1; i = Next[i]) {
+                if (W[i] && dinic_depth[V[i]] == 0) {                    
+                    dinic_depth[V[i]] = dinic_depth[u] + 1;
+                    Q.push(V[i]);
+                }
+            }
+        }
+        return dinic_depth[t];
+    }
+    ll dinic_dfs(ll u, ll t, ll flow = INF) {
+        if (u == t) return flow;
+        for (ll& i = dinic_cur[u] /* 维护掉已经走过的弧 */; i != -1; i = Next[i]) {
+            if (W[i] && dinic_depth[V[i]] == dinic_depth[u] + 1) {
+                ll d = dinic_dfs(V[i], t, min(flow, W[i]));
+                W[i] -= d, W[i^1] += d; // i^1 是 i 的反向边; 原边i%2==0, 反边在之后；故反边^1->原边 反之亦然
+                if (d) return d;
+            }
+        }
+        return 0;
+    }
+public:
+    ll dinic(ll s, ll t) {
+        ll ans = 0;
+        while (dinic_bfs(s, t)) {
+            dinic_cur = Head;
+            while (ll d = dinic_dfs(s, t)) ans += d;
+        }
+        return ans;
+    }
+};
+```
+
+
+
 # 数据结构 / DS
+
 ## 线段树（仮）
 ```c++
 #include<iostream>
