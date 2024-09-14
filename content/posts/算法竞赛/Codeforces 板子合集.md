@@ -146,6 +146,7 @@ const static ll lowbit(const ll x) { return x & -x; }
 const ll DIM = 1e5;
 const ll MOD = 1e9 + 7;
 const ll INF = 1e9 + 7;
+const lf EPS = 1e-8;
 int main() {
     fast_io();
     /* El Psy Kongroo */
@@ -229,7 +230,94 @@ struct linear_base : array<ll, 64> {
 };
 ```
 
+## 计算几何
 
+- https://codeforces.com/gym/104639/problem/K
+
+### 二维几何
+
+```c++
+template<typename T> struct vec2 {
+    T x, y;
+    ///
+    inline T length_sq() const { return x * x + y * y; }
+    inline T length() const { return sqrt(length_sq()); }
+    inline vec2& operator+=(vec2 const& other) { x += other.x, y += other.y; return *this; }
+    inline vec2& operator-=(vec2 const& other) { x -= other.x, y -= other.y; return *this; }    
+    inline vec2& operator*=(T const& other) { x *= other, y *= other; return *this; }
+    inline vec2& operator/=(T const& other) { x /= other, y /= other; return *this; }
+    inline vec2 operator+(vec2 const& other) const { vec2 v = *this; v += other; return v; }
+    inline vec2 operator-(vec2 const& other) const { vec2 v = *this; v -= other; return v; }
+    inline vec2 operator*(T const& other) const { vec2 v = *this; v *= other; return v; }
+    inline vec2 operator/(T const& other) const { vec2 v = *this; v /= other; return v; }
+    ///
+    inline static lf dist_sq(vec2 const& a, vec2 const& b) {
+        return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+    }
+    inline static lf dist(vec2 const& a, vec2 const& b) {
+        return sqrt(vec2::dist_sq(a, b));
+    }
+    inline static lf cross(vec2 const& a, vec2 const& b) {
+        return a.x * b.y - a.y * b.x;
+    }
+    inline static lf dot(vec2 const& a, vec2 const& b) {
+        return a.x * b.x + a.y * b.y;
+    }
+    inline friend ostream& operator<< (ostream& s, const vec2& v) {
+        s << '(' << v.x << ',' << v.y << ')'; return s;
+    }
+    inline friend istream& operator>> (istream& s, vec2& v) {
+        s >> v.x >> v.y; return s;
+    }
+};
+typedef vec2<lf> point;
+```
+
+#### 二维凸包
+
+```c++
+struct convex_hull : vector<point> {
+    bool is_inside(point const& p) {
+        for (ll i = 0; i < size() - 1; i++) {
+            point a = (*this)[i], b = (*this)[i + 1];
+            point e = b - a, v = p - a;
+            // 全在边同一侧
+            if (point::cross(e, v) < EPS) return false;
+        }
+        return true;
+    }
+    lf min_dis(point const& p) {
+        lf dis = 1e100;
+        for (ll i = 0; i < size() - 1; i++) {
+            point a = (*this)[i], b = (*this)[i + 1];
+            point e = b - a, v = p - a;
+            // 垂点在边上
+            if (point::dot(p - a, b - a) >= 0 && point::dot(p - b, a - b) >= 0)
+                dis = min(dis, abs(point::cross(e, v) / e.length()));
+            // 垂点在边外 - 退化到到顶点距离min
+            else
+                dis = min(dis, min((p - a).length(), (p - b).length()));
+        }
+        return dis;
+    }
+    void build(vector<point>& p) { // Andrew p368
+        sort(p.begin(), p.end());
+        resize(p.size());
+        ll m = 0;
+        for (ll i = 0; i < p.size(); i++) {
+            while (m > 1 && point::cross((*this)[m - 1] - (*this)[m - 2], p[i] - (*this)[m - 2]) < EPS) m--;
+            (*this)[m++] = p[i];
+        }
+        ll k = m;
+        for (ll i = p.size() - 2; i >= 0; i--) {
+            while (m > k && point::cross((*this)[m - 1] - (*this)[m - 2], p[i] - (*this)[m - 2]) < EPS) m--;
+            (*this)[m++] = p[i];
+        }
+        if (p.size() > 1) m--;
+        resize(m);
+    }
+};
+```
 
 
 
@@ -786,6 +874,7 @@ struct graph {
 ## Dinic 最大流
 
 - https://www.cnblogs.com/SYCstudio/p/7260613.html
+- https://codeforces.com/gym/105336/ (G. 疯狂星期六)
 
 ```c++
 struct graph {
@@ -841,8 +930,6 @@ public:
     }
 };
 ```
-
-
 
 # 数据结构 / DS
 
@@ -935,6 +1022,7 @@ struct dsu {
 ```
 
 - 需要计算到根距离
+- https://codeforces.com/contest/2008/problem/D
 
 ```c++
 struct dsu {
