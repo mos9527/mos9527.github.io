@@ -114,7 +114,7 @@ const static void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0); cout
 const static ll lowbit(const ll x) { return x & -x; }
 const ll DIM = 1e5;
 const ll MOD = 1e9 + 7;
-const ll INF = 1e9 + 7;
+const ll INF = 1e18;
 const lf EPS = 1e-8;
 int main() {
     fast_io();
