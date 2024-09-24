@@ -907,71 +907,246 @@ public:
 
 # 数据结构 / DS
 
-## 线段树（仮）
+## RMQ 系列
+### 线段树
+
+- https://codeforces.com/contest/2014/problem/D
+- https://blog.nowcoder.net/n/872036843fe44349a775e62583018d80
+
 ```c++
-#include<iostream>
-using namespace std;
-typedef long long ll;
-const int N=2e5+5;
-int len[4*N],L[4*N],R[4*N],S[4*N],H[4*N],ans[4*N];
-// 原数组，节点长度，左端点，右端点，符合条件的前缀，符合条件的后缀，符合条件的最大长度
+template<typename T> struct segment_tree {
+    struct node {
+        ll l, r; // 区间[l,r]
+        T sum_v;
+        T max_v;
+        // lazy值
+        T lazy_add;
+        optional<T> lazy_set; 
+        ll length() const { return r - l + 1; }
+        ll mid() const { return (l + r) / 2; }
+    };
+    vector<node> tree;
+private:
+    ll begin, end;
+    void push_up(ll o) {
+        // 向上传递
+        ll lc = o * 2, rc = o * 2 + 1;        
+        tree[o].sum_v = tree[lc].sum_v + tree[rc].sum_v;
+        tree[o].max_v = max(tree[lc].max_v, tree[rc].max_v);
+    }
+    void push_down(ll o) {
+        // 向下传递
+        ll lc = o * 2, rc = o * 2 + 1;
+        if (tree[o].lazy_set.has_value()) {
+            tree[lc].lazy_add = tree[rc].lazy_add = 0;
+            tree[lc].lazy_set = tree[rc].lazy_set = tree[o].lazy_set;
+            // 可差分操作
+            tree[lc].max_v = tree[lc].sum_v = tree[o].lazy_set.value();
+            tree[rc].max_v = tree[rc].sum_v = tree[o].lazy_set.value();
+            // 求和贡献与长度有关
+            tree[lc].sum_v = tree[o].lazy_set.value() * tree[lc].length();
+            tree[rc].sum_v = tree[o].lazy_set.value() * tree[rc].length();
+            tree[o].lazy_set.reset();
+        }
+        if (tree[o].lazy_add) {
+            tree[lc].lazy_add += tree[o].lazy_add, tree[rc].lazy_add += tree[o].lazy_add;
+            tree[lc].max_v += tree[o].lazy_add, tree[rc].max_v += tree[o].lazy_add;
+            tree[lc].sum_v += tree[o].lazy_add * tree[lc].length();
+            tree[rc].sum_v += tree[o].lazy_add * tree[rc].length();
+            tree[o].lazy_add = {};
+        }
+    }    
+    void update(ll o, ll l, ll r, optional<T> const& set_v = {}, T const& add_v = 0) {
+        ll lc = o * 2, rc = o * 2 + 1;
+        if (tree[o].l == l && tree[o].r == r) { // 定位到所在区间 - 同下
+            if (set_v.has_value()) {
+                // set
+                tree[o].max_v = set_v.value();
+                tree[o].sum_v = set_v.value() * tree[o].length();
+                tree[o].lazy_set = set_v; tree[o].lazy_add = {};
+            }
+            else {
+                // add
+                tree[o].lazy_add += add_v;
+                tree[o].max_v += add_v;
+                tree[o].sum_v += add_v * tree[o].length();
+            }
+            return;
+        }
+        push_down(o);
+        ll mid = tree[o].mid();
+        if (r <= mid) update(lc, l, r, set_v, add_v);
+        else if (mid < l) update(rc, l, r, set_v, add_v);
+        else {
+            update(lc, l, mid, set_v, add_v);
+            update(rc, mid + 1, r, set_v, add_v);
+        }
+        push_up(o);
+    }
+    node query(ll o, ll l, ll r) {
+        ll lc = o * 2, rc = o * 2 + 1;
+        if (tree[o].l == l && tree[o].r == r) return tree[o];
+        push_down(o);
+        ll mid = tree[o].mid();
+        if (r <= mid) return query(lc, l, r);
+        else if (mid < l) return query(rc, l, r);
+        else {
+            node p = query(lc, l, mid);
+            node q = query(rc, mid + 1, r);
+            return {
+                .l = l, .r = r,
+                .sum_v = p.sum_v + q.sum_v,
+                .max_v = max(p.max_v, q.max_v)
+            };
+        }
+    }
+    void build(ll o, ll l, ll r) {
+        ll lc = o * 2, rc = o * 2 + 1;
+        tree[o].l = l, tree[o].r = r;
+        if (l == r) return;
+        ll mid = (l + r) / 2;
+        build(lc, l, mid);
+        build(rc, mid + 1, r);
+        push_up(o);
+    }
+public:
+    explicit segment_tree(const ll n) : begin(1), end(n) { tree.resize(n << 2); build(begin, begin, end); }
+    void range_add(ll l, ll r, T const& v) { update(1, l, r, {}, v); }
+    void range_set(ll l, ll r, T const& v) { update(1, l, r, v, 0); }
+    node range_query(ll l, ll r) { return query(1, l, r); }
+    T range_sum(ll l, ll r) { return range_query(l, r).sum_v; }
+    T range_max(ll l, ll r) { return range_query(l, r).max_v; }
+};
+```
 
-void work(int o,int k){//更新第o个节点 
-	S[o]=H[o]=ans[o]=1;
-	L[o]=R[o]=k;
-}
+### ST 表
 
-void maintain(int o){
-	int lc=o<<1,rc=o<<1|1;
-	if(L[rc]^R[lc]==0){
-		ans[o]=max(ans[lc],ans[rc]);
+```c++
+template<typename Container> struct sparse_table {
+	ll len;
+	vector<Container> table; // table[i,j] -> [i, i + 2^j - 1] 最大值
+	void init(const Container& data) {
+		len = data.size();
+		ll l1 = ceil(log2(len)) + 1;
+		table.assign(len, Container(l1));
+		for (ll i = 0; i < len; i++) table[i][0] = data[i];
+		for (ll j = 1; j < l1; j++) {
+			ll jpow2 = 1LL << (j - 1);
+			for (ll i = 0; i + jpow2 < len; i++) {
+				// f(i,j) = max(f(i,j-1), f(i + 2^(j-1), j-1))
+				table[i][j] = min(table[i][j - 1], table[i + jpow2][j - 1]);
+			}
+		}
 	}
-	else{
-		ans[o]=max(H[lc]+S[rc],max(ans[lc],ans[rc]));
+	auto query(ll l, ll r) {
+		ll s = floor(log2(r - l + 1));
+		// op([l,l + 2^s - 1], [r - 2^s + 1, r])
+		// -> op(f(l,s), f(r - 2^s + 1, s))
+		return min(table[l][s], table[r - (1LL << s) + 1][s]);
 	}
-	L[o]=L[lc],R[o]=R[rc];
-	if(S[lc]==len[lc]&&L[rc]^R[lc])S[o]=S[lc]+S[rc];
-	else S[o]=S[lc];
-	if(H[rc]==len[rc]&&L[rc]^R[lc])H[o]=H[rc]+H[lc];
-	else H[o]=H[rc];
+};
+```
+
+
+
+### 树状数组
+```c++
+struct fenwick : public vec {
+    using vec::vec;
+    void init(vec const& a) {
+        for (ll i = 0; i < a.size(); i++) {
+            (*this)[i] += a[i]; // 求出该子节点
+            ll j = i + lowbit(i);
+            if (j < size()) (*this)[j] += (*this)[i]; // ...后更新父节点
+        }
+    }
+    // \sum_{i=1}^{n} a_i
+    ll sum(ll n) {
+        ll s = 0;
+        for (; n; n -= lowbit(n)) s += (*this)[n];
+        return s;
+    };
+    ll query(ll l, ll r) {
+        return sum(r) - sum(l - 1);
+    }
+    void add(ll n, ll k) {
+        for (; n < size(); n += lowbit(n)) (*this)[n] += k;
+    };
+};
+```
+#### 支持不可差分查询模板
+
+- 解释：https://oi-wiki.org/ds/fenwick/#树状数组维护不可差分信息
+- 题目：https://acm.hdu.edu.cn/showproblem.php?pid=7463
+
+```C++
+struct fenwick {
+    ll n;
+    v a, C, Cm;
+    fenwick(ll n) : n(n), a(n + 1), C(n + 1, -1e18), Cm(n + 1, 1e18) {}
+    ll getmin(ll l, ll r) {
+        ll ans = 1e18;
+        while (r >= l) {
+            ans = min(ans, a[r]); --r;
+            for (; r - LOWBIT(r) >= l; r -= LOWBIT(r)) ans = min(ans, Cm[r]);
+        }
+        return ans;
+    }
+    ll getmax(ll l, ll r) {
+        ll ans = -1e18;
+        while (r >= l) {
+            ans = max(ans, a[r]); --r;
+            for (; r - LOWBIT(r) >= l; r -= LOWBIT(r)) ans = max(ans, C[r]);
+        }
+        return ans;
+    }
+    void update(ll x, ll v) {
+        a[x] = v;
+        for (ll i = x; i <= n; i += LOWBIT(i)) {
+            C[i] = a[i]; Cm[i] = a[i];
+            for (ll j = 1; j < LOWBIT(i); j *= 2) {
+                C[i] = max(C[i], C[i - j]);
+                Cm[i] = min(Cm[i], Cm[i - j]);
+            }
+        }
+    }
+};
+```
+
+#### 区间模板
+
+- 解释：https://oi-wiki.org/ds/fenwick/#区间加区间和
+- 题目：https://hydro.ac/d/ahuacm/p/Algo0304
+```c++
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(0); std::cout.tie(0);
+    /* El Psy Kongroo */
+	ll n, m; cin >> n >> m;
+	fenwick L(n + 1), R(n + 1);
+	auto add = [&](ll l, ll r, ll v) {
+		L.add(l, v); R.add(l, l * v);
+		L.add(r + 1, -v); R.add(r + 1, -(r + 1) * v);
+	};
+	auto sum = [&](ll l, ll r) {
+		return (r + 1) * L.sum(r) - l * L.sum(l - 1) - R.sum(r) + R.sum(l - 1);
+	};
+	for (ll i = 1; i <= n; i++) {
+		ll x; cin >> x;
+		add(i, i, x);
+	}
+	while (m--) {
+		ll op; cin >> op;
+		if (op == 1) {
+			ll x, y, k; cin >> x >> y >> k;
+			add(x, y, k);
+		}
+		else {
+			ll x; cin >> x;
+			cout << sum(x, x) << endl;
+		}
+	}
+    return 0;
 } 
-
-void build(int o,int l,int r){
-	len[o]=r-l+1;
-	if(l==r){
-		work(o,0);
-		return;
-	}
-	int lc=o*2,rc=o*2+1,mid=l+r>>1;
-	build(lc,l,mid);
-	build(rc,mid+1,r);
-	maintain(o);
-}
-
-void change(int o,int l,int r,int x)
-{
-	if(l==r)                                
-	{
-		work(o,!L[o]);                //0变成1,1变成0
-		return;
-	}
-	int lc=o*2,rc=o*2+1,mid=l+r>>1;
-	if(x<=mid) change(lc,l,mid,x);
-	else change(rc,mid+1,r,x);
-	maintain(o);
-}
-
-int main(){
-	int n,q;
-	cin>>n>>q;
-	build(1,1,n);
-	while(q--){
-		int x;cin>>x;
-		change(1,1,n,x);
-		cout<<ans[1]<<endl;
-	}
-	return 0;
-}
 ```
 
 ## 优先队列（二叉堆）
@@ -1025,105 +1200,6 @@ struct dsu {
         return abs(root_dis[x] - root_dis[y]) - 1;
     }
 };
-```
-## 树状数组
-```c++
-struct fenwick : public vec {
-    using vec::vec;
-    void init(vec const& a) {
-        for (ll i = 0; i < a.size(); i++) {
-            (*this)[i] += a[i]; // 求出该子节点
-            ll j = i + lowbit(i);
-            if (j < size()) (*this)[j] += (*this)[i]; // ...后更新父节点
-        }
-    }
-    // \sum_{i=1}^{n} a_i
-    ll sum(ll n) {
-        ll s = 0;
-        for (; n; n -= lowbit(n)) s += (*this)[n];
-        return s;
-    };
-    ll query(ll l, ll r) {
-        return sum(r) - sum(l - 1);
-    }
-    void add(ll n, ll k) {
-        for (; n < size(); n += lowbit(n)) (*this)[n] += k;
-    };
-};
-```
-### 支持不可差分查询模板
-
-- 解释：https://oi-wiki.org/ds/fenwick/#树状数组维护不可差分信息
-- 题目：https://acm.hdu.edu.cn/showproblem.php?pid=7463
-
-```C++
-struct fenwick {
-    ll n;
-    v a, C, Cm;
-    fenwick(ll n) : n(n), a(n + 1), C(n + 1, -1e18), Cm(n + 1, 1e18) {}
-    ll getmin(ll l, ll r) {
-        ll ans = 1e18;
-        while (r >= l) {
-            ans = min(ans, a[r]); --r;
-            for (; r - LOWBIT(r) >= l; r -= LOWBIT(r)) ans = min(ans, Cm[r]);
-        }
-        return ans;
-    }
-    ll getmax(ll l, ll r) {
-        ll ans = -1e18;
-        while (r >= l) {
-            ans = max(ans, a[r]); --r;
-            for (; r - LOWBIT(r) >= l; r -= LOWBIT(r)) ans = max(ans, C[r]);
-        }
-        return ans;
-    }
-    void update(ll x, ll v) {
-        a[x] = v;
-        for (ll i = x; i <= n; i += LOWBIT(i)) {
-            C[i] = a[i]; Cm[i] = a[i];
-            for (ll j = 1; j < LOWBIT(i); j *= 2) {
-                C[i] = max(C[i], C[i - j]);
-                Cm[i] = min(Cm[i], Cm[i - j]);
-            }
-        }
-    }
-};
-```
-
-### 区间模板
-
-- 解释：https://oi-wiki.org/ds/fenwick/#区间加区间和
-- 题目：https://hydro.ac/d/ahuacm/p/Algo0304
-```c++
-int main() {
-    std::ios::sync_with_stdio(false); std::cin.tie(0); std::cout.tie(0);
-    /* El Psy Kongroo */
-	ll n, m; cin >> n >> m;
-	fenwick L(n + 1), R(n + 1);
-	auto add = [&](ll l, ll r, ll v) {
-		L.add(l, v); R.add(l, l * v);
-		L.add(r + 1, -v); R.add(r + 1, -(r + 1) * v);
-	};
-	auto sum = [&](ll l, ll r) {
-		return (r + 1) * L.sum(r) - l * L.sum(l - 1) - R.sum(r) + R.sum(l - 1);
-	};
-	for (ll i = 1; i <= n; i++) {
-		ll x; cin >> x;
-		add(i, i, x);
-	}
-	while (m--) {
-		ll op; cin >> op;
-		if (op == 1) {
-			ll x, y, k; cin >> x >> y >> k;
-			add(x, y, k);
-		}
-		else {
-			ll x; cin >> x;
-			cout << sum(x, x) << endl;
-		}
-	}
-    return 0;
-} 
 ```
 
 # 字符串
@@ -1216,4 +1292,27 @@ namespace substring_hash
         }
     };
 };
+```
+
+# 杂项
+
+## 二分
+
+```c++
+// 找min
+ll l = 0, r = INF;
+while (l < r) {
+    ll m = (l + r) >> 1;
+    if (check(m)) r = m;
+    else l = m + 1;
+}
+cout << l << endl;
+// 找max
+ll l = 0, r = INF;
+while (l < r) {
+    ll m = (l + r) >> 1;
+    if (check(m)) l = m;
+    else r = m + 1;
+}
+cout << l << endl;
 ```
