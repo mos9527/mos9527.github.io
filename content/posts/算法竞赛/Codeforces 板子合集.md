@@ -921,7 +921,7 @@ template<typename T> struct segment_tree {
         T max_v;
         // lazy值
         T lazy_add;
-        optional<T> lazy_set; 
+        optional<T> lazy_set;
         ll length() const { return r - l + 1; }
         ll mid() const { return (l + r) / 2; }
     };
@@ -930,7 +930,7 @@ private:
     ll begin, end;
     void push_up(ll o) {
         // 向上传递
-        ll lc = o * 2, rc = o * 2 + 1;        
+        ll lc = o * 2, rc = o * 2 + 1;
         tree[o].sum_v = tree[lc].sum_v + tree[rc].sum_v;
         tree[o].max_v = max(tree[lc].max_v, tree[rc].max_v);
     }
@@ -941,8 +941,8 @@ private:
             tree[lc].lazy_add = tree[rc].lazy_add = 0;
             tree[lc].lazy_set = tree[rc].lazy_set = tree[o].lazy_set;
             // 可差分操作
-            tree[lc].max_v = tree[lc].sum_v = tree[o].lazy_set.value();
-            tree[rc].max_v = tree[rc].sum_v = tree[o].lazy_set.value();
+            tree[lc].max_v = tree[o].lazy_set.value();
+            tree[rc].max_v = tree[o].lazy_set.value();
             // 求和贡献与长度有关
             tree[lc].sum_v = tree[o].lazy_set.value() * tree[lc].length();
             tree[rc].sum_v = tree[o].lazy_set.value() * tree[rc].length();
@@ -950,12 +950,14 @@ private:
         }
         if (tree[o].lazy_add) {
             tree[lc].lazy_add += tree[o].lazy_add, tree[rc].lazy_add += tree[o].lazy_add;
-            tree[lc].max_v += tree[o].lazy_add, tree[rc].max_v += tree[o].lazy_add;
+            // 同上
+            tree[lc].max_v += tree[o].lazy_add;
+            tree[rc].max_v += tree[o].lazy_add;
             tree[lc].sum_v += tree[o].lazy_add * tree[lc].length();
             tree[rc].sum_v += tree[o].lazy_add * tree[rc].length();
             tree[o].lazy_add = {};
         }
-    }    
+    }
     void update(ll o, ll l, ll r, optional<T> const& set_v = {}, T const& add_v = 0) {
         ll lc = o * 2, rc = o * 2 + 1;
         if (tree[o].l == l && tree[o].r == r) { // 定位到所在区间 - 同下
