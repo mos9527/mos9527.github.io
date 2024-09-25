@@ -910,16 +910,17 @@ public:
 ## RMQ 系列
 ### 线段树
 
-- https://codeforces.com/contest/2014/problem/D
-- https://blog.nowcoder.net/n/872036843fe44349a775e62583018d80
+- https://codeforces.com/contest/2014/submission/282795544 （D）
+- https://codeforces.com/contest/339/submission/282875335 （D）
+- https://blog.nowcoder.net/n/872036843fe44349a775e62583018d80 （参考）
 
 ```c++
 template<typename T> struct segment_tree {
+    T Fn(T const& lhs, T const& rhs) { return max(lhs, rhs); }
     struct node {
         ll l, r; // 区间[l,r]
         T sum_v;
-        T max_v;
-        T min_v;
+        T fn_v;
         // lazy值
         T lazy_add;
         optional<T> lazy_set;
@@ -928,13 +929,12 @@ template<typename T> struct segment_tree {
     };
     vector<node> tree;
 private:
-    ll begin = 1, end = 1;
+    ll begin = 1, end = 1;   
     void push_up(ll o) {
         // 向上传递
         ll lc = o * 2, rc = o * 2 + 1;
         tree[o].sum_v = tree[lc].sum_v + tree[rc].sum_v;
-        tree[o].max_v = max(tree[lc].max_v, tree[rc].max_v);
-        tree[o].min_v = min(tree[lc].min_v, tree[rc].min_v);
+        tree[o].fn_v = Fn(tree[lc].fn_v, tree[rc].fn_v);
     }
     void push_down(ll o) {
         // 向下传递
@@ -943,10 +943,8 @@ private:
             tree[lc].lazy_add = tree[rc].lazy_add = 0;
             tree[lc].lazy_set = tree[rc].lazy_set = tree[o].lazy_set;
             // 可差分操作
-            tree[lc].max_v = tree[o].lazy_set.value();
-            tree[rc].max_v = tree[o].lazy_set.value();
-            tree[lc].min_v = tree[o].lazy_set.value();
-            tree[rc].min_v = tree[o].lazy_set.value();
+            tree[lc].fn_v = tree[o].lazy_set.value();
+            tree[rc].fn_v = tree[o].lazy_set.value();
             // 求和贡献与长度有关
             tree[lc].sum_v = tree[o].lazy_set.value() * tree[lc].length();
             tree[rc].sum_v = tree[o].lazy_set.value() * tree[rc].length();
@@ -955,10 +953,8 @@ private:
         if (tree[o].lazy_add) {
             tree[lc].lazy_add += tree[o].lazy_add, tree[rc].lazy_add += tree[o].lazy_add;
             // 同上
-            tree[lc].max_v += tree[o].lazy_add;
-            tree[rc].max_v += tree[o].lazy_add;
-            tree[lc].min_v += tree[o].lazy_add;
-            tree[rc].min_v += tree[o].lazy_add;
+            tree[lc].fn_v += tree[o].lazy_add;
+            tree[rc].fn_v += tree[o].lazy_add;
             tree[lc].sum_v += tree[o].lazy_add * tree[lc].length();
             tree[rc].sum_v += tree[o].lazy_add * tree[rc].length();
             tree[o].lazy_add = {};
@@ -969,17 +965,15 @@ private:
         if (tree[o].l == l && tree[o].r == r) { // 定位到所在区间 - 同下
             if (set_v.has_value()) {
                 // set
-                tree[o].max_v = set_v.value();
-                tree[o].min_v = set_v.value();
+                tree[o].fn_v = set_v.value();
                 tree[o].sum_v = set_v.value() * tree[o].length();
                 tree[o].lazy_set = set_v; tree[o].lazy_add = {};
             }
             else {
                 // add
-                tree[o].lazy_add += add_v;
-                tree[o].max_v += add_v;
-                tree[o].min_v += add_v;
+                tree[o].fn_v += add_v;
                 tree[o].sum_v += add_v * tree[o].length();
+                tree[o].lazy_add += add_v;
             }
             return;
         }
@@ -1006,31 +1000,38 @@ private:
             return {
                 l, r,
                 p.sum_v + q.sum_v,
-                max(p.max_v, q.max_v),
-                min(p.min_v, q.min_v)
+                Fn(p.fn_v, q.fn_v),
             };
         }
     }
-    void build(ll o, ll l, ll r) {
+    void build(ll o, ll l, ll r, const T* src = nullptr) {
         ll lc = o * 2, rc = o * 2 + 1;
         tree[o] = {};
         tree[o].l = l, tree[o].r = r;
-        if (l == r) return;
+        if (l == r) {
+            if (src) tree[o].sum_v = tree[o].fn_v = src[l];
+            return;
+        }
         ll mid = (l + r) / 2;
-        build(lc, l, mid);
-        build(rc, mid + 1, r);
+        build(lc, l, mid, src);
+        build(rc, mid + 1, r, src);
         push_up(o);
     }
-    void build() { build(begin, begin, end); }
+    void build(const T* src = nullptr) { build(begin, begin, end, src); }
 public:
     void range_add(ll l, ll r, T const& v) { update(begin, l, r, {}, v); }
     void range_set(ll l, ll r, T const& v) { update(begin, l, r, v, 0); }
     node range_query(ll l, ll r) { return query(begin, l, r); }
     T range_sum(ll l, ll r) { return range_query(l, r).sum_v; }
-    T range_max(ll l, ll r) { return range_query(l, r).max_v; }
+    T range_fn(ll l, ll r) { return range_query(l, r).fn_v; }
     /****/
     void reserve(const ll n) { tree.reserve(n); }
-    void reset(const ll n) { end = n; tree.resize(n << 2); build(); }
+    void reset(const ll n) { end = n; tree.resize(end << 2); build(); }
+    /// <param name="src">0-based 叶子节点</param>
+    void reset(const vector<T>& src) {
+        end = src.size(); tree.resize(end << 2);
+        build(src.data() - 1); // 邪恶指针trick - 毕竟我们的访问从1开始()
+    }
     explicit segment_tree() {};
     explicit segment_tree(const ll n) : begin(1), end(n) { reset(n); }
 };
