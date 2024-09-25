@@ -919,6 +919,7 @@ template<typename T> struct segment_tree {
         ll l, r; // 区间[l,r]
         T sum_v;
         T max_v;
+        T min_v;
         // lazy值
         T lazy_add;
         optional<T> lazy_set;
@@ -927,12 +928,13 @@ template<typename T> struct segment_tree {
     };
     vector<node> tree;
 private:
-    ll begin, end;
+    ll begin = 1, end = 1;
     void push_up(ll o) {
         // 向上传递
         ll lc = o * 2, rc = o * 2 + 1;
         tree[o].sum_v = tree[lc].sum_v + tree[rc].sum_v;
         tree[o].max_v = max(tree[lc].max_v, tree[rc].max_v);
+        tree[o].min_v = min(tree[lc].min_v, tree[rc].min_v);
     }
     void push_down(ll o) {
         // 向下传递
@@ -943,6 +945,8 @@ private:
             // 可差分操作
             tree[lc].max_v = tree[o].lazy_set.value();
             tree[rc].max_v = tree[o].lazy_set.value();
+            tree[lc].min_v = tree[o].lazy_set.value();
+            tree[rc].min_v = tree[o].lazy_set.value();
             // 求和贡献与长度有关
             tree[lc].sum_v = tree[o].lazy_set.value() * tree[lc].length();
             tree[rc].sum_v = tree[o].lazy_set.value() * tree[rc].length();
@@ -953,6 +957,8 @@ private:
             // 同上
             tree[lc].max_v += tree[o].lazy_add;
             tree[rc].max_v += tree[o].lazy_add;
+            tree[lc].min_v += tree[o].lazy_add;
+            tree[rc].min_v += tree[o].lazy_add;
             tree[lc].sum_v += tree[o].lazy_add * tree[lc].length();
             tree[rc].sum_v += tree[o].lazy_add * tree[rc].length();
             tree[o].lazy_add = {};
@@ -964,6 +970,7 @@ private:
             if (set_v.has_value()) {
                 // set
                 tree[o].max_v = set_v.value();
+                tree[o].min_v = set_v.value();
                 tree[o].sum_v = set_v.value() * tree[o].length();
                 tree[o].lazy_set = set_v; tree[o].lazy_add = {};
             }
@@ -971,6 +978,7 @@ private:
                 // add
                 tree[o].lazy_add += add_v;
                 tree[o].max_v += add_v;
+                tree[o].min_v += add_v;
                 tree[o].sum_v += add_v * tree[o].length();
             }
             return;
@@ -996,14 +1004,16 @@ private:
             node p = query(lc, l, mid);
             node q = query(rc, mid + 1, r);
             return {
-                .l = l, .r = r,
-                .sum_v = p.sum_v + q.sum_v,
-                .max_v = max(p.max_v, q.max_v)
+                l, r,
+                p.sum_v + q.sum_v,
+                max(p.max_v, q.max_v),
+                min(p.min_v, q.min_v)
             };
         }
     }
     void build(ll o, ll l, ll r) {
         ll lc = o * 2, rc = o * 2 + 1;
+        tree[o] = {};
         tree[o].l = l, tree[o].r = r;
         if (l == r) return;
         ll mid = (l + r) / 2;
@@ -1011,13 +1021,18 @@ private:
         build(rc, mid + 1, r);
         push_up(o);
     }
+    void build() { build(begin, begin, end); }
 public:
-    explicit segment_tree(const ll n) : begin(1), end(n) { tree.resize(n << 2); build(begin, begin, end); }
-    void range_add(ll l, ll r, T const& v) { update(1, l, r, {}, v); }
-    void range_set(ll l, ll r, T const& v) { update(1, l, r, v, 0); }
-    node range_query(ll l, ll r) { return query(1, l, r); }
+    void range_add(ll l, ll r, T const& v) { update(begin, l, r, {}, v); }
+    void range_set(ll l, ll r, T const& v) { update(begin, l, r, v, 0); }
+    node range_query(ll l, ll r) { return query(begin, l, r); }
     T range_sum(ll l, ll r) { return range_query(l, r).sum_v; }
     T range_max(ll l, ll r) { return range_query(l, r).max_v; }
+    /****/
+    void reserve(const ll n) { tree.reserve(n); }
+    void reset(const ll n) { end = n; tree.resize(n << 2); build(); }
+    explicit segment_tree() {};
+    explicit segment_tree(const ll n) : begin(1), end(n) { reset(n); }
 };
 ```
 
