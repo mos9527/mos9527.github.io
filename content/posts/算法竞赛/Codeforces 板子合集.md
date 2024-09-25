@@ -915,12 +915,11 @@ public:
 - https://blog.nowcoder.net/n/872036843fe44349a775e62583018d80 （参考）
 
 ```c++
-template<typename T> struct segment_tree {
-    T Fn(T const& lhs, T const& rhs) { return max(lhs, rhs); }
+template<typename T> struct segment_tree {    
     struct node {
         ll l, r; // 区间[l,r]
         T sum_v;
-        T fn_v;
+        T max_v;
         // lazy值
         T lazy_add;
         optional<T> lazy_set;
@@ -934,7 +933,7 @@ private:
         // 向上传递
         ll lc = o * 2, rc = o * 2 + 1;
         tree[o].sum_v = tree[lc].sum_v + tree[rc].sum_v;
-        tree[o].fn_v = Fn(tree[lc].fn_v, tree[rc].fn_v);
+        tree[o].max_v = max_v(tree[lc].max_v, tree[rc].max_v);
     }
     void push_down(ll o) {
         // 向下传递
@@ -943,8 +942,8 @@ private:
             tree[lc].lazy_add = tree[rc].lazy_add = 0;
             tree[lc].lazy_set = tree[rc].lazy_set = tree[o].lazy_set;
             // 可差分操作
-            tree[lc].fn_v = tree[o].lazy_set.value();
-            tree[rc].fn_v = tree[o].lazy_set.value();
+            tree[lc].max_v = tree[o].lazy_set.value();
+            tree[rc].max_v = tree[o].lazy_set.value();
             // 求和贡献与长度有关
             tree[lc].sum_v = tree[o].lazy_set.value() * tree[lc].length();
             tree[rc].sum_v = tree[o].lazy_set.value() * tree[rc].length();
@@ -953,8 +952,8 @@ private:
         if (tree[o].lazy_add) {
             tree[lc].lazy_add += tree[o].lazy_add, tree[rc].lazy_add += tree[o].lazy_add;
             // 同上
-            tree[lc].fn_v += tree[o].lazy_add;
-            tree[rc].fn_v += tree[o].lazy_add;
+            tree[lc].max_v += tree[o].lazy_add;
+            tree[rc].max_v += tree[o].lazy_add;
             tree[lc].sum_v += tree[o].lazy_add * tree[lc].length();
             tree[rc].sum_v += tree[o].lazy_add * tree[rc].length();
             tree[o].lazy_add = {};
@@ -965,13 +964,13 @@ private:
         if (tree[o].l == l && tree[o].r == r) { // 定位到所在区间 - 同下
             if (set_v.has_value()) {
                 // set
-                tree[o].fn_v = set_v.value();
+                tree[o].max_v = set_v.value();
                 tree[o].sum_v = set_v.value() * tree[o].length();
                 tree[o].lazy_set = set_v; tree[o].lazy_add = {};
             }
             else {
                 // add
-                tree[o].fn_v += add_v;
+                tree[o].max_v += add_v;
                 tree[o].sum_v += add_v * tree[o].length();
                 tree[o].lazy_add += add_v;
             }
@@ -1000,7 +999,7 @@ private:
             return {
                 l, r,
                 p.sum_v + q.sum_v,
-                Fn(p.fn_v, q.fn_v),
+                max(p.max_v, q.max_v),
             };
         }
     }
@@ -1009,7 +1008,7 @@ private:
         tree[o] = {};
         tree[o].l = l, tree[o].r = r;
         if (l == r) {
-            if (src) tree[o].sum_v = tree[o].fn_v = src[l];
+            if (src) tree[o].sum_v = tree[o].max_v = src[l];
             return;
         }
         ll mid = (l + r) / 2;
@@ -1023,7 +1022,7 @@ public:
     void range_set(ll l, ll r, T const& v) { update(begin, l, r, v, 0); }
     node range_query(ll l, ll r) { return query(begin, l, r); }
     T range_sum(ll l, ll r) { return range_query(l, r).sum_v; }
-    T range_fn(ll l, ll r) { return range_query(l, r).fn_v; }
+    T range_max(ll l, ll r) { return range_query(l, r).max_v; }
     /****/
     void reserve(const ll n) { tree.reserve(n); }
     void reset(const ll n) { end = n; tree.resize(end << 2); build(); }
