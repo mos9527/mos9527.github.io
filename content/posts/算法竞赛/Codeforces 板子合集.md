@@ -913,6 +913,7 @@ public:
 - https://codeforces.com/contest/2014/submission/282795544 （D，区间改+单点查询和）
 - https://codeforces.com/contest/339/submission/282875335 （D，单点改+区间查询）
 - https://codeforces.com/contest/1234/submission/282879421（D，单点改+区间查询独特元素（小范围））
+- https://codeforces.com/contest/242/submission/282911389（E，区间改+trick，TODO：WA 5...）
 - https://blog.nowcoder.net/n/872036843fe44349a775e62583018d80 （参考）
 
 ```c++
