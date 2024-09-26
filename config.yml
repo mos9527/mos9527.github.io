@@ -23,9 +23,9 @@ params:
   tocopen: true
 
   homeInfoParams:
-      Title: "The Secret Lair"
+      Title: "mos9527 (has a blog)"
       Content: >
-        3D CG, Reverse, Programming & Everything that computes 
+        ...其实主要当作在线+持久性剪贴板用ww
 
   socialIcons:
     - name: Github
