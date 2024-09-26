@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2077-01-01T12:00:00.000000+08:00
+lastmod: 2024-09-26T21:58:53.055631+08:00
 title: 算竞笔记/题集/板子整理（绝赞更新中✅）
 tags: ["ACM","算竞","Codeforces","C++"]
 categories: ["合集","杂项"]
@@ -12,7 +12,7 @@ typora-root-url: ..\..\static
 
 参考主要来自[《算法竞赛入门经典：训练指南》](https://cread.jd.com/read/startRead.action?bookId=30133704&readType=1)、[OIWiki](https://oi-wiki.org/)、[CP Algorithms](https://cp-algorithms.com/)等资源和多方博客、课程，在自己的码风下所著
 
-**注：**部分实现可能用到较新语言特性，烦请修改后在较老OJ上使用；**原则上提供的代码兼容符合Cpp20及以上标准的编译器**
+**注：** 部分实现可能用到较新语言特性，烦请修改后在较老OJ上使用；**原则上提供的代码兼容符合Cpp20及以上标准的编译器**
 
 # Header
 
