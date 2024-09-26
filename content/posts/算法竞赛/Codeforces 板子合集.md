@@ -102,7 +102,7 @@ typora-root-url: ..\..\static
 ```
 - Header
 ```c++
-#pragma GCC optimize("O3","unroll-loops")
+#pragma GCC optimize("O3","unroll-loops","inline")
 #include "bits/stdc++.h"
 using namespace std;
 #define PRED(T,X) [](T const& lhs, T const& rhs) {return X;}
@@ -319,11 +319,13 @@ for (ll i = 0; i < DIM; i++)
 - 左右同时乘$a^{-1}$,可得 $a ^ {m - 2} \equiv a ^ {-1} \mod m$
 - 即 `a_inv = binpow_mod(a, m - 2, m)`
 
-### Euler 筛
+### Eratosthenes 筛
+
+- https://oi-wiki.org/math/number-theory/sieve
 
 ```c++
-namespace euler_sieve { // 欧拉筛法 + 区间筛
-    v primes;
+namespace eratosthenes_sieve { // Eratosthenes筛法 + 区间筛
+    vec primes;
     bool not_prime[DIM];
 
     void init(ll N=DIM - 1) {
@@ -340,6 +342,30 @@ namespace euler_sieve { // 欧拉筛法 + 区间筛
         for (auto p : primes) {
             for (ll j = max((ll)ceil(1.0 * l / p), p) * p; j <= r; j += p) not_prime[j] = true;
     	}
+    }
+}
+
+namespace eratosthenes_sieve_d { // https://oi-wiki.org/math/number-theory/sieve/#筛法求约数个数
+    vec primes;
+    bool not_prime[DIM];
+    ll D[DIM], num[DIM];
+
+    void init(ll N = DIM - 1) {
+        D[1] = 1;
+        for (ll i = 2; i <= N; ++i) {
+            if (!not_prime[i]) primes.push_back(i), D[i] = 2, num[i] = 1;
+            for (auto j : primes) {
+                if (i * j > N) break;
+                not_prime[i * j] = true;
+                if (i % j == 0) {
+                    num[i * j] = num[i] + 1;
+                    D[i * j] = D[i] / num[i * j] * (num[i * j] + 1);
+                    break;
+                }
+                num[i * j] = 1;
+                D[i * j] = D[i] * 2;
+            }
+        }
     }
 }
 ```
