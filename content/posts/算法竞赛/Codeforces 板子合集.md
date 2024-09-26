@@ -940,6 +940,7 @@ public:
 - https://codeforces.com/contest/339/submission/282875335 （D，单点改+区间查询）
 - https://codeforces.com/contest/1234/submission/282879421（D，单点改+区间查询独特元素（小范围））
 - https://codeforces.com/contest/242/submission/283029446（E，区间(可逆)改+lazy传递(上一个不也用了吗ww)+二进制trick）
+- https://codeforces.com/contest/920/submission/283044722 （F，数论、单点改+剪枝）
 - https://blog.nowcoder.net/n/872036843fe44349a775e62583018d80 （参考）
 
 ```c++
