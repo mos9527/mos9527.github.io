@@ -3,7 +3,7 @@
 import os
 import datetime
 
-POST_FOLDER = "../content/posts"
+POST_FOLDER = os.path.join(os.path.dirname(__file__), "../content/posts")
 for a, b, c in os.walk(POST_FOLDER):
     for file in c:
         path = os.path.join(a, file)
