@@ -25,7 +25,7 @@ params:
   homeInfoParams:
       Title: "mos9527 (has a blog)"
       Content: >
-        其实还是主要当作在线+持久性剪贴板用ww        
+        概要移步[tags](/tags/)有请🫲
 
   socialIcons:
     - name: Github

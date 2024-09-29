@@ -1,9 +1,9 @@
 ---
 author: mos9527
-lastmod: 2024-09-27T23:20:37.103522+08:00
+lastmod: 2024-09-29T21:53:38.287900+08:00
 title: 算竞笔记/题集/板子整理（绝赞更新中✅）
-tags: ["ACM","算竞","Codeforces","C++"]
-categories: ["合集","杂项"]
+tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
+categories: ["题解", "算竞", "合集"]
 ShowToc: true
 TocOpen: true
 typora-root-url: ..\..\static
@@ -1275,7 +1275,7 @@ while (l < r) {
     if (check(m)) l = m + 1;
     else r = m;
 }
-cout << l << endl;
+cout << l - 1 << endl;
 ```
 
 ## msvc也要用万能头!!
