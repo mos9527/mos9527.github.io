@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2024-09-29T21:53:38.287900+08:00
+lastmod: 2024-10-14T21:48:06.837775+08:00
 title: 算竞笔记/题集/板子整理（绝赞更新中✅）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -464,6 +464,8 @@ int main() {
 ```
 
 ### Dijkstra
+
+- https://codeforces.com/group/bAbX7h3CX1/contest/554012/submission/285834927 （跳点/验证途径点）
 
 ```c++
 #define INF 1e18
