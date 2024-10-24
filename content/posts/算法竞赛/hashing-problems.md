@@ -132,7 +132,7 @@ template<size_t size> using arr = array<ll, size>;
 const static void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0); cout.tie(0); }
 const static ll lowbit(const ll x) { return x & -x; }
 mt19937_64 RNG(chrono::steady_clock::now().time_since_epoch().count());
-const ll DIM = 2e6;
+const ll DIM = 1e6 + 10;
 const ll MOD = 1e9 + 7;
 const ll INF = 2e18;
 const lf EPS = 1e-8;
@@ -169,7 +169,7 @@ int main() {
 	for (ll i = 1; i <= q; i++) cin >> L[i] >> R[i];
 	for (ll B = 0; B < 100; B++) {
 		fill(H + 1, H + n + 1, 0);
-		for (ll i = 1; i <= n; i++) Hp[i] = dis(RNG);
+		for (ll i = 1; i <= DIM; i++) Hp[i] = dis(RNG);
 		for (ll i = 1; i <= n; i++)
 			for (ll p : euler_sieve::primes[A[i]])
 				H[i] += Hp[p];
