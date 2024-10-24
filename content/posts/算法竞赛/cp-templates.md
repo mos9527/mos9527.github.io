@@ -95,6 +95,7 @@ typedef matrix<ll, 4> mat4;
 
 ### 线性基
 
+- https://oi.men.ci/linear-basis-notes/
 - https://www.luogu.com.cn/article/zo12e4s5
 - https://codeforces.com/gym/105336/submission/280570848（J 找最小）
 
