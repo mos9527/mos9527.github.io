@@ -32,7 +32,6 @@ TL;DR - 串哈希加速比对 + big hash trick
 
 ---
 
-*TODO: 这里的code其实没AC (WA 36)...尝试随机化取base?*
 
 ```c++
 #pragma GCC optimize("O3","unroll-loops","inline")
@@ -72,6 +71,7 @@ int main() {
 	auto upd_hash_sub = [&](ll i) {
 		hash_v = (hash_v - P[i] + arr<3>{MOD, MOD, MOD}) % MOD;
 	};
+	mp[hash_v] = -1;
 	for (ll c, nth = 0, n_nonzero = 0; nth < n; nth++) {
 		cin >> c;
 		if (!freq[c]) n_nonzero++;
