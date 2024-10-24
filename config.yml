@@ -23,9 +23,9 @@ params:
   tocopen: true
 
   homeInfoParams:
-      Title: "mos9527 (has a blog)"
+      Title: "My Favorite Things"
       Content: >
-        其实还是主要当作在线+持久性剪贴板用ww        
+        🎹🎈💻
 
   socialIcons:
     - name: Github

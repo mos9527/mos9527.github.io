@@ -1,9 +1,9 @@
 ---
 author: mos9527
-lastmod: 2024-09-26T22:01:42.451323+08:00
+lastmod: 2024-10-23T22:50:49.339901+08:00
 title: 算竞笔记/题集/板子整理（绝赞更新中✅）
-tags: ["ACM","算竞","Codeforces","C++"]
-categories: ["合集","杂项"]
+tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
+categories: ["题解", "算竞", "合集"]
 ShowToc: true
 TocOpen: true
 typora-root-url: ..\..\static
@@ -26,6 +26,7 @@ typedef pair<ll, ll> II; typedef vector<ll> vec;
 template<size_t size> using arr = array<ll, size>;
 const static void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0); cout.tie(0); }
 const static ll lowbit(const ll x) { return x & -x; }
+mt19937_64 RNG(chrono::steady_clock::now().time_since_epoch().count());
 const ll DIM = 1e5;
 const ll MOD = 1e9 + 7;
 const ll INF = 1e10;
@@ -346,10 +347,25 @@ void Prime_Factor(ll x, v& res) {
 }
 // Euler
 namespace euler_sieve {
-    void Prime_Factor(ll x, set<ll>& res) {
-        for (ll i = 2; i * i <= x; i++) while (x % i == 0) res.insert(i), x /= i;
-        if (x != 1) res.insert(x);        
-    }
+	vector<vec> primes;
+	void Prime_Factor_Offline(ll MAX) {
+		primes.resize(MAX);
+		for (ll i = 2; i < MAX; i++) {
+			if (!primes[i].empty()) continue;
+			for (ll j = i; j < MAX; j += i) {
+				ll mj = j;
+				while (mj % i == 0) {
+					primes[j].push_back(i);
+					mj /= i;
+				}
+			}
+		}
+	}
+
+	void Prime_Factor(ll x, vec& res) {
+		for (ll i = 2; i * i <= x; i++) while (x % i == 0) res.push_back(i), x /= i;
+		if (x != 1) res.push_back(x);
+	}
 }
 ```
 
@@ -464,6 +480,8 @@ int main() {
 ```
 
 ### Dijkstra
+
+- https://codeforces.com/group/bAbX7h3CX1/contest/554012/submission/285834927 （跳点/验证途径点）
 
 ```c++
 #define INF 1e18
@@ -1275,7 +1293,7 @@ while (l < r) {
     if (check(m)) l = m + 1;
     else r = m;
 }
-cout << l << endl;
+cout << l - 1 << endl;
 ```
 
 ## msvc也要用万能头!!
