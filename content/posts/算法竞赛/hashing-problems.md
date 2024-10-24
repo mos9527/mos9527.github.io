@@ -120,8 +120,6 @@ https://atcoder.jp/contests/abc238
 
 ---
 
-*TODO:仍然...没有全AC（ACx53, WAx17)；尝试增加试验次数？*
-
 ```c++
 #pragma GCC optimize("O3","unroll-loops","inline")
 #include "bits/stdc++.h"
