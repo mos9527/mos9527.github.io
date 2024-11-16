@@ -1,7 +1,7 @@
 ---
 author: mos9527
-lastmod: 2024-11-08T09:18:24.863000+08:00
-title: 算竞笔记：题集/板子整理（绝赞更新中✅）
+lastmod: 2024-11-16T22:29:05.808000+08:00
+title: 算竞笔记：题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
 ShowToc: true
