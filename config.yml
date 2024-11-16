@@ -3,7 +3,11 @@ title: mos9527
 defaultContentLanguage: cn
 theme: PaperMod
 enableGitInfo: true 
-
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+      
 params:
   env: production
   ShowReadingTime: true
@@ -23,7 +27,7 @@ params:
   tocopen: true
 
   homeInfoParams:
-      Title: "My Favorite Things"
+      Title: "My Favorite Things<blink>_</blink>"
       Content: >
         🎹🎈💻
 

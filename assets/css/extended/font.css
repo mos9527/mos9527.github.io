@@ -1,0 +1,14 @@
+* {
+    font-family: monospace, sans-serif;
+}
+@keyframes blink {
+    from, to {
+        color: transparent;
+    }
+    50% {
+        color: inherit;
+    }
+}
+blink {
+    animation: blink 1s infinite step-start;
+}
