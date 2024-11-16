@@ -1,0 +1,53 @@
+baseURL: https://mos9527.github.io/
+title: mos9527
+defaultContentLanguage: cn
+theme: PaperMod
+enableGitInfo: true 
+
+params:
+  env: production
+  ShowReadingTime: true
+  ShowShareButtons: false
+  ShowPostNavLinks: true
+  ShowBreadCrumbs: true
+  ShowCodeCopyButtons: false
+  ShowWordCount: true
+  ShowRssButtonInSectionTermList: true
+  UseHugoToc: true
+  disableSpecial1stPost: false
+  disableScrollToTop: false
+  comments: true
+  hidemeta: false
+  hideSummary: false
+  showtoc: true
+  tocopen: true
+
+  homeInfoParams:
+      Title: "My Favorite Things"
+      Content: >
+        🎹🎈💻
+
+  socialIcons:
+    - name: Github
+      url: "https://github.com/mos9527"
+    - name: Bilibili
+      url: "https://space.bilibili.com/3546693849058014"
+    - name: Steam
+      url: "https://steamcommunity.com/id/mos9527"
+    - name: X 
+      url: "https://twitter.com/the_mos9527"
+
+menu:
+  main:
+    - identifier: categories
+      name: categories
+      url: /categories/
+      weight: 10
+    - identifier: tags
+      name: tags
+      url: /tags/
+      weight: 20
+    - identifier: github
+      name: github
+      url: https://github.com/mos9527/mos9527.github.io/
+      weight: 30
