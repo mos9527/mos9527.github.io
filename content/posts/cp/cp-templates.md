@@ -240,14 +240,25 @@ struct convex_hull : vector<point> {
 
 ## 组合数
 
+Lucas：$$\binom{n}{m}\bmod p = \binom{\left\lfloor n/p \right\rfloor}{\left\lfloor m/p\right\rfloor}\cdot\binom{n\bmod p}{m\bmod p}\bmod p$$​
 ```c++
-ll C[DIM][DIM];
-for (ll i = 0; i < DIM; i++)
-    for (ll j = 0; j <= i; j++)
-        C[i][j] = j ? ((C[i - 1][j] + C[i - 1][j - 1]) % MOD) : 1;
+namespace comb {
+	ll fac[MOD], ifac[MOD]; // x!, 1/x!
+	void prep(ll N = MOD - 1) {
+		fac[0] = fac[1] = ifac[0] = ifac[1] = 1;
+		for (ll i = 2; i <= N; i++) fac[i] = fac[i - 1] * i % MOD;
+		ifac[N] = binpow_mod(fac[N], MOD - 2, MOD);
+		for (ll i = N - 1; i >= 1; i--) ifac[i] = ifac[i + 1] * (i + 1) % MOD;
+	}
+	ll comb(ll n, ll m) {		
+		return fac[n] * ifac[m] % MOD * ifac[n - m] % MOD;
+	}
+	ll lucas(ll n, ll m) {
+		if (m == 0) return 1;
+		return comb(n % MOD, m % MOD) * lucas(n / MOD, m / MOD) % MOD;
+	}
+}
 ```
-
-- Lucas：$$\binom{n}{m}\bmod p = \binom{\left\lfloor n/p \right\rfloor}{\left\lfloor m/p\right\rfloor}\cdot\binom{n\bmod p}{m\bmod p}\bmod p$$​
 
 
 ## 数论
