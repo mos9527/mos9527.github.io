@@ -729,24 +729,27 @@ int main() {
 
 - 倍增思路
   - https://codeforces.com/contest/2033/submission/288921361
+  - https://blog.csdn.net/weixin_45799835/article/details/117289362
+  - https://www.luogu.com.cn/problem/P5903 (会T...)
 
 
 ```c++
 struct graph {
     ll n;
 
-    vector<vector<edge>> G;
+    vector<vector<ll>> G;
 
     vector<vec> fa;
     vec depth, dis;
 
     graph(ll n) : n(n), fa(ceil(log2(n)) + 1, vec(n)), depth(n), G(n), dis(n) {}
 
-    void add_edge(ll from, ll to, ll cost = 1) {
-        G[from].push_back({ to, cost });
+    void add_edge(ll from, ll to) {
+        G[from].push_back(to);
+        G[to].push_back(from);
     }
 
-    void lca_prep(ll root) {
+    void prep(ll root) {
         auto dfs = [&](ll u, ll pa, ll dep, auto& dfs) -> void {
             fa[0][u] = pa, depth[u] = dep;
             for (ll i = 1; i < fa.size(); i++) {
@@ -754,12 +757,12 @@ struct graph {
                 fa[i][u] = fa[i - 1][fa[i - 1][u]];
             }
             for (auto& e : G[u]) {
-                if (e.to == pa) continue;
-                dis[e.to] = dis[u] + e.cost;
-                dfs(e.to, u, dep + 1, dfs);
+                if (e == pa) continue;
+                dis[e] = dis[u] + 1;
+                dfs(e, u, dep + 1, dfs);
             }
-            };
-        dfs(root, root, 0, dfs);
+        };
+        dfs(root, root, 1, dfs);
     }
 
     ll lca(ll x, ll y) {
@@ -775,7 +778,11 @@ struct graph {
             }
         }
         return { fa[0][x] };
+    }
 
+    ll kth_parent(ll u, ll k){
+        for (ll i = 63;i >= 0;i--) if (k & (1ll << i)) u = fa[i][u];
+        return u;
     }
 };
 ```
@@ -910,9 +917,10 @@ public:
 - https://www.cnblogs.com/WIDA/p/17633758.html#%E6%A0%91%E9%93%BE%E5%89%96%E5%88%86hld
 - https://oi-wiki.org/graph/hld/
 - https://cp-algorithms.com/graph/hld.html
+- https://www.luogu.com.cn/problem/P5903
 
 ```c++
-struct HLD {    
+struct HLD {
     ll n, dfn_cnt = 0;
     vec sizes, depth, top /*所在重链顶部*/, parent, dfn /*DFS序*/, dfn_out /* 链尾DFS序 */, inv_dfn, heavy /*重儿子*/;
     vector<vec> G;
@@ -932,7 +940,7 @@ struct HLD {
             dfs1(v);
             sizes[u] += sizes[v];
             // 选最大子树为重儿子
-            if (heavy[u] == -1 || sizes[v] > sizes[heavy[u]]) heavy[u] = v;			                      
+            if (heavy[u] == -1 || sizes[v] > sizes[heavy[u]]) heavy[u] = v;
         }
     }
     // 注：dfn为重边优先时顺序
@@ -973,7 +981,7 @@ struct HLD {
         return depth[u] < depth[v] ? u : v;
     }
     // 路径上区间query dfn序
-    void path_sum(ll u, ll v, auto&& query) {        
+    void path_sum(ll u, ll v, auto&& query) {
         while (top[u] != top[v]) // 到同一重链
         {
             // 跳到更深的链
@@ -983,7 +991,13 @@ struct HLD {
             u = parent[top[u]];
         }
         if (dfn[v] > dfn[u]) swap(u, v);
-        query(dfn[v], dfn[u]);    
+        query(dfn[v], dfn[u]);
+    }
+    // 第k的父亲
+    ll kth_parent(ll u, ll k) {
+      ll dep = depth[u] - k;
+      while (depth[top[u]] > dep) u = parent[top[u]];
+      return inv_dfn[dfn[u] - (depth[u] - dep)];
     }
     // v属于u的子树
     bool is_child_of(ll u, ll v) {
