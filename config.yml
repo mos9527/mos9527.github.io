@@ -7,7 +7,13 @@ markup:
   goldmark:
     renderer:
       unsafe: true
-      
+giscus:
+    repo: "mos9527/mos9527.github.io"
+    repoID: "R_kgDOLvNT9A"
+    category: "Q&A"
+    categoryID: "DIC_kwDOLvNT9M4CkzqN"
+    mapping: "url"
+    inputPosition: "top"      
 params:
   env: production
   ShowReadingTime: true
