@@ -16,7 +16,6 @@ typora-root-url: ..\..\static
 
 # Header
 ```c++
-#pragma GCC optimize("O3","unroll-loops","inline")
 #include "bits/stdc++.h"
 using namespace std;
 #define PRED(T,X) [&](T const& lhs, T const& rhs) {return X;}
