@@ -9,6 +9,8 @@ TocOpen: true
 typora-root-url: ..\..\static
 ---
 
+**注:** `segment_tree` 均采用 `1-Index` 访问； `segment_tree::reset(vector&)` 中`vector`为`0-Index`
+
 # 242E. XOR on Segment
 
 区间二进制改+lazy传递+二进制trick
