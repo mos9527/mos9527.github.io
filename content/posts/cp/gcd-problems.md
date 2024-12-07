@@ -52,8 +52,7 @@ int main() {
 # 991F. Maximum modulo equality
 
 >You are given an array $a$ of length $n$ and $q$ queries $l$, $r$.
-
-> For each query, find the maximum possible $m$, such that all elements $a_l$, $a_{l+1}$, ..., $a_r$ are equal modulo $m$. In other words, $a_l \bmod m = a_{l+1} \bmod m = \dots = a_r \bmod m$, where $a \bmod b$ — is the remainder of division $a$ by $b$. In particular, when $m$ can be infinite, print $0$.
+For each query, find the maximum possible $m$, such that all elements $a_l$, $a_{l+1}$, ..., $a_r$ are equal modulo $m$. In other words, $a_l \bmod m = a_{l+1} \bmod m = \dots = a_r \bmod m$, where $a \bmod b$ — is the remainder of division $a$ by $b$. In particular, when $m$ can be infinite, print $0$.
 
 - **引理:** 模$m$意义下相等 ($x \mod m = y \mod m$) $\iff$ $|x-y| \mod m = 0$
 - 故本题$a_l \bmod m = a_{l+1} \bmod m = \dots = a_r \bmod m \iff |a_{l+1} - a_{l}| \mod m = |a_{l+2} - a_{l}| \mod m = ... = |a_{r} - a_{r-1}| \mod m$
@@ -154,3 +153,21 @@ int main() {
 
 ```
 
+# P11373 「CZOI-R2」天平
+
+> 你有 $n$ 个**砝码组**，编号为 $1$ 至 $n$。对于第 $i$ 个**砝码组**中的砝码有共同的正整数质量 $a_i$，每个**砝码组**中的**砝码**数量无限。
+其中，有 $q$ 次操作：
+>- `I x v`：在第 $x$ 个**砝码组**后新增一组单个**砝码**质量为 $v$ 的**砝码组**，当 $x=0$ 时表示在最前面新增；
+>- `D x`：删除第 $x$ 个**砝码组**；
+>- `A l r v`：把从 $l$ 到 $r$ 的所有**砝码组**中的砝码质量加 $v$；
+>- `Q l r v`：判断能否用从 $l$ 到 $r$ 的**砝码组**中的砝码，称出质量 $v$。每个砝码组中的砝码可以使用任意个，也可以不用。
+对于操作 `I` 和 `D`，操作后编号以及 $n$ 的值自动变化。
+称一些**砝码**可以称出质量 $v$，当且仅当存在将这些砝码分别放在天平两边的摆放方法，使得将 $1$ 个质量为 $v$ 的物体摆放在某边可以让天平平衡。
+
+- **引理：**设$a_1, \cdots a_n$为$n$个整数，$d$是它们的最大公约数，那么存在整数$x_1, \cdots x_n$ 使得 $x_1\cdot a_1 + \cdots x_n\cdot a_n = d$
+
+- 对操作`Q`，即询问$l,r$中的整数$x_i$能否构成 $x_1\cdot a_1 + \cdots x_n\cdot a_n = kd = v \to gcd(a_1,...,a_n) \mod v = 0 $
+
+- 对操作`I,D,A`...维护个平衡树吧
+
+又是ds...暂时先摆着了orz
