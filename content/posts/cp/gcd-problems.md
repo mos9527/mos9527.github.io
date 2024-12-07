@@ -14,7 +14,10 @@ typora-root-url: ..\..\static
 
 - **引理：** $gcd(x,y) = gcd(x,y-x)$
 - **引理：** 可以拓展到**数组 $gcd$数值上等于数组差分 $gcd$ **；证明显然，略
-- 注意该命题在**数组及其差分上取子数组时**上并不成立，如[下一题](#991F. Maximum modulo equality)
+  - 注意该命题在**数组及其差分上取子数组时**上并不成立，如[下一题](#991F. Maximum modulo equality)
+
+- 记$g_{pfx} = gcd(a_2-a_1,a_3-a_2,...a_n-a_{n-1})$
+- 于本题利用$gcd(a_1+b_1,a_2+b_1,...a_n+b_1) = gcd(a_1+b1,a_2-a_1,a_3-a_2,...a_n-a_{n-1}) = gcd(a_1 + b_1, g_{pfx})$即可
 
 ```c++
 #include "bits/stdc++.h"
