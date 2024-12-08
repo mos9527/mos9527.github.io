@@ -2,7 +2,7 @@
 author: mos9527
 lastmod: 2024-11-08T10:58:36.696000+08:00
 title: 算竞笔记：哈希类型专题
-tags: ["哈希","ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
+tags: ["哈希","ACM","算竞","XCPC","板子","题集","Codeforces","C++","数学"]
 categories: ["题解", "算竞", "合集"]
 ShowToc: true
 TocOpen: true
