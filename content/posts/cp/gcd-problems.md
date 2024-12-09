@@ -165,7 +165,7 @@ int main() {
 对于操作 `I` 和 `D`，操作后编号以及 $n$ 的值自动变化。
 称一些**砝码**可以称出质量 $v$，当且仅当存在将这些砝码分别放在天平两边的摆放方法，使得将 $1$ 个质量为 $v$ 的物体摆放在某边可以让天平平衡。
 
-- **引理：** **裴蜀等式**（英语：Bézout's identity）设$a_1, \cdots a_n$为$n$个整数，$d$是它们的最大公约数，那么存在整数$x_1, \cdots x_n$ 使得 $x_1\cdot a_1 + \cdots x_n\cdot a_n = d$
+- **引理：** **裴蜀等式**（英语：Bézout's identity），或**丢番图方程一次特殊情况**：设$a_1, \cdots a_n$为$n$个整数，$d$是它们的最大公约数，那么存在整数$x_1, \cdots x_n$ 使得 $x_1\cdot a_1 + \cdots x_n\cdot a_n = d$
 
 - 对操作`Q`，即询问$l,r$中的整数$x_i$能否构成 $x_1\cdot a_1 + \cdots x_n\cdot a_n = kd = v \to gcd(a_1,...,a_n) \mod v = 0 $
 
