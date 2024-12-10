@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2024-11-16T22:29:05.808000+08:00
+lastmod: 2024-12-10T08:46:36.526000+08:00
 title: 算竞笔记：GCD及相关专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++","GCD","数学"]
 categories: ["题解", "算竞", "合集"]
@@ -169,6 +169,179 @@ int main() {
 
 - 对操作`Q`，即询问$l,r$中的整数$x_i$能否构成 $x_1\cdot a_1 + \cdots x_n\cdot a_n = kd = v \to gcd(a_1,...,a_n) \mod v = 0 $
 
-- 对操作`I,D,A`...维护个平衡树吧
+- 对操作`I,D,A`...维护个平衡树/Treap吧
 
-又是ds...暂时先摆着了orz
+```c++
+#include "bits/stdc++.h"
+using namespace std;
+#define PRED(T,X) [&](T const& lhs, T const& rhs) {return X;}
+typedef long long ll; typedef unsigned long long ull; typedef double lf; typedef long double llf;
+typedef __int128 i128; typedef unsigned __int128 ui128;
+typedef pair<ll, ll> II; typedef vector<ll> vec;
+template<size_t size> using arr = array<ll, size>;
+const static void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0); cout.tie(0); }
+const static ll lowbit(const ll x) { return x & -x; }
+mt19937_64 RNG(chrono::steady_clock::now().time_since_epoch().count());
+const ll DIM = 6e6;
+const ll MOD = 1e9 + 7;
+const ll INF = 1e18;
+const lf EPS = 1e-8;
+template<typename T> struct treap {
+    struct node {
+        T key; // 应该为BST序 (但 lazy_add -> 无效故不实现find())
+        ll priority; // heap
+        // children
+        ll l, r;
+        // push_up/push_down maintains
+        ll size;
+        T sum;
+        T gcd;
+        // push_down maintains (lazy)
+        T lazy_add;
+    };
+    vector<node> tree;
+    vec free_list;
+private:
+    void push_up(ll o) {
+        tree[o].size = tree[tree[o].l].size + tree[tree[o].r].size + 1;
+        tree[o].sum = tree[tree[o].l].sum + tree[tree[o].r].sum + tree[o].key;
+        tree[o].gcd = gcd(gcd(tree[tree[o].l].gcd, tree[tree[o].r].gcd), tree[o].key);
+
+    }
+    void push_down(ll o) {
+        if (tree[o].lazy_add) {
+            if (tree[o].l) tree[tree[o].l].lazy_add += tree[o].lazy_add;
+            if (tree[o].r) tree[tree[o].r].lazy_add += tree[o].lazy_add;
+            tree[o].key += tree[o].lazy_add;
+            tree[o].sum += tree[o].lazy_add * tree[o].size;
+            tree[o].gcd = gcd(tree[o].key,gcd(
+                tree[tree[o].l].key + tree[o].lazy_add,
+                tree[tree[o].r].key + tree[o].lazy_add
+            ));
+            tree[o].lazy_add = 0;
+        }
+    }
+    II split_by_size(ll o, ll size) { // -> size:[k, n-k]
+        if (!o) return { 0,0 };
+        push_down(o);
+        if (tree[tree[o].l].size >= size) {
+            auto [ll, rr] = split_by_size(tree[o].l, size);
+            tree[o].l = rr;
+            push_up(o);
+            return { ll,o };
+        }
+        else {
+            auto [ll, rr] = split_by_size(tree[o].r, size - tree[tree[o].l].size - 1);
+            tree[o].r = ll;
+            push_up(o);
+            return { o,rr };
+        }
+    }
+    ll merge(ll l, ll r) {
+        if (!l || !r) return l + r;
+        push_down(l), push_down(r);
+        if (tree[l].priority < tree[r].priority) // 保持堆序; 优先级小的在上
+        {
+            tree[l].r = merge(tree[l].r, r);
+            push_up(l);
+            return l;
+        }
+        else {
+            tree[r].l = merge(l, tree[r].l);
+            push_up(r);
+            return r;
+        }
+    }
+public:
+    ll root = 0, top_p = 0;
+    treap(ll n) : tree(n + 2), free_list(n - 1) {
+        iota(free_list.rbegin(), free_list.rend(), root + 1);
+    }
+    ll insert(ll pos, ll key) {
+        auto [l, r] = split_by_size(root, pos);
+        ll next = free_list.back(); free_list.pop_back();
+        tree[next].key = tree[next].gcd = tree[next].sum = key, tree[next].priority = rand();
+        l = merge(l, next);
+        return root = merge(l, r);
+    }
+    ll erase(ll pos) {
+        auto [l, mid] = split_by_size(root, pos - 1);
+        auto [erased, r] = split_by_size(mid, 1);
+        free_list.push_back(erased);
+        tree[erased] = node{};
+        return root = merge(l, r);
+    }
+    ll range_add(ll v, ll L, ll R) {
+        auto [p1, r] = split_by_size(root, R);
+        auto [l, p2] = split_by_size(p1, L - 1);
+        tree[p2].lazy_add += v;
+        l = merge(l, p2);
+        return root = merge(l, r);
+    }
+    node range_query(ll L, ll R) {
+        auto [p1, r] = split_by_size(root, R);
+        auto [l, p2] = split_by_size(p1, L - 1);
+        push_down(p2);
+        node res = tree[p2];
+        l = merge(l, p2);
+        root = merge(l, r);
+        return res;
+    }
+};
+treap<ll> T(DIM);
+int main() {
+    fast_io();
+    /* El Psy Kongroo */
+    ll n, q; cin >> n >> q;
+    for (ll x, i = 1; i <= n; i++) cin >> x, T.insert(i, x);
+    auto __debug = [&]() {
+        cerr << "#### debug ####" << endl;
+        for (ll i = 1;; i++) {
+            auto n = T.range_query(i, i);
+            if (!n.key) break;
+            cerr << n.key << ' ';
+        }
+        cerr << endl;
+    };
+    while (q--) {
+        char op; cin >> op;
+        switch (op)
+        {
+            case 'I':
+            {
+                ll x, v; cin >> x >> v;
+                T.insert(x, v);
+                // __debug();
+                break;
+            }
+            case 'D':
+            {
+                ll x; cin >> x;
+                T.erase(x);
+                // __debug();
+                break;
+            }
+            case 'A':
+            {
+                ll l, r, v; cin >> l >> r >> v;
+                T.range_add(v, l, r);
+                // __debug();
+                break;
+            }
+            case 'Q':
+            default:
+            {
+                ll l, r, v; cin >> l >> r >> v;
+                auto res = T.range_query(l, r);
+                // __debug();
+                ll _gcd = res.gcd;
+                if (v % _gcd == 0) cout << "YES\n";
+                else cout << "NO\n";
+                break;
+            }        
+        }
+    }
+    return 0;
+}
+```
+
