@@ -11,7 +11,7 @@ typora-root-url: ..\..\static
 
 **注:** `segment_tree` 均采用 `1-Index` 访问； `segment_tree::reset(vector&)` 中`vector`为`0-Index`
 
-# 242E. XOR on Segment
+## 242E. XOR on Segment
 
 区间二进制改+lazy传递+二进制trick
 
@@ -165,7 +165,7 @@ int main() {
 	return 0;
 }
 ```
-# 920F. SUM and REPLACE
+## 920F. SUM and REPLACE
 
 数论、单点改+剪枝
 
@@ -290,7 +290,7 @@ int main() {
     return 0;
 }
 ```
-# 1234D. Distinct Characters Queries
+## 1234D. Distinct Characters Queries
 
 串转换`bitset`求独特值数
 
@@ -417,7 +417,7 @@ int main() {
 }
 ```
 
-# P6492. STEP
+## P6492. STEP
 
 > 给定一个长度为 $n$ 的字符序列 $a$，初始时序列中全部都是字符 `L`。
 > 有 $q$ 次修改，每次给定一个 $x$，若 $a_x$ 为 `L`，则将 $a_x$ 修改成 `R`，否则将 $a_x$ 修改成 `L`。
@@ -488,7 +488,129 @@ int main(){
 
 ```
 
-# Reference
+## P11373 「CZOI-R2」天平
+- 正解转 https://mos9527.com/posts/cp/gcd-problems/#p11373-czoi-r2%E5%A4%A9%E5%B9%B3，此处为Subtask 3解法
+- TL；DR 区间维护$gcd$；同时将**区间改**操作化为**单点改**操作省去`push_down`
+  - 给定数组$a$定义$gcd(a) = gcd(a_1,a_2,...a_n)$
+  - 由[引理](https://mos9527.com/posts/cp/gcd-problems/#691c-row-gcd)知$gcd(x,y) = gcd(x,y-x)$，可拓展为$gcd(a) = gcd(a_1, a_2 - a_1, ..., a_n - a_{n-1})$
+  - 记差分数组为$b$,$\forall b_i \in b, b_i = a_i - a_{i-1}$,既有$gcd(a) = gcd(a_1, b_2,...,b_n)$
+  - 鉴于题目只要求**区间加**，即等效于**差分数组单点改**，维护$b$数组RMQ后`push_up`即可
+  
+```c++
+template<typename T> struct segment_tree {
+  struct node {
+    ll l, r; // 区间[l,r]
+    T sum, gcd; // 差分和，差分gcd
+    ll length() const { return r - l + 1; }
+    ll mid() const { return (l + r) / 2; }
+  };
+  vector<node> tree;
+private:
+  ll begin = 1, end = 1;
+  void push_up(ll o) {
+    // 向上传递
+    ll lc = o * 2, rc = o * 2 + 1;
+      tree[o].sum = tree[lc].sum + tree[rc].sum;
+    tree[o].gcd = gcd(tree[lc].gcd, tree[rc].gcd);
+  }
+  void update(ll o, ll l, ll r, ll v) {
+    ll lc = o * 2, rc = o * 2 + 1;
+    if (tree[o].l == l && tree[o].r == r && tree[o].length() == 1) { // 定位单点
+      tree[o].sum += v, tree[o].gcd = tree[o].sum;
+      return;
+    }
+    ll mid = tree[o].mid();
+    if (r <= mid) update(lc, l, r, v);
+    else if (mid < l) update(rc, l, r, v);
+    else {
+      update(lc, l, mid, v);
+      update(rc, mid + 1, r, v);
+    }
+    push_up(o);
+  }
+  node query(ll o, ll l, ll r) {
+    ll lc = o * 2, rc = o * 2 + 1;
+    if (tree[o].l == l && tree[o].r == r) return tree[o];
+    ll mid = tree[o].mid();
+    if (r <= mid) return query(lc, l, r);
+    else if (mid < l) return query(rc, l, r);
+    else {
+      node p = query(lc, l, mid);
+      node q = query(rc, mid + 1, r);
+      return { l, r, p.sum + q.sum, gcd(p.gcd, q.gcd) };
+    }
+  }
+  void build(ll o, ll l, ll r, const T* src = nullptr) {
+    ll lc = o * 2, rc = o * 2 + 1;
+    tree[o] = {};
+    tree[o].l = l, tree[o].r = r;
+    if (l == r) {
+      if (src) tree[o].sum = tree[o].gcd = src[l];
+      return;
+    }
+    ll mid = (l + r) / 2;
+    build(lc, l, mid, src);
+    build(rc, mid + 1, r, src);
+    push_up(o);
+  }
+  void build(const T* src = nullptr) { build(begin, begin, end, src); }
+public:
+  void add(ll p, T const& v) { update(begin, p,p, v); }
+  node range_query(ll l, ll r) { return query(begin, l, r); }
+  /****/
+  void reserve(const ll n) { tree.reserve(n); }
+  void reset(const ll n) { end = n; tree.resize(end << 2); build(); }
+  // src: 0-based input array
+  void reset(const vector<T>& src) {
+    end = src.size(); tree.resize(end << 2);
+    build(src.data() - 1);
+  }
+  explicit segment_tree() {};
+  explicit segment_tree(const ll n) : begin(1) { reset(n); }
+};
+int main() {
+    fast_io();
+    /* El Psy Kongroo */
+    ll n,q; cin >> n >> q;
+    vec src(n); for (ll& x : src) cin >> x;
+    for (ll i = n - 1;i >= 1;i--) src[i] -= src[i-1];
+    segment_tree<ll> seg(n); seg.reset(src);
+    while (q--) {
+        char op; cin >> op;
+        switch (op) {
+            case 'D': {
+                ll x; cin >> x;
+                break;
+            }
+            case 'I': {
+                ll x,y; cin >> x>>y;
+                break;
+            }
+            case 'A': {
+                ll l,r,v; cin >> l >> r >> v;
+                seg.add(l,v);
+                if (r != n) seg.add(r+1,-v);
+                break;
+            }
+            case 'Q':
+            default:{
+                ll l,r,v; cin >> l >> r >> v;
+                ll a = seg.range_query(1,l).sum; // 差分和->a_l
+                ll b_gcd = seg.range_query(l + 1,r).gcd;
+                ll range_gcd = gcd(a,b_gcd);
+                if (v % range_gcd == 0) cout << "YES" << endl;
+                else cout << "NO" << endl;
+                break;
+            }
+        }
+    }
+    return 0;
+}
+```
+
+  
+
+## Reference
 
 - C++ 风格实现
 
@@ -613,7 +735,7 @@ public:
 };
 ```
 
-# RMQ 通解
+## RMQ 通解
 
 - https://codeforces.com/contest/2014/submission/282795544 （D，区间改+单点查询和）
 - https://codeforces.com/contest/339/submission/282875335 （D，单点改+区间查询）

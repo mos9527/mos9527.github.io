@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2024-12-10T08:46:17.203000+08:00
-title: 算竞笔记：数据结构相关专题
+title: 算竞笔记：平衡树相关专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++","GCD","数学","DS","data structures"]
 categories: ["题解", "算竞", "合集"]
 ShowToc: true

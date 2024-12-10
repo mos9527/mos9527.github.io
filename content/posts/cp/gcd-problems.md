@@ -9,7 +9,7 @@ TocOpen: true
 typora-root-url: ..\..\static
 ---
 
-# 691C. Row GCD
+## 691C. Row GCD
 > You are given two positive integer sequences $a_1, \ldots, a_n$ and $b_1, \ldots, b_m$. For each $j = 1, \ldots, m$ find the greatest common divisor of $a_1 + b_j, \ldots, a_n + b_j$.
 
 - **引理：** $gcd(x,y) = gcd(x,y-x)$
@@ -154,7 +154,7 @@ int main() {
 
 ```
 
-# P11373 「CZOI-R2」天平
+## P11373 「CZOI-R2」天平
 
 > 你有 $n$ 个**砝码组**，编号为 $1$ 至 $n$。对于第 $i$ 个**砝码组**中的砝码有共同的正整数质量 $a_i$，每个**砝码组**中的**砝码**数量无限。
 其中，有 $q$ 次操作：
