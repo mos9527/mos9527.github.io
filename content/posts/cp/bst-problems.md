@@ -105,7 +105,7 @@ public:
 
 ## B. 懒标记区间Treap
 
-提供**删除**操作；不支持查找；支持RMQ
+- 1. 提供**删除**操作，区间修改；不支持查找；支持RMQ
 
 ```c++
 #include "bits/stdc++.h"
@@ -229,3 +229,6 @@ int main() {
 }
 ```
 
+- 2. 单点修改（无懒标记）
+
+  参见 https://mos9527.com/posts/cp/gcd-problems/#p11373-czoi-r2%E5%A4%A9%E5%B9%B3
