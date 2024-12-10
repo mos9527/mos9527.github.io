@@ -147,6 +147,20 @@ int main() {
 
 
 ```c++
+#include "bits/stdc++.h"
+using namespace std;
+#define PRED(T,X) [&](T const& lhs, T const& rhs) {return X;}
+typedef long long ll; typedef unsigned long long ull; typedef double lf; typedef long double llf;
+typedef __int128 i128; typedef unsigned __int128 ui128;
+typedef pair<ll, ll> II; typedef vector<ll> vec;
+template<size_t size> using arr = array<ll, size>;
+const static void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0); cout.tie(0); }
+const static ll lowbit(const ll x) { return x & -x; }
+mt19937_64 RNG(chrono::steady_clock::now().time_since_epoch().count());
+const ll DIM = 6e6;
+const ll MOD = 1e9 + 7;
+const ll INF = 1e18;
+const lf EPS = 1e-8;
 template<typename T> struct treap {
     struct node {
         ll priority; // heap序
@@ -218,7 +232,7 @@ public:
         auto [p1, r] = split_by_size(root, pos);
         auto [l, p2] = split_by_size(p1, pos - 1);
         // 单点改
-        tree[p2].key += v, tree[p2].sum += v, tree[p2].gcd = tree[p2].sum;
+        tree[p2].key += v, tree[p2].sum = tree[p2].gcd = tree[p2].key;
         l = merge(l, p2);
         return root = merge(l, r);
     }
@@ -260,20 +274,22 @@ int main() {
             case 'I':
             {
                 ll x, v; cin >> x >> v;
-                auto prev = T.range_query(1, x), next = T.range_query(1, x + 1);
-                T.insert(x, v - prev.sum);
-                T.add(-(next.sum - prev.sum) + (next.sum - v), x + 2);
+                ll
+                    prev = x ? T.range_query(1, x).sum : 0,
+                    next = T.range_query(1, x + 1).sum;
+                T.insert(x, v - prev);
+                T.add(-(next - prev) + (next - v), x + 2);
                 __debug();
                 break;
             }
             case 'D':
             {
                 ll x; cin >> x;
-                auto
-                    prev = T.range_query(1, x - 1),
-                    curr = T.range_query(1, x);
+                ll
+                    prev = x > 1 ? T.range_query(1, x - 1).sum : 0,
+                    curr = T.range_query(1, x).sum;
                 T.erase(x);
-                T.add(curr.sum - prev.sum, x);
+                T.add(curr - prev, x);
                 __debug();
                 break;
             }
@@ -290,7 +306,7 @@ int main() {
             {
                 ll l, r, v; cin >> l >> r >> v;
                 ll a = T.range_query(1,l).sum;
-                ll b_gcd = T.range_query(l + 1, r).gcd;
+                ll b_gcd = l != r ? T.range_query(l + 1, r).gcd : 0LL;
                 ll range_gcd = gcd(a,b_gcd);
                 if (v % range_gcd == 0) cout << "YES\n";
                 else cout << "NO\n";
