@@ -144,6 +144,7 @@ int main() {
   - 思路上和[线段树 Subtask 3](https://mos9527.com/posts/cp/segment-tree-problems/#p11373-czoi-r2%E5%A4%A9%E5%B9%B3)基本一致
   - 额外考虑对**增，删**的维护；简单操作相邻差分值即可
   - 由于是单点修改，同样不需要`push_down`传递懒标记
+    - 洛谷b评测为什么不显示编译警告= =; `insert`没`return`直接RTE了无数发...
 
 
 ```c++
@@ -157,7 +158,7 @@ template<size_t size> using arr = array<ll, size>;
 const static void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0); cout.tie(0); }
 const static ll lowbit(const ll x) { return x & -x; }
 mt19937_64 RNG(chrono::steady_clock::now().time_since_epoch().count());
-const ll DIM = 6e6;
+const ll DIM = 3e5;
 const ll MOD = 1e9 + 7;
 const ll INF = 1e18;
 const lf EPS = 1e-8;
@@ -178,7 +179,7 @@ private:
     void push_up(ll o) {
         tree[o].size = tree[tree[o].l].size + tree[tree[o].r].size + 1;
         tree[o].sum = tree[o].key + tree[tree[o].l].sum + tree[tree[o].r].sum;
-        tree[o].gcd = gcd(tree[o].key, gcd(tree[tree[o].l].gcd, tree[tree[o].r].gcd));
+        tree[o].gcd = gcd(abs(tree[o].key), gcd(abs(tree[tree[o].l].gcd), abs(tree[tree[o].r].gcd)));
     }
     II split_by_size(ll o, ll size) { // -> size:[k, n-k]
         if (!o) return { 0,0 };
@@ -217,9 +218,9 @@ public:
     ll insert(ll pos, ll key) {
         auto [l, r] = split_by_size(root, pos);
         ll index = free_list.back(); free_list.pop_back();
-        tree[index].key = tree[index].sum = tree[index].gcd = key, tree[index].priority = rand();
+        tree[index].key = tree[index].sum = tree[index].gcd = key, tree[index].priority = rand(), tree[index].size = 1;
         l = merge(l, index);
-        root = merge(l, r);
+        return root = merge(l, r);
     }
     ll erase(ll pos) {
         auto [l, mid] = split_by_size(root, pos - 1);
@@ -229,11 +230,12 @@ public:
         return root = merge(l, r);
     }
     ll add(ll v, ll pos) {
-        auto [p1, r] = split_by_size(root, pos);
-        auto [l, p2] = split_by_size(p1, pos - 1);
+        if (range_query(pos, pos).size == 0) insert(pos, 0);
+        auto [l, mid] = split_by_size(root, pos - 1);
+        auto [p, r] = split_by_size(mid, 1);
         // 单点改
-        tree[p2].key += v, tree[p2].sum = tree[p2].gcd = tree[p2].key;
-        l = merge(l, p2);
+        tree[p].key += v; tree[p].sum = tree[p].gcd = tree[p].key;
+        l = merge(l, p);
         return root = merge(l, r);
     }
     node range_query(ll L, ll R) {
@@ -253,20 +255,6 @@ int main() {
     vec src(n); for (ll& x : src) cin >> x;
     for (ll i = n - 1;i >= 1;i--) src[i] -= src[i-1];
     for (ll i = 0; i < n; i++) T.insert(i, src[i]);
-    auto __debug = [&]() {
-#ifdef DEBUG
-        cerr << "#### debug ####" << endl;
-        ll sum = 0;
-        for (ll i = 1;; i++) {
-            auto n = T.range_query(i, i);
-            if (!n.sum) break;
-            sum += n.sum;
-            cerr << sum << "/" << n.sum << ' ';
-        }
-        cerr << endl;
-#endif
-    };
-    __debug();
     while (q--) {
         char op; cin >> op;
         switch (op)
@@ -277,9 +265,8 @@ int main() {
                 ll
                     prev = x ? T.range_query(1, x).sum : 0,
                     next = T.range_query(1, x + 1).sum;
+                T.add(-(next - prev) + (next - v), x + 1);
                 T.insert(x, v - prev);
-                T.add(-(next - prev) + (next - v), x + 2);
-                __debug();
                 break;
             }
             case 'D':
@@ -290,7 +277,6 @@ int main() {
                     curr = T.range_query(1, x).sum;
                 T.erase(x);
                 T.add(curr - prev, x);
-                __debug();
                 break;
             }
             case 'A':
@@ -298,7 +284,6 @@ int main() {
                 ll l, r, v; cin >> l >> r >> v;
                 T.add(v, l);
                 T.add(-v ,r + 1);
-                __debug();
                 break;
             }
             case 'Q':
