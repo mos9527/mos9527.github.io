@@ -25,7 +25,6 @@ if sys.platform == "win32":
             handle = self.__open_file(path)
             self.filetime = win32file.GetFileTime(handle)
             self.__close_file(handle)
-            print('* file',path,self.filetime)
         def __enter__(self):
             return self
         def __exit__(self, type, value, traceback):
