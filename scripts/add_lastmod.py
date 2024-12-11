@@ -3,8 +3,50 @@
 import os, sys
 import datetime
 
-assert sys.platform == "win32", "This script is only for Windows."
-import win32file
+if sys.platform == "win32":
+    import win32file
+    class auto_utime:
+        @staticmethod
+        def __open_file(path):
+            return win32file.CreateFile(
+                path,
+                0x101,  # FILE_READ_DATA | FILE_WRITE_ATTRIBUTES
+                win32file.FILE_SHARE_READ,
+                None,
+                win32file.OPEN_EXISTING,
+                win32file.FILE_ATTRIBUTE_NORMAL,
+                None,
+            )
+        @staticmethod
+        def __close_file(handle):
+            return win32file.CloseHandle(handle)
+        def __init__(self, path):
+            self.path = path            
+            handle = self.__open_file(path)
+            self.filetime = win32file.GetFileTime(handle)
+            self.__close_file(handle)
+            print('* file',path,self.filetime)
+        def __enter__(self):
+            return self
+        def __exit__(self, type, value, traceback):
+            handle = self.__open_file(self.path)
+            win32file.SetFileTime(handle, *self.filetime)
+            self.__close_file(handle)
+        @property
+        def modify(self):
+            return self.filetime[2].astimezone()
+else:
+    class auto_utime:
+        def __init__(self, path):
+            self.path = path
+            self.stat = os.stat(path)
+        def __enter__(self):
+            return self
+        def __exit__(self, type, value, traceback):
+            os.utime(self.path, (self.atime, self.mtime))
+        @property
+        def modify(self):
+            return datetime.datetime.fromtimestamp(self.stat.st_mtime)
 
 POST_FOLDER = os.path.join(os.path.dirname(__file__), "../content/posts")
 for a, b, c in os.walk(POST_FOLDER):
@@ -15,27 +57,9 @@ for a, b, c in os.walk(POST_FOLDER):
             print(f"[*] {file} already has lastmod. updating.")
         else:
             lines.insert(2)
-        open_file_handle = lambda path: win32file.CreateFile(
-            path,
-            0x101,  # FILE_READ_DATA | FILE_WRITE_ATTRIBUTES
-            win32file.FILE_SHARE_READ,
-            None,
-            win32file.OPEN_EXISTING,
-            win32file.FILE_ATTRIBUTE_NORMAL,
-            None,
-        )
-        close_hdl = lambda hdl: win32file.CloseHandle(hdl)
-        # modifying `lastmod` changes these too. use win32 apis to revert them later on
-        handle = open_file_handle(path)
-        create, access, modify = win32file.GetFileTime(handle)
-        close_hdl(handle)
 
-        stat = os.stat(path)
-        lastmod = modify.astimezone().isoformat()
-        print(f"[-] {file} : {lastmod}")
-        lines[2] = f"lastmod: {lastmod}\n"
-        open(path, "w", encoding="utf-8").writelines(lines)
-
-        handle = open_file_handle(path)
-        win32file.SetFileTime(handle, create, access, modify)
-        close_hdl(handle)
+        with auto_utime(path) as ftime:
+            lastmod = ftime.modify.isoformat()
+            print(f"[-] {file} : {lastmod}")
+            lines[2] = f"lastmod: {lastmod}\n"
+            open(path, "w", encoding="utf-8").writelines(lines)

@@ -1,0 +1,10 @@
+hmm yes readme dot NOTHING (mwahahahaha)
+---
+local deployment:
+- git clone --recurse-submodules --depth=1
+- go install github.com/gohugoio/hugo@release-0.120.4 
+- hugo serve
+
+update snippet:
+- (dependency on Windows) pip install pywin32
+- python ./scripts/add_lastmod.py; git add .; git commit -m "upd"; git push
