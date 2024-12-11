@@ -43,7 +43,7 @@ else:
         def __enter__(self):
             return self
         def __exit__(self, type, value, traceback):
-            os.utime(self.path, (self.atime, self.mtime))
+            os.utime(self.path, (self.stat.st_atime, self.stat.st_mtime))
         @property
         def modify(self):
             return datetime.datetime.fromtimestamp(self.stat.st_mtime)
