@@ -11,7 +11,7 @@ typora-root-url: ..\..\static
 
 # Treap
 
-**ATTENTION:** WIP. *没调完呢（* 
+**ATTENTION:** 出门左转 https://caterpillow.github.io/byot 谢谢喵
 
 又名**笛卡尔树**，**随机BST**；支持$log n$插入，删除，查找及闭包操作(`push_up`)
 
