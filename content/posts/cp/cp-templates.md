@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2024-12-11T19:40:11.925465
+lastmod: 2024-12-26T17:02:41.884000+08:00
 title: 算竞笔记：题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1351,6 +1351,58 @@ cout << l - 1 << endl;
 
 - 不同于一般排序题，这里排列不需要完全一致；$p_i = i, p_i = p_{{i}_{i}}$皆可
 - 意味着，最后要的环大小也可以是$2$，此时显然大小更优；更改$k$的计算为$k = \sum_{1}^{m}{\frac{s - 1}{2}}$即可
+
+## 离散化
+
+适用于大$a_i$但小$n$情形
+
+- 在线`map`写法
+
+```c++
+map<ll, ll> pfx;        
+for (auto [ai, bi] : a) {
+    pfx[ai + 1] += 1;
+    pfx[bi + 1] -= 1;           
+}
+for (auto it = next(pfx.begin()); it != pfx.end(); it++) 
+    it->second += prev(it)->second;
+auto query = [&](ll x) -> ll {
+    if (pfx.contains(x)) return pfx[x];
+    auto it = pfx.lower_bound(x);
+    if (it != pfx.begin()) it = prev(it);
+    else if (it->first != x) return 0; // 上界之前
+    return it->second;
+};        
+```
+
+
+
+- 离线`map`写法
+
+```c++
+map<ll, ll> R;
+for (auto& ai : a) R[ai] = 1;
+vec Ri; // kth-big
+ll cnt = 0; for (auto& [x, i] : R) i = cnt++, Ri.push_back(x);
+for (auto& [ai, bi] : a) ai = R[ai], bi = R[bi];
+```
+
+- 离线`set`写法
+  - 注意该`set`若为STL set，复杂度($R(x)$) 实为$O(n)$
+    - 详见 https://codeforces.com/blog/entry/123961
+    - [TL;DR `std::distance`**对且仅对*随机***迭代器为$O(1)$操作](https://en.cppreference.com/w/cpp/iterator/distance)，其余迭代器(如果适用)皆为$O(n)$
+    - 在 https://codeforces.com/contest/2051/submission/298511255 可见产生TLE
+      - `map`解法(AC)：https://codeforces.com/contest/2051/submission/298511985
+
+```c++
+set<ll> Rs;
+vector<II> a(n);
+for (auto& ai : a) Rs.insert(ai);
+vec Ri(R.begin(), R.end()); // kth-big
+auto R = [&](ll x) -> ll { return distance(Rs.begin(), Rs.lower_bound(x)); };
+```
+
+
 
 ## MSVC也要用万能头!!
 
