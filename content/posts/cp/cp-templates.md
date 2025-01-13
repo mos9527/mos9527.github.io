@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2024-12-26T17:02:41.884000+08:00
+lastmod: 2024-12-26T17:21:44.058182
 title: 算竞笔记：题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
