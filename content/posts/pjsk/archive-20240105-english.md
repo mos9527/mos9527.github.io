@@ -794,19 +794,19 @@ https://github.com/AssetRipper/AssetRipper/issues/954
 
 https://github.com/mos9527/Foundation
 
-## Project SEKAI 逆向（5）： AssetBundle 脱机 + USM 提取
+## Project SEKAI Reverse (5): AssetBundle offline + USM extraction
 
-- 分析variant：世界計劃 2.6.1 （Google Play 台服）
+- Analyzing Variant: World Plan 2.6.1 (Google Play Taiwan)
 
 ### 1. AssetBundleInfo
 
-前文提及的`AssetBundleInfo`是从设备提取出来的；假设是已经加载过的所有资源的缓存的话：
+The `AssetBundleInfo` mentioned earlier is extracted from the device; assuming it is a cache of all resources that have been loaded:
 
-- 在刚刚完成下载的设备上提取该文件时，该文件 4MB
+- When extracting the file on a device that has just completed the download, the file 4MB
 
 ![image-20240101204313069](/image-archive-20240105/image-20240101204313069.png)
 
-- 但是在初始化后重现抓包时发现的该文件为 **13MB**
+- However, the file found when reproducing the packet capture after initialization is **13MB**
 
 ```bash
 curl -X GET 'https://184.26.43.87/obj/sf-game-alisg/gdl_app_5245/AssetBundle/2.6.0/Release/online/android21/AssetBundleInfo.json' -H 'Host: lf16-mkovscdn-sg.bytedgame.com' -H 'User-Agent: UnityPlayer/2020.3.32f1 (UnityWebRequest/1.0, libcurl/7.80.0-DEV)' -H 'Accept-Encoding: deflate, gzip' -H 'X-Unity-Version: 2020.3.32f1'
@@ -814,19 +814,19 @@ curl -X GET 'https://184.26.43.87/obj/sf-game-alisg/gdl_app_5245/AssetBundle/2.6
 
 ![image-20240101204525117](/image-archive-20240105/image-20240101204525117.png)
 
-- 推测设备上文件为已缓存资源库，而这里的即为全量资源集合；尝试dump
+- It is assumed that the files on the device are cached repositories, and the ones here are the full set of resources; try dumping them
 
 ```bash
  sssekai apidecrypt .\assetbundleinfo .\assetbundleinfo.json
 ```
 
-- 查身体模型数看看吧
+- Let's check the body model number
 
 ![image-20240101204751167](/image-archive-20240105/image-20240101204751167.png)
 
-- 此外，这里的数据还会多几个field
+- In addition, the data here will have a few more fields
 
-新数据库：
+New database:
 
 ```json
         "live_pv/model/character/body/21/0001/ladies_s": {
@@ -847,7 +847,7 @@ curl -X GET 'https://184.26.43.87/obj/sf-game-alisg/gdl_app_5245/AssetBundle/2.6
         },
 ```
 
-设备数据库：
+Equipment database:
 
 ```json
         "live_pv/model/character/body/21/0001/ladies_s": {
@@ -868,43 +868,43 @@ curl -X GET 'https://184.26.43.87/obj/sf-game-alisg/gdl_app_5245/AssetBundle/2.6
         },
 ```
 
-多出的`downloadPath`可以利用，继续吧...
+The extra `downloadPath` can be utilized, go ahead...
 
 ### 2. CDN？
 
-- 启动下载后，能抓到一堆这种包：
+- After initiating the download, you can grab a bunch of these packages:
 
 ```bash
 curl -X GET 'https://184.26.43.74/obj/sf-game-alisg/gdl_app_5245/AssetBundle/2.6.0/Release/online/android1/actionset/group1?t=20240101203510' -H 'Host: lf16-mkovscdn-sg.bytedgame.com' -H 'User-Agent: UnityPlayer/2020.3.32f1 (UnityWebRequest/1.0, libcurl/7.80.0-DEV)' -H 'Accept-Encoding: deflate, gzip' -H 'X-Unity-Version: 2020.3.32f1'
 ```
 
-`downloadPath`字段在这里出现了；看起来`https://184.26.43.74/obj/sf-game-alisg/gdl_app_5245/AssetBundle/2.6.0/Release/online` ` 是这里的AB的根路径
+The `downloadPath` field comes up here; it looks like `https://184.26.43.74/obj/sf-game-alisg/gdl_app_5245/AssetBundle/2.6.0/Release/online` ` is the root path of AB here
 
-而`184.26.43.74`就是cdn了，毕竟
+And `184.26.43.74` is the cdn, after all
 
 ![image-20240101205501465](/image-archive-20240105/image-20240101205501465.png)
 
-- cdn的地址看起来是内嵌的；在dump出来的strings中：
+- The cdn address appears to be embedded; in the strings that come out of the dump:
 
 ![image-20240101210240573](/image-archive-20240105/image-20240101210240573.png)
 
-### 3. 热更新 Cache
+### 3. Hot Updates Cache
 
-考虑pjsk更新频率大，每次重新下所有数据不是很高效
+Considering the frequency of pjsk updates, it's not very efficient to re-download all of the data each time
 
-做一个本地cache动机充分；细节就不在这里说了，请看 https://github.com/mos9527/sssekai/blob/main/sssekai/abcache/__init__.py
+Doing a local cache is motivated sufficiently; the details will not be covered here, see https://github.com/mos9527/sssekai/blob/main/sssekai/abcache/__init__.py
 
-尝试拉取全部资源，貌似需要*27GB*
+Trying to pull the full resource, it looks like it takes *27GB*
 
 ![image-20240102003435800](/image-archive-20240105/image-20240102003435800.png)
 
-### 4. 文件一览
+### 4. List of documents
 
-- 在 WinDirStat 中查看分布
+- View the distribution in WinDirStat
 
 ![image-20240102095200320](/image-archive-20240105/image-20240102095200320.png)
 
-- 动画资源：
+- Animation Resources:
 
 ![image-20240102095331527](/image-archive-20240105/image-20240102095331527.png)
 
@@ -914,45 +914,45 @@ curl -X GET 'https://184.26.43.74/obj/sf-game-alisg/gdl_app_5245/AssetBundle/2.6
 
 ![image-20240102095636123](/image-archive-20240105/image-20240102095636123.png)
 
-其它的话，貌似是音视频文件居多
+Otherwise, it seems to be mostly audio/video files
 
-揭开后可以发现封包格式是[CriWare](https://www.criware.com/en/)中间件格式（i.e. USM视频流，HCA音频流）
+Uncovering reveals that the packet format is [CriWare](https://www.criware.com/en/) middleware format (i.e. USM video stream, HCA audio stream)
 
-### 5. USM 提取
+### 5. USM extraction
 
-*动机：应该很简单orz*
+*Motivation: it should be simple orz*
 
 ---
 
 ![image-20240102112727738](/image-archive-20240105/image-20240102112727738.png)
 
-- 没有 Magic `CRID`
+- No Magic `CRID`
 
-  回到IDA，看起来USM资源并不是直接从assetbundle中提取；中间有缓存到文件系统的流程
+  Going back to IDA, it looks like the USM resources aren't pulled directly from the assetbundle; there's a cache-to-filesystem process in between
 
 ![image-20240102114924491](/image-archive-20240105/image-20240102114924491.png)
 
 ![image-20240102113153597](/image-archive-20240105/image-20240102113153597.png)
 
-- 果然，在`/sdcard/Android/data/[...]/cache/movies`下有这样的文件
+- Sure enough, under `/sdcard/Android/data/[...]/cache/movies` there is this file
 
 ![image-20240102115142365](/image-archive-20240105/image-20240102115142365.png)
 
 ![image-20240102115207418](/image-archive-20240105/image-20240102115207418.png)
 
-- 而且用[WannaCri](https://github.com/donmai-me/WannaCRI)可以直接demux，没有额外密钥
+- And with [WannaCri](https://github.com/donmai-me/WannaCRI) you can just demux, no extra keys!
 
 ![image-20240102115303855](/image-archive-20240105/image-20240102115303855.png)
 
-- 回顾asset中USM文件
+- Review of USM files in asset
 
 ![image-20240102115518322](/image-archive-20240105/image-20240102115518322.png)
 
-- 利用`MovieBundleBuildData`猜测可以拼接出源文件
+- Using `MovieBundleBuildData` it is guessed that the source file can be stitched together
 
 ![image-20240102125531642](/image-archive-20240105/image-20240102125531642.png)
 
-**脚本：**https://github.com/mos9527/sssekai/blob/main/sssekai/entrypoint/usmdemux.py
+**Script:** https://github.com/mos9527/sssekai/blob/main/sssekai/entrypoint/usmdemux.py
 
 ![image-20240102135738112](/image-archive-20240105/image-20240102135738112.png)
 
@@ -964,69 +964,69 @@ https://github.com/mos9527/sssekai
 
 https://github.com/donmai-me/WannaCRI
 
-## Project SEKAI 逆向（6）：Live2D 资源
+## Project SEKAI Reverse (6): Live2D Resources
 
-- 分析variant：世界計劃 2.6.1 （Google Play 台服）
+- Analyzing Variant: World Plan 2.6.1 (Google Play Taiwan)
 
-### 1. Live2D 模型
+### 1. Live2D model
 
 ![image-20240102205059463](/image-archive-20240105/image-20240102205059463.png)
 
-- 所有live2d资源都可以在 `[abcache]/live2d/`下找到；包括模型及动画
+- All live2d resources can be found under `[abcache]/live2d/`; including models and animations.
 
-首先，`.moc3`,`.model3`,`.physics3`资源都可以直接利用[Live2D Cubism Editor](https://www.live2d.com/en/cubism/download/editor/)直接打开
+First of all, `.moc3`, `.model3`, and `.physics3` resources can be opened directly with [Live2D Cubism Editor](https://www.live2d.com/en/cubism/download/editor/)
 
-而模型材质需要额外更名；这些信息都在`BuildModelData`中
+And the model material needs to be renamed additionally; this information is in the `BuildModelData`
 
 ![image-20240102205701929](/image-archive-20240105/image-20240102205701929.png)
 
-- 补全后即可导入，效果如图
+- Completion can be imported, the effect is as shown in the figure
 
 ![image-20240102205542299](/image-archive-20240105/image-20240102205542299.png)
 
-### 2. 动画 Key 预处理
+### 2. Animated Key Preprocessing
 
-- 可惜动画并不是`.motion3`格式
+- Unfortunately the animation is not in `.motion3` format
 
-  封包中有的是Unity自己的Animation Clip
+  What's in the package is Unity's own Animation Clip
 
-  在提取资源时，所有的动画key只能读到对应key string的CRC32 hash；导出/操作必须知道string-hash关系
+  When extracting resources, all animated keys can only read the CRC32 hash of the corresponding key string; the export/operation must know the string-hash relationship
 
 ![image-20240102210045486](/image-archive-20240105/image-20240102210045486.png)
 
-- 这些string在`moc3`以外的文件中未知：当然，碰撞出string也不现实；猜想string和Live2D参数有关
+- These strings are unknown in files other than `moc3`: of course, it's not practical to collide out the strings; guessing that the strings have something to do with the Live2D parameter
 
 ![image-20240102210113370](/image-archive-20240105/image-20240102210113370.png)
 
-尝试搜索无果
+Tried searching to no avail
 
 ![image-20240102210134670](/image-archive-20240105/image-20240102210134670.png)
 
-- 幸运的是Live2D Unity SDK可以免费取得，而且附带样例
+- Luckily the Live2D Unity SDK is available for free and comes with samples!
 
-  还记得前文处理BlendShape时，可以知道`AnimationClip`的源`.anim`会有path的源string，而不是crc
+  Remember from the previous article dealing with BlendShape, you can tell that `AnimationClip`'s source `.anim` will have the source string of path, not crc
 
 ![image-20240102210341040](/image-archive-20240105/image-20240102210341040.png)
 
-尝试加入前缀
+Try adding a prefix
 
 ![image-20240102210356955](/image-archive-20240105/image-20240102210356955.png)
 
 ![image-20240102210406498](/image-archive-20240105/image-20240102210406498.png)
 
-可以定位；下面介绍如何构建CRC表，完成crc-string map
+can be located; the following describes how to construct a CRC table to complete the crc-string map
 
-### 3. moc3 反序列化 + CRC打表
+### 3. moc3 deserialization + CRC hit list
 
-- 每次读取都从`moc3`文件构造应该可行；不过考虑到有导入纯动画的需求，显然一个常量map是需要的
+- It should be feasible to construct from the `moc3` file for each read; however, given the need to import pure animations, it is clear that a constant map is required
 
-- 故需要能读取`moc3`中所有参数名；参照https://raw.githubusercontent.com/OpenL2D/moc3ingbird/master/src/moc3.hexpat
+- Therefore, it is necessary to be able to read all parameter names in `moc3`; see https://raw.githubusercontent.com/OpenL2D/moc3ingbird/master/src/moc3.hexpat.
 
-  在 ImHex 中可见：
+  Visible in ImHex:
 
 ![image-20240103090132409](/image-archive-20240105/image-20240103090132409.png)
 
-- 提取参数名脚本如下：
+- The script for extracting parameter names is as follows:
 
 ```python
 from typing import BinaryIO
@@ -1072,7 +1072,7 @@ class moc3:
 
 ```
 
-- 之后，构造CRC表就很简单了
+- After that, constructing the CRC table is simple
 
 ```python
 from io import BytesIO
@@ -1110,25 +1110,25 @@ for name in sorted(list(ParameterNames)):
 print('}')
 ```
 
-- 导出结果如下：
+- The export results are as follows:
 
 ![image-20240102225301658](/image-archive-20240105/image-20240102225301658.png)
 
-### 4. AnimationClip 转换
+### 4. AnimationClip Conversion
 
-Live2D有自己私有的动画格式`motion3`，幸运的是[UnityLive2DExtractor](https://github.com/Perfare/UnityLive2DExtractor)已做了相当多的解析实现，可供参考
+Live2D has its own private animation format `motion3`, fortunately [UnityLive2DExtractor](https://github.com/Perfare/UnityLive2DExtractor) has done quite a bit of parsing to implement this for reference
 
-由于上文介绍的细节出入，对PJSK的转换并不能直接使用这个工具
+Due to the discrepancies in the details described above, the conversion of PJSK cannot be done directly using this tool.
 
-索性在[sssekai](https://github.com/mos9527/sssekai)重现；细节**非常**繁琐，再次不多说；有兴趣的话还请参考源码
+Solely reproduced at [sssekai](https://github.com/mos9527/sssekai); details **very** tedious, again not much to say; see also the source code if you're interested
 
-- 使用例：将转化所有找到的`AnimationClip`为`.motion3.json`
+- Usage example: will transform all found `AnimationClip` to `.motion3.json`.
 
 ```bash
 sssekai live2dextract c:\Users\mos9527\.sssekai\abcache\live2d\motion\21miku_motion_base .
 ```
 
-- 效果如图
+- The effect is as shown in the picture.
 
 ![sssekai-live2d-anim-import-demo](/image-archive-20240105/sssekai-live2d-anim-import-demo.gif)
 
