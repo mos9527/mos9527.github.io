@@ -136,7 +136,7 @@ UNENCRYPTED:
 }
 ```
 
-Compare to Unity's default implementation （https://github.com/mos9527/il2cpp-27/blob/main/libil2cpp/vm/MetadataLoader.cpp) ：
+Compare to Unity's default implementation （https://github.com/mos9527/il2cpp-27/blob/main/libil2cpp/vm/MetadataLoader.cpp)：
 
 ```c++
 void* MetadataLoader::LoadMetadataFile(const char* fileName)
