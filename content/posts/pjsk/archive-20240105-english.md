@@ -136,7 +136,7 @@ UNENCRYPTED:
 }
 ```
 
-Compare to Unity's default implementation （https://github.com/mos9527/il2cpp-27/blob/main/libil2cpp/vm/MetadataLoader.cpp)：
+Compare to Unity's default implementation （https://github.com/mos9527/il2cpp-27/blob/main/libil2cpp/vm/MetadataLoader.cpp) ：
 
 ```c++
 void* MetadataLoader::LoadMetadataFile(const char* fileName)
@@ -587,56 +587,56 @@ https://msgpack.org/index.html
 
 https://github.com/mitmproxy/mitmproxy
 
-## Project SEKAI 逆向（4）： pjsk AssetBundle 反混淆 + PV 动画导入
+## Project SEKAI Reverse (4): pjsk AssetBundle Anti-Obfuscation + PV Animation Import
 
-- 分析variant：世界計劃 2.6.1 （Google Play 台服）
+- Analyzing Variant: World Plan 2.6.1 (Google Play Taiwan)
 
-### 1. 数据提取
+### 1. Data extraction
 
-pjsk资源采用热更新模式；本体运行时之外，还会有~~3~4G左右的资源~~ （**注：**不定量，见下一篇）
+The pjsk resources are in hot update mode; there will be ~~3~4G or so in addition to the ontology runtime~~ (**Note: **Variable amount, see next post)
 
-- 尝试从本机提取资源
+- Trying to extract resources from the local machine
 
 ![image-20231231183530650](/image-archive-20240105/image-20231231183530650.png)
 
 ![image-20231231183558159](/image-archive-20240105/image-20231231183558159.png)
 
-没有magic `UnityFS`,考虑ab文件有混淆
+There is no magic `UnityFS`, consider the ab file confusing
 
-### 2. 加载流程分析
+### 2. Load flow analysis
 
-- 进dnSpy直接搜assetbundle找相关Class
+- Go to dnSpy and search for assetbundle to find the relevant class.
 
 ![image-20231231183823530](/image-archive-20240105/image-20231231183823530.png)
 
-- 进ida看impl，可以很轻松的找到加载ab的嫌疑流程
+- Going into ida and looking at the impl, you can easily find the suspect process of loading the ab
 
 ![image-20231231183917530](/image-archive-20240105/image-20231231183917530.png)
 
 ![image-20231231183933304](/image-archive-20240105/image-20231231183933304.png)
 
-- 最后直接调用了unity的`LoadFromStream`，`Sekai.AssetBundleStream`实现了这样的Stream：
+- It ends up calling unity's `LoadFromStream` directly, and `Sekai.AssetBundleStream` implements such a Stream:
 
 ![image-20231231184111015](/image-archive-20240105/image-20231231184111015.png)
 
 ![image-20231231184246728](/image-archive-20240105/image-20231231184246728.png)
 
-可以注意到
+It may be noted that
 
-- 加载时根据 `_isInverted` flag 决定是否进行反混淆操作
-- 如果有，则先跳过4bytes,之后5bytes按位取反
-- 最后移交`InvertedBytesAB`继续处理
-  - 注意到`n00`应为128，`v20`为读取offset
+- The `_isInverted` flag determines whether or not to perform an anti-obfuscation operation when loading.
+- If yes, skip 4bytes first, then invert 5bytes byte by bit.
+- Final handover to `InvertedBytesAB` for further processing
+  - Notice that `n00` should be 128 and `v20` is the read offset
 
-- 这里考虑offset=0情况，那么仅前128字节需要处理
+- Consider the offset=0 case, then only the first 128 bytes need to be processed
 
-跟进`InvertedBytesAB`
+Follow-up to `InvertedBytesAB'
 
 ![image-20231231184647711](/image-archive-20240105/image-20231231184647711.png)
 
-可见，这里即**跳过4bytes后，每 8bytes，取反前5bytes**
+It can be seen that here, i.e. **after skipping 4bytes, every 8bytes, invert the first 5bytes**
 
-综上，解密流程分析完毕；附脚本：
+In summary, the decryption process is analyzed; the script is attached:
 
 ```python
 import sys
@@ -670,31 +670,31 @@ else:
                 decrypt(file, os.path.join(sys.argv[2], fname))
 ```
 
-### 3. 提取资源
+### 3. Extraction of resources
 
 ![image-20231231192311049](/image-archive-20240105/image-20231231192311049.png)
 
-- 文件处理完后，就可以靠https://github.com/Perfare/AssetStudio查看资源了：
+- Once the file is processed, you can rely on https://github.com/Perfare/AssetStudio查看资源了:
 
 ![image-20231231192416677](/image-archive-20240105/image-20231231192416677.png)
 
-- 不过版本号很好找，这里是`2020.3.21f1`：
+- The version number is easy to find though, here it is `2020.3.21f1`:
 
 ![image-20231231192541641](/image-archive-20240105/image-20231231192541641.png)
 
-- 加载可行，如图：
+- Loading works, as shown:
 
 ![image-20231231192616533](/image-archive-20240105/image-20231231192616533.png)
 
 ### 4. AssetBundleInfo?
 
-在数据目录里发现了这个文件，同时在`Sekai_AssetBundleManager__LoadClientAssetBundleInfo`中：
+Found this file in the data directory along with `Sekai_AssetBundleManager__LoadClientAssetBundleInfo`:
 
 ![image-20231231194342801](/image-archive-20240105/image-20231231194342801.png)
 
-用的是和API一样的密钥和封包手段，解开看看
+Using the same key and packetized means as the API, unpack it and see
 
-**注：** 工具移步 https://github.com/mos9527/sssekai；内部解密流程在文章中都有描述
+**Note:** Tools moved to https://github.com/mos9527/sssekai; the internal decryption process is described in the article
 
 ```bash
 python -m sssekai apidecrypt .\AssetBundleInfo .\AssetBundleInfo.json
@@ -702,21 +702,21 @@ python -m sssekai apidecrypt .\AssetBundleInfo .\AssetBundleInfo.json
 
 ![image-20231231202455181](/image-archive-20240105/image-20231231202455181.png)
 
-### 5. 资源使用？
+### 5. Resource utilization?
 
-- 角色模型数很少
+- Low number of character models
 
 ![image-20231231203837242](/image-archive-20240105/image-20231231203837242.png)
 
-- 猜测这里的资源被热加载；在blender直接看看已经有的mesh吧：
+- Guessing that the resources here are being hot loaded; take a look at the mesh that's already there in blender directly:
 
-  bind pose有问题，修正FBX导出设置可以解决；不过暂且不往这个方向深究
+  There is a problem with the bind pose, which can be solved by fixing the FBX export settings; but let's not go deeper in that direction for now.
 
 ![image-20231231204536443](/image-archive-20240105/image-20231231204536443.png)
 
-- 同时也许可以试试导入 Unity？
+- Also maybe try importing Unity?
 
-https://github.com/AssetRipper/AssetRipper/ 可以做到这一点，尝试如下：
+https://github.com/AssetRipper/AssetRipper/ This can be done by trying the following:
 
 ![image-20231231212152781](/image-archive-20240105/image-20231231212152781.png)
 
@@ -724,15 +724,15 @@ https://github.com/AssetRipper/AssetRipper/ 可以做到这一点，尝试如下
 
 ![image-20231231212822730](/image-archive-20240105/image-20231231212822730.png)
 
-- 拖进 Editor
+- Drag and drop into Editor
 
 ![image-20240101141156185](/image-archive-20240105/image-20240101141156185.png)
 
-- 注意shader并没有被拉出来，暂时用standard替补
+- Note that shader isn't being pulled out and is being replaced with standard for now
 
 ![image-20240101152353581](/image-archive-20240105/image-20240101152353581.png)
 
-- face/body mesh分开；需绑定face root bone(Neck)到body (Neck)
+- Separate face/body mesh; need to bind face root bone (Neck) to body (Neck)
 
 ```c#
 using UnityEngine;
@@ -758,31 +758,31 @@ public class BoneAttach : MonoBehaviour
 
 ![image-20240101141256456](/image-archive-20240105/image-20240101141256456.png)
 
-- 注意到blendshape/morph名字对不上
+- Notice that the blendshape/morph names don't match.
 
 ![image-20240101141815895](/image-archive-20240105/image-20240101141815895.png)
 
 ![image-20240101141909497](/image-archive-20240105/image-20240101141909497.png)
 
-爬了下issue：这里的数字是名称的crc32（见 https://github.com/AssetRipper/AssetRipper/issues/954）
+Crawling down the issue: the number here is the crc32 of the name (see https://github.com/AssetRipper/AssetRipper/issues/954)
 
 ![image-20240101142406334](/image-archive-20240105/image-20240101142406334.png)
 
 ![image-20240101142422934](/image-archive-20240105/image-20240101142422934.png)
 
-- 拿blendshape名字做个map修复后，动画key正常
+- After taking the blendshape name and doing a map fix, the animation key works fine
 
 ![image-20240101150057515](/image-archive-20240105/image-20240101150057515.png)
 
-- 加上timeline后的播放效果
+- Playback with timeline
 
 ![Animation](/image-archive-20240105/Animation.gif)
 
-不知道什么时候写之后的，暂时画几个饼：
+I don't know when I'm going to write the afterward, so I'll paint a few pies for now:
 
-- 资源导入Blender + toon shader 复刻
-- 资源导入 [Foundation](https://github.com/mos9527/Foundation/tree/master/Source) 
-- 脱离游戏解析+下载资源
+- Resource import Blender + toon shader replica
+- Resource Import [Foundation](https://github.com/mos9527/Foundation/tree/master/Source) 
+- Disengagement Game Explanation + Download Resources
 
 ***SEE YOU SPACE COWBOY...***
 
