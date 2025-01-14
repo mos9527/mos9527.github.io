@@ -104,6 +104,8 @@ Apple Silicon 的 Mac 无一例外都*可以*原生跑 iPhone/iPad OS 上的 App
 
 点一下屏幕回来捕捉即可，按下`Capture`
 
+**注：** `Profile after Replay` 可以考虑关掉加速shader编辑
+
 ![image-20250113223356040](/image-shading-reverse/image-20250113223356040.png)
 
 ![image-20250113223746077](/image-shading-reverse/image-20250113223746077.png)
