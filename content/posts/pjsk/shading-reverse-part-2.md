@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2025-01-14T01:08:34.159822
-title: PSJK Blender卡通渲染管线重现【2】：角色渲染一览
+title: PSJK Blender卡通渲染管线重现【2】：角色 Shader
 tags: ["逆向","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "逆向", "合集", "CG"]
 ShowToc: true
@@ -11,6 +11,13 @@ typora-copy-images-to: ../../../static/image-shading-reverse
 ---
 
 # Preface
+
+Shader部分其实已经有不少现成工作，比如
+
+- https://github.com/KH40-khoast40/Shadekai
+- https://github.com/festivities/SekaiToon
+
+至于为什么要自己重新造轮子...有时间。还要什么理由？除此之外（*敲黑板*）最后实现是要进 Blender 的嘛...
 
 PV：[愛して愛して愛して](https://www.bilibili.com/video/BV1cP4y1P7TM/)
 
@@ -76,7 +83,9 @@ PV：[愛して愛して愛して](https://www.bilibili.com/video/BV1cP4y1P7TM/)
 
 ![image-20250114213118832](/image-shading-reverse/image-20250114213118832.png)
 
-下面直接从做过标记的shader分析吧
+Pixel Shader部分自成一体；毕竟PJSK的NPR做的也相对基础
+
+人肉翻译（WIP）：
 
 ```glsl
 #include <metal_stdlib>
@@ -186,14 +195,14 @@ fragment Mtl_FragmentOut xlatMtlMain(
     half4 valueTexSmp;
     bool4 u_xlatb4;
     float3 u_xlat5;
-    half3 shadowValue6_6;
+    half3 skinValue;
     float3 u_xlat7;
     half3 shadowValue6_8;
     float3 shadowValue0;
     float3 lumaValue;
     int u_xlati11;
     bool u_xlatb11;
-    half3 shadowTexSmp5;
+    half3 skinValue2;
     float shadowValue9;
     float u_xlat20;
     int charaId0;
@@ -204,17 +213,18 @@ fragment Mtl_FragmentOut xlatMtlMain(
     half charaSpecular3;
     mainTexSmp = _MainTex.sample(sampler_MainTex, input.TEXCOORD1.xy, bias(FGlobals._GlobalMipBias.xyxx.x));
     shadowTexSmp.xyz = _ShadowTex.sample(sampler_ShadowTex, input.TEXCOORD1.xy, bias(FGlobals._GlobalMipBias.xyxx.x)).xyz;
+    valueTexSmp = _ValueTex.sample(sampler_ValueTex, input.TEXCOORD1.xy, bias(FGlobals._GlobalMipBias.xyxx.x));
     /* -- lerp shadow / main tex */
-    shadowValue.xyz = (-float3(mainTexSmp.xyz)) + float3(shadowTexSmp.xyz);
-    u_xlat28 = shadowValue.x * UnityPerMaterial._ShadowTexWeight;
-    shadowValue.xyz = fma(float3(UnityPerMaterial._ShadowTexWeight), shadowValue.xyz, float3(mainTexSmp.xyz));
-    // shadowValue: (1-w)*main + w*shadow = lerp(main, shadow, w)
-    /* -- */
+    shadowValue.xyz = (-float3(mainTexSmp.xyz)) + float3(shadowTexSmp.xyz);    
+    shadowValue.xyz = fma(float3(UnityPerMaterial._ShadowTexWeight), shadowValue.xyz, float3(mainTexSmp.xyz)); 
+    // shadowValue: (1-w)*main + w*shadow = lerp(main, shadow, _ShadowTexWeight)
+    
+    /* -- threshold shadow */
     charaId = UnityPerMaterial._CharacterId;
     charaSpecular.xyz = FGlobals._SekaiCharacterSpecularColorArray[charaId].www * FGlobals._SekaiCharacterSpecularColorArray[charaId].xyz;
-    valueTexSmp = _ValueTex.sample(sampler_ValueTex, input.TEXCOORD1.xy, bias(FGlobals._GlobalMipBias.xyxx.x));
     lumaOffset = fma(valueTexSmp.z, half(2.0), half(-1.0));
     // -1,1
+    // TEXCOORD3 -> WS normal
     lumaValue.x = dot(FGlobals._SekaiDirectionalLight.xyz, input.TEXCOORD3.xyz);
     // 0,1
     lumaValue.x = fma(lumaValue.x, 0.5, 0.5);    
@@ -228,33 +238,50 @@ fragment Mtl_FragmentOut xlatMtlMain(
     shadowValue.xyz = fma(lumaValue.xxx, shadowValue.xyz, float3(mainTexSmp.xyz));
     // shadowValue = lerp(shadowValue * shadowColor, mainTexSmp, lumaValue)
     // XXX: this could simply be a conditonal add
+
+    // -- skin color when shadowed..are they trying to emulate SSS?    
+    u_xlat28 = shadowValue.x * UnityPerMaterial._ShadowTexWeight;
     u_xlat28 = fma(lumaValue.x, u_xlat28, float(mainTexSmp.x));
+    // u_xlat28: main.r + [lit?]luma * (shadowValue.r * _ShadowTexWeight[?])
+    // shadowed skin color
     lumaValue.xyz = float3(FGlobals._SekaiShadowColor.xyz) * UnityPerMaterial._Shadow1SkinColor.xyz;
     u_xlat5.xyz = float3(FGlobals._SekaiShadowColor.xyz) * UnityPerMaterial._Shadow2SkinColor.xyz;
     lumaOffset = half(u_xlat28 + u_xlat28);
-    shadowValue6_6.x = half(fma(u_xlat28, 2.0, -1.0));
-    shadowValue6_6.x = clamp(shadowValue6_6.x, 0.0h, 1.0h);
-    shadowTexSmp5.xyz = half3(fma((-UnityPerMaterial._Shadow1SkinColor.xyz), float3(FGlobals._SekaiShadowColor.xyz), UnityPerMaterial._DefaultSkinColor.xyz));
-    shadowValue6_6.xyz = half3(fma(float3(shadowValue6_6.xxx), float3(shadowTexSmp5.xyz), lumaValue.xyz));
+    // [0,0.5]->[0,1] clamp upper values? 
+    skinValue.x = half(fma(u_xlat28, 2.0, -1.0));
+    skinValue.x = clamp(skinValue.x, 0.0h, 1.0h);
+    skinValue2.xyz = half3(fma((-UnityPerMaterial._Shadow1SkinColor.xyz), float3(FGlobals._SekaiShadowColor.xyz), UnityPerMaterial._DefaultSkinColor.xyz));
+    skinValue.xyz = half3(fma(float3(skinValue.xxx), float3(skinValue2.xyz), lumaValue.xyz));
+    // skinValue = lerp([shadowedSkin1]lumaValue, DefaultSkinColor, u_xlat28[0.5,1]->[0,1])
     lumaOffset = lumaOffset;
-    lumaOffset = clamp(lumaOffset, 0.0h, 1.0h);
-    shadowValue6_6.xyz = half3(fma((-UnityPerMaterial._Shadow2SkinColor.xyz), float3(FGlobals._SekaiShadowColor.xyz), float3(shadowValue6_6.xyz)));
-    shadowValue6_6.xyz = half3(fma(float3(lumaOffset), float3(shadowValue6_6.xyz), u_xlat5.xyz));
+    lumaOffset = clamp(lumaOffset, 0.0h, 1.0h); // same as skinValue.x
+    skinValue.xyz = half3(fma((-UnityPerMaterial._Shadow2SkinColor.xyz), float3(FGlobals._SekaiShadowColor.xyz), float3(skinValue.xyz)));
+    skinValue.xyz = half3(fma(float3(lumaOffset), float3(skinValue.xyz), u_xlat5.xyz));
+    // skinValue = lerp([shadowedSkin2]u_xlat5, skinValue, u_xlat28[0,0.5]->[0,1])
+    // pick between shadowed skin color and plain shadowed color
+    // XXX: would using condtionals be less expensive? or it's the compiler being silly again
     u_xlatb28 = valueTexSmp.x>=half(0.5);
-    lumaOffset = (u_xlatb28) ? half(1.0) : half(0.0);
-    shadowValue6_6.xyz = half3((-shadowValue.xyz) + float3(shadowValue6_6.xyz));
-    shadowValue6_6.xyz = half3(fma(float3(lumaOffset), float3(shadowValue6_6.xyz), shadowValue.xyz));
+    lumaOffset = (u_xlatb28) ? half(1.0) : half(0.0); // value.R over 0.5?
+    skinValue.xyz = half3((-shadowValue.xyz) + float3(skinValue.xyz));
+    skinValue.xyz = half3(fma(float3(lumaOffset), float3(skinValue.xyz), shadowValue.xyz));
+    // skinValue = lerp([shadowed]skinValue, shadowValue, lumaOffset) -> over 0.5: skin region   
+
+
+    // -- rim light
     shadowValue.xyz = FGlobals._SekaiRimLightColorArray[charaId].www * FGlobals._SekaiRimLightColorArray[charaId].xyz;
-    u_xlat28 = dot(input.NORMAL0.xyz, input.TEXCOORD4.xyz);
-    lumaValue.x = dot(input.TEXCOORD4.xyz, FGlobals._SekaiRimLightArray[charaId].xyz);
+    // TEXCOORD4 -> normalized view space position -> View Vector -> V
+    u_xlat28 = dot(input.NORMAL0.xyz, input.TEXCOORD4.xyz); // NdotV
+    lumaValue.x = dot(input.TEXCOORD4.xyz, FGlobals._SekaiRimLightArray[charaId].xyz); // VdotL
     lumaValue.x = max(lumaValue.x, 0.0);
     u_xlat20 = dot(input.NORMAL0.xyz, input.NORMAL0.xyz);
     u_xlat20 = rsqrt(u_xlat20);
-    u_xlat5.xyz = float3(u_xlat20) * input.NORMAL0.xyz;
+    u_xlat5.xyz = float3(u_xlat20) * input.NORMAL0.xyz; // renormalize normal
     u_xlat20 = dot(FGlobals._SekaiRimLightArray[charaId].xyz, FGlobals._SekaiRimLightArray[charaId].xyz);
     u_xlat20 = rsqrt(u_xlat20);
-    u_xlat7.xyz = float3(u_xlat20) * FGlobals._SekaiRimLightArray[charaId].xyz;
-    u_xlat20 = dot(u_xlat5.xyz, u_xlat7.xyz);
+    u_xlat7.xyz = float3(u_xlat20) * FGlobals._SekaiRimLightArray[charaId].xyz; // normalize L
+    u_xlat20 = dot(u_xlat5.xyz, u_xlat7.xyz); // NdotL
+
+    // -- todo
     lumaOffset = half(-1.0) + FGlobals._SekaiRimLightShadowSharpnessArray[charaId];
     charaSpecular3 = half(1.0) + (-FGlobals._SekaiRimLightShadowSharpnessArray[charaId]);
     u_xlat29 = (-float(lumaOffset)) + float(charaSpecular3);
@@ -269,7 +296,7 @@ fragment Mtl_FragmentOut xlatMtlMain(
     shadowValue.xyz = fma(float3(u_xlat29), u_xlat5.xyz, shadowValue.xyz);
     u_xlat28 = max(u_xlat28, 0.0);
     u_xlat28 = (-u_xlat28) + 1.0;
-    lumaOffset = half(10.0) + (-FGlobals._SekaiRimLightFactor[charaId].x);
+    lumaOffset = half(10.0) + (-FGlobals._SekaiRimLightFactor[charaId].x); // Phong?
     u_xlat28 = log2(u_xlat28);
     u_xlat28 = u_xlat28 * float(lumaOffset);
     u_xlat28 = exp2(u_xlat28);
@@ -291,7 +318,7 @@ fragment Mtl_FragmentOut xlatMtlMain(
     u_xlat28 = u_xlat28 * lumaValue.x;
     shadowValue.xyz = shadowValue.xyz * float3(u_xlat28);
     lumaValue.xyz = shadowValue.xyz * input.COLOR0.yyy;
-    shadowValue6_6.xyz = half3(fma(shadowValue.xyz, input.COLOR0.yyy, float3(shadowValue6_6.xyz)));
+    skinValue.xyz = half3(fma(shadowValue.xyz, input.COLOR0.yyy, float3(skinValue.xyz)));
     shadowValue.xyz = input.TEXCOORD4.xyz + FGlobals._SekaiDirectionalLight.xyz;
     u_xlat28 = dot(shadowValue.xyz, shadowValue.xyz);
     u_xlat28 = rsqrt(u_xlat28);
@@ -303,27 +330,27 @@ fragment Mtl_FragmentOut xlatMtlMain(
     shadowValue.x = shadowValue.x * shadowValue0.x;
     shadowValue.x = exp2(shadowValue.x);
     shadowValue.xyz = float3(charaSpecular.xyz) * shadowValue.xxx;
-    shadowValue.xyz = fma(shadowValue.xyz, float3(valueTexSmp.www), float3(shadowValue6_6.xyz));
+    shadowValue.xyz = fma(shadowValue.xyz, float3(valueTexSmp.www), float3(skinValue.xyz));
     u_xlatb4.xzw = (shadowValue.xyz>=float3(0.5, 0.5, 0.5));
     charaSpecular.x = (u_xlatb4.x) ? half(1.0) : half(0.0);
     charaSpecular.y = (u_xlatb4.z) ? half(1.0) : half(0.0);
     charaSpecular.z = (u_xlatb4.w) ? half(1.0) : half(0.0);
-    shadowValue6_6.xyz = half3(shadowValue.xyz + shadowValue.xyz);
-    u_xlat4.xzw = float3(shadowValue6_6.xyz) * FGlobals._SekaiCharacterAmbientLightColorArray[charaId].xyz;
+    skinValue.xyz = half3(shadowValue.xyz + shadowValue.xyz);
+    u_xlat4.xzw = float3(skinValue.xyz) * FGlobals._SekaiCharacterAmbientLightColorArray[charaId].xyz;
     shadowValue6_8.xyz = half3((-shadowValue.xyz) + float3(1.0, 1.0, 1.0));
     shadowValue6_8.xyz = shadowValue6_8.xyz + shadowValue6_8.xyz;
     shadowValue.xyz = float3(1.0, 1.0, 1.0) + (-FGlobals._SekaiCharacterAmbientLightColorArray[charaId].xyz);
     shadowValue.xyz = fma((-float3(shadowValue6_8.xyz)), shadowValue.xyz, float3(1.0, 1.0, 1.0));
-    shadowValue6_6.xyz = half3(fma((-float3(shadowValue6_6.xyz)), FGlobals._SekaiCharacterAmbientLightColorArray[charaId].xyz, shadowValue.xyz));
-    charaSpecular.xyz = half3(fma(float3(charaSpecular.xyz), float3(shadowValue6_6.xyz), u_xlat4.xzw));
+    skinValue.xyz = half3(fma((-float3(skinValue.xyz)), FGlobals._SekaiCharacterAmbientLightColorArray[charaId].xyz, shadowValue.xyz));
+    charaSpecular.xyz = half3(fma(float3(charaSpecular.xyz), float3(skinValue.xyz), u_xlat4.xzw));
     shadowValue.xyz = float3(charaSpecular.xyz) * float3(FGlobals._SekaiCharacterAmbientLightIntensityArray[charaId]);
     u_xlat4.xzw = shadowValue.xyz * float3(FGlobals._SekaiAllLightIntensity);
     charaSpecular.xyz = half3(fma((-shadowValue.xyz), float3(FGlobals._SekaiAllLightIntensity), float3(1.0, 1.0, 1.0)));
     charaSpecular.xyz = charaSpecular.xyz + charaSpecular.xyz;
-    shadowValue6_6.xyz = (-UnityPerMaterial._PartsAmbientColor.xyz) + half3(1.0, 1.0, 1.0);
-    charaSpecular.xyz = fma((-charaSpecular.xyz), shadowValue6_6.xyz, half3(1.0, 1.0, 1.0));
-    shadowValue6_6.xyz = half3(fma(u_xlat4.xzw, float3(UnityPerMaterial._PartsAmbientColor.xyz), (-float3(charaSpecular.xyz))));
-    charaSpecular.xyz = fma(UnityPerMaterial._PartsAmbientColor.www, shadowValue6_6.xyz, charaSpecular.xyz);
+    skinValue.xyz = (-UnityPerMaterial._PartsAmbientColor.xyz) + half3(1.0, 1.0, 1.0);
+    charaSpecular.xyz = fma((-charaSpecular.xyz), skinValue.xyz, half3(1.0, 1.0, 1.0));
+    skinValue.xyz = half3(fma(u_xlat4.xzw, float3(UnityPerMaterial._PartsAmbientColor.xyz), (-float3(charaSpecular.xyz))));
+    charaSpecular.xyz = fma(UnityPerMaterial._PartsAmbientColor.www, skinValue.xyz, charaSpecular.xyz);
     u_xlatb1 = 0x0<FGlobals._SekaiGlobalSpotLightEnabled;
     if(u_xlatb1){
         shadowValue.xyz = (-input.TEXCOORD5.xyz) + FGlobals._SekaiGlobalSpotLightPos.xyzx.xyz;
