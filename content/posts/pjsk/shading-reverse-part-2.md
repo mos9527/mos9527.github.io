@@ -234,6 +234,14 @@ fragment Mtl_FragmentOut xlatMtlMain(
 
 3份材质除外，在Mesh中也有一层Color信息；他们的用途会在下文一一介绍
 
+方便期间，这里作以下简称
+
+- `MainTex`: "C Tex",$T_c$
+- `ShadowTex`: "S Tex",$T_s$
+- `Value Tex`: "H Tex",$T_h$
+
+前缀对应材质名称后缀`_C,_S,_H`
+
 ![image-20250115170933736](/image-shading-reverse/image-20250115170933736.png)
 
 Vertex Shader部分将不直接查看；输出`TEXCOORD_`部分将在接下来对PS的分析中解释
@@ -248,7 +256,9 @@ Vertex Shader部分将不直接查看；输出`TEXCOORD_`部分将在接下来�
     shadowValue.xyz = (-float3(mainTexSmp.xyz)) + float3(shadowTexSmp.xyz);    
     shadowValue.xyz = fma(float3(UnityPerMaterial._ShadowTexWeight), shadowValue.xyz, float3(mainTexSmp.xyz)); 
     // shadowValue: (1-w)*main + w*shadow = lerp(main, shadow, _ShadowTexWeight)
-    
+```
+注意到真正的阴影部分由`_ShadowTexWeight`混合$T_c, T_s$
+```glsl
     /* -- threshold shadow */
     charaId = UnityPerMaterial._CharacterId;
     charaSpecular.xyz = FGlobals._SekaiCharacterSpecularColorArray[charaId].www * FGlobals._SekaiCharacterSpecularColorArray[charaId].xyz;
@@ -269,7 +279,10 @@ Vertex Shader部分将不直接查看；输出`TEXCOORD_`部分将在接下来�
     // shadowValue = lerp(shadowValue * shadowColor, mainTexSmp, lumaValue)
     // XXX: this could simply be a conditonal add
 ```
+之后由一次阈值化选择阴影/$Tc$完毕
+
 ## 皮肤特化
+
 ```glsl
     // -- skin color when shadowed..are they trying to emulate SSS?    
     u_xlat28 = shadowValue.x * UnityPerMaterial._ShadowTexWeight;
