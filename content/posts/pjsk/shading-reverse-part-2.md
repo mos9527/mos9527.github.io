@@ -83,10 +83,11 @@ PV：[愛して愛して愛して](https://www.bilibili.com/video/BV1cP4y1P7TM/)
 
 ![image-20250114213118832](/image-shading-reverse/image-20250114213118832.png)
 
-Pixel Shader部分自成一体；毕竟PJSK的NPR做的也相对基础
+做些标记后就可以开始实现了，直接从Shader反编译代码看起
 
-人肉翻译（WIP）：
+*鉴于寄存器复用，变量名也是如此，阅读上带来不便还且谅解*
 
+## 结构体
 ```glsl
 #include <metal_stdlib>
 #include <metal_texture>
@@ -95,6 +96,7 @@ constant uint32_t rp_output_remap_mask [[ function_constant(1) ]];
 constant const uint rp_output_remap_0 = (rp_output_remap_mask >> 0) & 0xF;
 constant const uint rp_output_remap_1 = (rp_output_remap_mask >> 4) & 0xF;
 constant const uint rp_output_remap_2 = (rp_output_remap_mask >> 8) & 0xF;
+#define EXIT(X) output.SV_Target0 = half4(half3(X),1.0); return output;
 struct FGlobals_Type
 {
     float2 _GlobalMipBias;
@@ -151,7 +153,9 @@ struct UnityPerMaterial_Type
     float4 _HeadDotDirectionalLightValues;
     float _ShadowTexWeight;
 };
-
+```
+## 管线输出
+```glsl
 struct Mtl_FragmentIn
 {
     float3 NORMAL0 [[ user(NORMAL0) ]] ;
@@ -171,7 +175,22 @@ struct Mtl_FragmentOut
     half4 SV_Target1 [[ color(rp_output_remap_1) ]];
     half4 SV_Target2 [[ color(rp_output_remap_2) ]];
 };
+```
+可以看到3个MRT的使用；结合上文易知
 
+- `SV_Target0`为主图像
+- `SV_Target1`为景深用模糊圈深度
+- `SV_Target2`为Bloom用高光部分
+
+显然，后两者仅在后处理时派上用场——这些在上文也以概述完毕。
+
+![image-20250115170422329](/image-shading-reverse/image-20250115170422329.png)
+
+接下来的观察都即将围绕第一个RenderTarget进行
+
+## 管线材质
+
+```glsl
 fragment Mtl_FragmentOut xlatMtlMain(
     constant FGlobals_Type& FGlobals [[ buffer(0) ]],
     constant UnityPerMaterial_Type& UnityPerMaterial [[ buffer(1) ]],
@@ -208,9 +227,20 @@ fragment Mtl_FragmentOut xlatMtlMain(
     int charaId0;
     float u_xlat28;
     bool u_xlatb28;
-    float u_xlat29;
+    float rimIntensity;
     half lumaOffset;
     half charaSpecular3;
+```
+
+3份材质除外，在Mesh中也有一层Color信息；他们的用途会在下文一一介绍
+
+![image-20250115170933736](/image-shading-reverse/image-20250115170933736.png)
+
+Vertex Shader部分将不直接查看；输出`TEXCOORD_`部分将在接下来对PS的分析中解释
+
+## 阈值阴影
+
+```glsl
     mainTexSmp = _MainTex.sample(sampler_MainTex, input.TEXCOORD1.xy, bias(FGlobals._GlobalMipBias.xyxx.x));
     shadowTexSmp.xyz = _ShadowTex.sample(sampler_ShadowTex, input.TEXCOORD1.xy, bias(FGlobals._GlobalMipBias.xyxx.x)).xyz;
     valueTexSmp = _ValueTex.sample(sampler_ValueTex, input.TEXCOORD1.xy, bias(FGlobals._GlobalMipBias.xyxx.x));
@@ -238,7 +268,9 @@ fragment Mtl_FragmentOut xlatMtlMain(
     shadowValue.xyz = fma(lumaValue.xxx, shadowValue.xyz, float3(mainTexSmp.xyz));
     // shadowValue = lerp(shadowValue * shadowColor, mainTexSmp, lumaValue)
     // XXX: this could simply be a conditonal add
-
+```
+## 皮肤特化
+```glsl
     // -- skin color when shadowed..are they trying to emulate SSS?    
     u_xlat28 = shadowValue.x * UnityPerMaterial._ShadowTexWeight;
     u_xlat28 = fma(lumaValue.x, u_xlat28, float(mainTexSmp.x));
@@ -265,11 +297,13 @@ fragment Mtl_FragmentOut xlatMtlMain(
     skinValue.xyz = half3((-shadowValue.xyz) + float3(skinValue.xyz));
     skinValue.xyz = half3(fma(float3(lumaOffset), float3(skinValue.xyz), shadowValue.xyz));
     // skinValue = lerp([shadowed]skinValue, shadowValue, lumaOffset) -> over 0.5: skin region   
-
-
-    // -- rim light
+```
+## 边缘高光
+```glsl
+  // -- rim light
     shadowValue.xyz = FGlobals._SekaiRimLightColorArray[charaId].www * FGlobals._SekaiRimLightColorArray[charaId].xyz;
     // TEXCOORD4 -> normalized view space position -> View Vector -> V
+    // XXX: since it's interpolated again this needs to be renormalized
     u_xlat28 = dot(input.NORMAL0.xyz, input.TEXCOORD4.xyz); // NdotV
     lumaValue.x = dot(input.TEXCOORD4.xyz, FGlobals._SekaiRimLightArray[charaId].xyz); // VdotL
     lumaValue.x = max(lumaValue.x, 0.0);
@@ -280,35 +314,40 @@ fragment Mtl_FragmentOut xlatMtlMain(
     u_xlat20 = rsqrt(u_xlat20);
     u_xlat7.xyz = float3(u_xlat20) * FGlobals._SekaiRimLightArray[charaId].xyz; // normalize L
     u_xlat20 = dot(u_xlat5.xyz, u_xlat7.xyz); // NdotL
-
-    // -- todo
-    lumaOffset = half(-1.0) + FGlobals._SekaiRimLightShadowSharpnessArray[charaId];
-    charaSpecular3 = half(1.0) + (-FGlobals._SekaiRimLightShadowSharpnessArray[charaId]);
-    u_xlat29 = (-float(lumaOffset)) + float(charaSpecular3);
-    u_xlat4.x = u_xlat20 + (-float(lumaOffset));
-    u_xlat29 = float(1.0) / u_xlat29;
-    u_xlat29 = u_xlat29 * u_xlat4.x;
-    u_xlat29 = clamp(u_xlat29, 0.0f, 1.0f);
-    u_xlat4.x = fma(u_xlat29, -2.0, 3.0);
-    u_xlat29 = u_xlat29 * u_xlat29;
-    u_xlat29 = u_xlat29 * u_xlat4.x;
+    // -- rim light color
+    lumaOffset = half(-1.0) + FGlobals._SekaiRimLightShadowSharpnessArray[charaId]; // sharp - 1
+    charaSpecular3 = half(1.0) + (-FGlobals._SekaiRimLightShadowSharpnessArray[charaId]); // 1 - sharp
+    rimIntensity = (-float(lumaOffset)) + float(charaSpecular3); // (1 - sharp) - (sharp - 1)
+    u_xlat4.x = u_xlat20 + (-float(lumaOffset)); // NdotL - (sharp - 1)
+    rimIntensity = float(1.0) / rimIntensity;
+    rimIntensity = rimIntensity * u_xlat4.x;
+    rimIntensity = clamp(rimIntensity, 0.0f, 1.0f);
+    u_xlat4.x = fma(rimIntensity, -2.0, 3.0);    
+    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/smoothstep.xhtml
+    rimIntensity = rimIntensity * rimIntensity;
+    rimIntensity = rimIntensity * u_xlat4.x;
+    // rimIntensity = smoothstep(sharp - 1, 1 - sharp, NdotL)
     u_xlat5.xyz = fma(FGlobals._SekaiShadowRimLightColorArray[charaId].xyz, FGlobals._SekaiShadowRimLightColorArray[charaId].www, (-shadowValue.xyz));
-    shadowValue.xyz = fma(float3(u_xlat29), u_xlat5.xyz, shadowValue.xyz);
-    u_xlat28 = max(u_xlat28, 0.0);
-    u_xlat28 = (-u_xlat28) + 1.0;
-    lumaOffset = half(10.0) + (-FGlobals._SekaiRimLightFactor[charaId].x); // Phong?
+    shadowValue.xyz = fma(float3(rimIntensity), u_xlat5.xyz, shadowValue.xyz); // rim light color
+    u_xlat28 = max(u_xlat28, 0.0); // NdotV [0,1]
+    u_xlat28 = (-u_xlat28) + 1.0; // [1,0]
+    lumaOffset = half(10.0) + (-FGlobals._SekaiRimLightFactor[charaId].x); // 10 - factor.x
     u_xlat28 = log2(u_xlat28);
     u_xlat28 = u_xlat28 * float(lumaOffset);
     u_xlat28 = exp2(u_xlat28);
-    lumaValue.x = fma(u_xlat28, lumaValue.x, (-u_xlat28));
+    // (1-NdotV) ^ (10 - factor.x)
+    lumaValue.x = fma(u_xlat28, lumaValue.x, (-u_xlat28)); // (VdotL - 1) * u_xlat28
     u_xlat28 = fma(float(FGlobals._SekaiRimLightFactor[charaId].w), lumaValue.x, u_xlat28);
+    // lerp(VdotL * u_xlat28, u_xlat28, factor.w)
     lumaValue.x = (-u_xlat20) + 0.0500000007;
-    charaId0 = int((0.0<lumaValue.x) ? 0xFFFFFFFFu : uint(0));
-    u_xlati11 = int((lumaValue.x<0.0) ? 0xFFFFFFFFu : uint(0));
-    u_xlati11 = (-charaId0) + u_xlati11;
+    charaId0 = int((0.0<lumaValue.x) ? 0xFFFFFFFFu : uint(0)); // NdotL < EPS
+    u_xlati11 = int((lumaValue.x<0.0) ? 0xFFFFFFFFu : uint(0)); // NdotL > EPS
+    u_xlati11 = (-charaId0) + u_xlati11;// NdotL == 0 
     lumaValue.x = float(u_xlati11);
     lumaValue.x = fma(u_xlat28, lumaValue.x, (-u_xlat28));
     u_xlat28 = fma(float(FGlobals._SekaiRimLightFactor[charaId].w), lumaValue.x, u_xlat28);
+    // factor.w * (u_xlat28 * (NdotL != 0))
+    // XXX: shouldn't L be flipped?
     u_xlat28 = u_xlat28 + (-UnityPerMaterial._RimThreshold);
     lumaValue.x = float(1.0) / float(FGlobals._SekaiRimLightFactor[charaId].z);
     u_xlat28 = u_xlat28 * lumaValue.x;
@@ -316,21 +355,31 @@ fragment Mtl_FragmentOut xlatMtlMain(
     lumaValue.x = fma(u_xlat28, -2.0, 3.0);
     u_xlat28 = u_xlat28 * u_xlat28;
     u_xlat28 = u_xlat28 * lumaValue.x;
+    // smoothstep(0, factor.z, u_xlat28)
     shadowValue.xyz = shadowValue.xyz * float3(u_xlat28);
-    lumaValue.xyz = shadowValue.xyz * input.COLOR0.yyy;
+    lumaValue.xyz = shadowValue.xyz * input.COLOR0.yyy; // Vertex.G: Rim Intensity
     skinValue.xyz = half3(fma(shadowValue.xyz, input.COLOR0.yyy, float3(skinValue.xyz)));
-    shadowValue.xyz = input.TEXCOORD4.xyz + FGlobals._SekaiDirectionalLight.xyz;
+```
+## 总体高光
+```glsl
+    // -- directional light specular
+    shadowValue.xyz = input.TEXCOORD4.xyz + FGlobals._SekaiDirectionalLight.xyz; // V + L
     u_xlat28 = dot(shadowValue.xyz, shadowValue.xyz);
     u_xlat28 = rsqrt(u_xlat28);
-    shadowValue.xyz = float3(u_xlat28) * shadowValue.xyz;
+    shadowValue.xyz = float3(u_xlat28) * shadowValue.xyz; // normalize V + L
     shadowValue.x = dot(shadowValue.xyz, input.NORMAL0.xyz);
     shadowValue.x = max(shadowValue.x, 0.0);
     shadowValue0.x = 10.0 / UnityPerMaterial._SpecularPower;
     shadowValue.x = log2(shadowValue.x);
     shadowValue.x = shadowValue.x * shadowValue0.x;
     shadowValue.x = exp2(shadowValue.x);
-    shadowValue.xyz = float3(charaSpecular.xyz) * shadowValue.xxx;
-    shadowValue.xyz = fma(shadowValue.xyz, float3(valueTexSmp.www), float3(skinValue.xyz));
+    // ((V+L)*N) ^ (10/SpecularPower)
+    shadowValue.xyz = float3(charaSpecular.xyz) * shadowValue.xxx; // specular color
+    shadowValue.xyz = fma(shadowValue.xyz, float3(valueTexSmp.www), float3(skinValue.xyz)); // value.a: specular intensity
+```
+## 环境光
+```glsl
+    // -- ambient lights
     u_xlatb4.xzw = (shadowValue.xyz>=float3(0.5, 0.5, 0.5));
     charaSpecular.x = (u_xlatb4.x) ? half(1.0) : half(0.0);
     charaSpecular.y = (u_xlatb4.z) ? half(1.0) : half(0.0);
@@ -351,6 +400,10 @@ fragment Mtl_FragmentOut xlatMtlMain(
     charaSpecular.xyz = fma((-charaSpecular.xyz), skinValue.xyz, half3(1.0, 1.0, 1.0));
     skinValue.xyz = half3(fma(u_xlat4.xzw, float3(UnityPerMaterial._PartsAmbientColor.xyz), (-float3(charaSpecular.xyz))));
     charaSpecular.xyz = fma(UnityPerMaterial._PartsAmbientColor.www, skinValue.xyz, charaSpecular.xyz);
+```
+## 点光源支持
+```glsl
+    // -- add spot attenuation 
     u_xlatb1 = 0x0<FGlobals._SekaiGlobalSpotLightEnabled;
     if(u_xlatb1){
         shadowValue.xyz = (-input.TEXCOORD5.xyz) + FGlobals._SekaiGlobalSpotLightPos.xyzx.xyz;
@@ -372,6 +425,9 @@ fragment Mtl_FragmentOut xlatMtlMain(
     } else {
         shadowValue.xyz = float3(charaSpecular.xyz);
     }
+```
+## 合并
+```glsl
     u_xlat2.xyz = lumaValue.xyz * float3(FGlobals._SekaiRimLightFactor[charaId].yyy);
     u_xlat2.xyz = fma(shadowValue.xyz, float3(valueTexSmp.yyy), u_xlat2.xyz);
     charaSpecular.x = (-input.TEXCOORD6) + half(1.0);
