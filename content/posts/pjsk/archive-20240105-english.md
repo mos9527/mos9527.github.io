@@ -1354,7 +1354,7 @@ Obviously it's easy to achieve this effect in Blender using Geometry Node
 
 ### References
 
-https://github.com/mos9527/sssekai_blender_io 👈 插件在这
+https://github.com/mos9527/sssekai_blender_io 👈 The plugin is here
 
 https://github.com/KH40-khoast40/Shadekai
 
