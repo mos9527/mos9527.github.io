@@ -88,7 +88,7 @@ PV：[愛して愛して愛して](https://www.bilibili.com/video/BV1cP4y1P7TM/)
   ![image-20250116154033340](/image-shading-reverse/image-20250116154033340.png)
 
 - 效果如下
-  <video src="https://github.com/user-attachments/assets/8ecb0d54-b221-4118-acb1-740bfc3635f0"/>
+  <video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/8ecb0d54-b221-4118-acb1-740bfc3635f0"/>
 
 环境光影响暂不考虑，之后进行对应支持
 
