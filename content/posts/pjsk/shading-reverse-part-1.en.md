@@ -116,7 +116,7 @@ Pass is in full view... *¶¶It's quite a sight to behold. ¶¶*
 
 ### Present flip
 
-You can notice that the graphics in the pipeline are flipped up and down, [here it has something to do with Metal's NDC space](https://developer.apple.com/documentation/metal/using_a_render_pipeline_to_render_primitives ?language=objc)
+You can notice that the graphics in the pipeline are flipped up and down, [here it has something to do with Metal's NDC space](https://developer.apple.com/documentation/metal/using_a_render_pipeline_to_render_primitives?language=objc)
 
 ![img](/image-shading-reverse/viewports_gl_vk.png)
 
