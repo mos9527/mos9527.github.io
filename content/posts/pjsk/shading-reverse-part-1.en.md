@@ -154,7 +154,7 @@ Above, you can see that the pipeline spits out 5 tex after processing the geomet
 
 Here Depth is a depth buffer that uses only the $R$ channel; however, unlike the z-test buffer, the range of values in this buffer does not correspond to the NDC depth.
 
-See the decompiler to see that this is a buffer for depth-of-field effects (note `_CoCParams`, CoC is [Circle Of Confusion](https://www.reedbeta.com/blog/circle-of-confusion-from-the-depth- buffer/))
+See the decompiler to see that this is a buffer for depth-of-field effects (note `_CoCParams`, CoC is [Circle Of Confusion](https://www.reedbeta.com/blog/circle-of-confusion-from-the-depth-buffer/)
 
 The linear depth is applied to a simplified version (very similar to the above link) of the formula and put into the $[0,1]$ interval for storage
 
