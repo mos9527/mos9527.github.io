@@ -444,7 +444,13 @@ $$
   C = lerp(C_{rim},C_{rimShadow},a)
   $$
 
-- $b$中做幂像是Phong模型——但是用的是法线和视角向量计算故和光源无关 
+- $b$即为[菲涅耳项的估算形式](https://en.wikipedia.org/wiki/Schlick%27s_approximation)
+  $$
+  R(\theta) = R_0 + (1 - R_0)(1 - \cos \theta)^5
+  $$
+  考虑$R_0$接近$0$省略；单独输出效果如图
+
+  ![](/image-shading-reverse/image-20250116185400012.png)
 
 - $c$中继续加上视角相关贡献
 
@@ -457,7 +463,7 @@ $$
 
 ### Blender 实现
 
-#### 入射高光光源？
+#### 高光光源？
 
 首先值得注意的是这种光源是**每个角色一个**，同时，仍然是以**平行光**的形式出现
 
@@ -475,12 +481,27 @@ Shader中可这样实现
 
 ![image-20250116182025563](/image-shading-reverse/image-20250116182025563.png)
 
+![image-20250116183544832](/image-shading-reverse/image-20250116183544832.png)
 
+- 实现后效果如图
+
+  - 捕捉
+
+    ![image-20250116193114870](/image-shading-reverse/image-20250116193114870.png)
+
+  - 复现
+
+    ![image-20250116193212974](/image-shading-reverse/image-20250116193212974.png)
+
+混合后如图
+
+![image-20250116195212888](/image-shading-reverse/image-20250116195212888.png)
 
 ## 总体高光
 
 ```glsl
-    // -- directional light specular
+	// charaSpecular.xyz = FGlobals._SekaiCharacterSpecularColorArray[charaId].www * FGlobals._SekaiCharacterSpecularColorArray[charaId].xyz;    
+// -- directional light specular
     shadowValue.xyz = input.TEXCOORD4.xyz + FGlobals._SekaiDirectionalLight.xyz; // V + L
     u_xlat28 = dot(shadowValue.xyz, shadowValue.xyz);
     u_xlat28 = rsqrt(u_xlat28);
@@ -495,7 +516,18 @@ Shader中可这样实现
     shadowValue.xyz = float3(charaSpecular.xyz) * shadowValue.xxx; // specular color
     shadowValue.xyz = fma(shadowValue.xyz, float3(valueTexSmp.www), float3(skinValue.xyz)); // value.a: specular intensity
 ```
+这里看起来像是经典的[Blinn-Phong模型](https://en.wikipedia.org/wiki/Blinn%E2%80%93Phong_reflection_model#High-Level_Shading_Language_code_sample)
+
+省事起见...实现就用Specular BSDF替代了
+
+注意$T_a$对高光的选择性
+
+### Blender 实现
+
+(略)
+
 ## 环境光
+
 ```glsl
     // -- ambient lights
     u_xlatb4.xzw = (shadowValue.xyz>=float3(0.5, 0.5, 0.5));
