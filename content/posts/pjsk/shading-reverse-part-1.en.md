@@ -136,107 +136,107 @@ Unity doesn't do that, though, and adds a Flip pass before Present...
 
 ### Render mode
 
-Game使用的仍是经典的前向渲染 (Forward Rendering)，没用新鲜的[TBDR](https://developer.apple.com/documentation/metal/tailor_your_apps_for_apple_gpus_and_tile-based_deferred_rendering);貌似URP支持后者？
+Game still uses classic Forward Rendering, not the new [TBDR](https://developer.apple.com/documentation/metal/tailor_your_apps_for_apple_gpus_and _tile-based_deferred_rendering); looks like URP supports the latter?
 
 ![image-20250113231200281](/image-shading-reverse/image-20250113231200281.png)
 
-但很显然这里用的其实是SRP
+But it's clear that what's being used here is actually an SRP
 
 ![image-20250113231746750](/image-shading-reverse/image-20250113231746750.png)
 
-# 3. 浅看后处理
+# 3. Shallow view reprocessing
 
 ### DoF
 
-上图可见管线在处理完几何之后吐出了5个tex；一个图像，两个一对Depth-Stencil,还意外地留下了一个“Depth”和...Brightness？
+Above, you can see that the pipeline spits out 5 tex after processing the geometry; one image, two pairs of Depth-Stencils, and accidentally leaves a “Depth” and.... Brightness?
 
 ![image-20250113233550721](/image-shading-reverse/image-20250113233550721.png)
 
-这里Depth是个只使用了$R$通道的深度buffer；但不同于作z-test的buffer，这个buffer的取值范围并不对应NDC深度
+Here Depth is a depth buffer that uses only the $R$ channel; however, unlike the z-test buffer, the range of values in this buffer does not correspond to the NDC depth.
 
-参阅反编译易知这原来是做景深效果用的Buffer（注意`_CoCParams`,CoC即[Circle Of Confusion](https://www.reedbeta.com/blog/circle-of-confusion-from-the-depth-buffer/)）
+See the decompiler to see that this is a buffer for depth-of-field effects (note `_CoCParams`, CoC is [Circle Of Confusion](https://www.reedbeta.com/blog/circle-of-confusion-from-the-depth- buffer/))
 
-线性深度套用简化版（和上述链接非常相似的）公式后放到$[0,1]$区间存储
+The linear depth is applied to a simplified version (very similar to the above link) of the formula and put into the $[0,1]$ interval for storage
 
 ![image-20250113233911261](/image-shading-reverse/image-20250113233911261.png)
 
-材质在后期被整合到`_ColorCocTex`的Alpha通道
+The material is integrated into the Alpha channel of `_ColorCocTex` at a later stage
 
 ![image-20250113234827783](/image-shading-reverse/image-20250113234827783.png)
 
-之后在简单Mip下采样以后快速产生模糊版图像并根据之前的CoC值叠加过去成景深后图像
+Afterwards, after simple Mip downsampling, a blurred version of the image is quickly generated and superimposed on the previous CoC value to form a post-depth-of-field image.
 
-（很好奇这里为什么会有个没用的`Fg`...会被优化掉吗？）
+(Curious why there's a useless `Fg` here... Will it be optimized away?)
 
 ![image-20250114000545488](/image-shading-reverse/image-20250114000545488.png)
 
-Sampler全是Linear/Nearest Mip Filter，图略
+Sampler is full of Linear/Nearest Mip Filter, figure omitted
 
 ![image-20250114000229101](/image-shading-reverse/image-20250114000229101.png)
 
-...相当简单粗暴
+...It's pretty simple and brutal.
 
 ### Bloom
 
-因为game没在做HDR渲染，Brightness tex在这里派上用场
+Since the game isn't doing HDR rendering, Brightness tex comes in handy here!
 
-做Box Blur后在后处理最后合成
+Doing Box Blur after post-processing and final compositing
 
 ![image-20250114001307424](/image-shading-reverse/image-20250114001307424.png)
 
 ![image-20250114002138546](/image-shading-reverse/image-20250114002138546.png)
 
-### 饱和度？
+### Saturation?
 
-此外，后处理部分还有LUT色阶处理与一些其他参数控制的效果
+In addition, the post-processing part of the LUT color gradation processing and some other parameters to control the effect of the
 
 ![image-20250114002353725](/image-shading-reverse/image-20250114002353725.png)
 
-和一个同之前CoC下采样后的`_SatTex`,不知道干什么的，不过...
+And a `_SatTex` after the same previous CoC downsampling, don't know what for, but...
 
 ![image-20250114002419564](/image-shading-reverse/image-20250114002419564.png)
 
-Xcode中调试Metal shader相当容易：
+Debugging Metal shaders in Xcode is fairly easy:
 
 ![image-20250114002903568](/image-shading-reverse/image-20250114002903568.png)
 
 ![A screenshot of the Reload Shaders button in the debug bar.](/image-shading-reverse/gputools-metal-debugger-se-reload.png)
 
-一点即可即时获得编辑响应；来看看`SatTex`干的活
+Instant editorial response at the touch of a button; see `SatTex` in action!
 
-在这里调节`_SatAlpha`值，首先$0.5$时：
+Adjust the `_SatAlpha` value here, first at $0.5$:
 
 ![image-20250114004723856](/image-shading-reverse/image-20250114004723856.png)
 
-$1.0$时
+At $1.0$
 
 ![image-20250114004749054](/image-shading-reverse/image-20250114004749054.png)
 
-$0.0$时
+At $0.0$
 
 ![image-20250114004807677](/image-shading-reverse/image-20250114004807677.png)
 
-参阅代码也易知图像随这个值在模糊后与正式framebuffer见进行Lerp；值越小效果越’清晰‘
+Refer to the code is also easy to know that the image with this value in the blur after the formal framebuffer to see the Lerp; the smaller the value of the effect of the more 'clear'
 
-命名有点奇怪...同时正式buffer也有原来模糊过没有的后处理，过渡并不自然
+The naming is a bit strange... Also the formal buffer has post-processing that the original blur didn't have, and the transition isn't natural
 
-具体实现什么目的暂时还猜不到orz
+I can't guess what I'm trying to accomplish yet orz.
 
 ### SMAA
 
-后处理完毕做一遍SMAA就基本完毕了
+After the post-processing, do a SMAA and you're basically done.
 
 ![image-20250114005326735](/image-shading-reverse/image-20250114005326735.png)
 
-最后来到上文提及的Flip - 呈现完毕
+And finally to the aforementioned Flip - rendering over
 
-# 结语
+# Conclusion
 
-第一次写逐帧分析，不得不说工作量比自己想象的大orz
+First time writing a frame-by-frame analysis, and I have to say the workload is bigger than I thought it would be orz
 
-未来希望在系列结束时能完成[`sssekai_blender_io`立下的几个flag](https://github.com/mos9527/sssekai_blender_io?tab=readme-ov-file#todo)，路漫漫其修远兮...
+In the future, I hope to fulfill a few of the flags [`sssekai_blender_io` set](https://github.com/mos9527/sssekai_blender_io?tab=readme-ov-file#todo) by the end of the series, there's a long way to go...
 
-除了以下citation，这里还要特地感谢UnityPy及其群组和几位来自Q群/Discord不方便透露名字的朋友的帮助+指正+资源+...
+In addition to the following citation, here's a special thanks to UnityPy and its groups and a couple of friends from Q Groups/Discord who are not at liberty to be named for their help + corrections + resources +...
 
 ***SEE YOU SPACE COWBOY...***
 
