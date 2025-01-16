@@ -355,6 +355,8 @@ Shader设置如下；Color为纯白，显然产生的明亮度也能量守恒
     skinValue.xyz = half3(fma(float3(lumaOffset), float3(skinValue.xyz), shadowValue.xyz));
     // skinValue = lerp([shadowed]skinValue, shadowValue, lumaOffset) -> over 0.5: skin region   
 ```
+### Blender 实现
+
 $T_h.R$决定是否使用肤色；借用管线中的一些值：
 
 ![image-20250116162651274](/image-shading-reverse/image-20250116162651274.png)
@@ -369,7 +371,7 @@ $T_h.R$决定是否使用肤色；借用管线中的一些值：
   // -- rim light
     shadowValue.xyz = FGlobals._SekaiRimLightColorArray[charaId].www * FGlobals._SekaiRimLightColorArray[charaId].xyz;
     // TEXCOORD4 -> normalized view space position -> View Vector -> V
-    // XXX: since it's interpolated again this needs to be renormalized
+    // XXX: since it's interpolated again this needs to be renormalized. apparently they didn't bother...
     u_xlat28 = dot(input.NORMAL0.xyz, input.TEXCOORD4.xyz); // NdotV
     lumaValue.x = dot(input.TEXCOORD4.xyz, FGlobals._SekaiRimLightArray[charaId].xyz); // VdotL
     lumaValue.x = max(lumaValue.x, 0.0);
@@ -395,6 +397,7 @@ $T_h.R$决定是否使用肤色；借用管线中的一些值：
     // rimIntensity = smoothstep(sharp - 1, 1 - sharp, NdotL)
     u_xlat5.xyz = fma(FGlobals._SekaiShadowRimLightColorArray[charaId].xyz, FGlobals._SekaiShadowRimLightColorArray[charaId].www, (-shadowValue.xyz));
     shadowValue.xyz = fma(float3(rimIntensity), u_xlat5.xyz, shadowValue.xyz); // rim light color
+		// lerp(rim, rimShadow, rimIntensity)
     u_xlat28 = max(u_xlat28, 0.0); // NdotV [0,1]
     u_xlat28 = (-u_xlat28) + 1.0; // [1,0]
     lumaOffset = half(10.0) + (-FGlobals._SekaiRimLightFactor[charaId].x); // 10 - factor.x
@@ -404,16 +407,16 @@ $T_h.R$决定是否使用肤色；借用管线中的一些值：
     // (1-NdotV) ^ (10 - factor.x)
     lumaValue.x = fma(u_xlat28, lumaValue.x, (-u_xlat28)); // (VdotL - 1) * u_xlat28
     u_xlat28 = fma(float(FGlobals._SekaiRimLightFactor[charaId].w), lumaValue.x, u_xlat28);
-    // lerp(VdotL * u_xlat28, u_xlat28, factor.w)
+    // += factor_w * (VdotL - 1) * u_xlat28
+    // u_xlat28 = (1 + factor_w * (VdotL - 1)) * u_xlat28
     lumaValue.x = (-u_xlat20) + 0.0500000007;
     charaId0 = int((0.0<lumaValue.x) ? 0xFFFFFFFFu : uint(0)); // NdotL < EPS
     u_xlati11 = int((lumaValue.x<0.0) ? 0xFFFFFFFFu : uint(0)); // NdotL > EPS
     u_xlati11 = (-charaId0) + u_xlati11;// NdotL == 0 
     lumaValue.x = float(u_xlati11);
-    lumaValue.x = fma(u_xlat28, lumaValue.x, (-u_xlat28));
+    lumaValue.x = fma(u_xlat28, lumaValue.x, (-u_xlat28)); // (NdotL - 1) * u_xlat28
     u_xlat28 = fma(float(FGlobals._SekaiRimLightFactor[charaId].w), lumaValue.x, u_xlat28);
-    // factor.w * (u_xlat28 * (NdotL != 0))
-    // XXX: shouldn't L be flipped?
+    // u_xlat28 = (1 + factor_w * (NdotL - 1)) * u_xlat28
     u_xlat28 = u_xlat28 + (-UnityPerMaterial._RimThreshold);
     lumaValue.x = float(1.0) / float(FGlobals._SekaiRimLightFactor[charaId].z);
     u_xlat28 = u_xlat28 * lumaValue.x;
@@ -421,12 +424,61 @@ $T_h.R$决定是否使用肤色；借用管线中的一些值：
     lumaValue.x = fma(u_xlat28, -2.0, 3.0);
     u_xlat28 = u_xlat28 * u_xlat28;
     u_xlat28 = u_xlat28 * lumaValue.x;
-    // smoothstep(0, factor.z, u_xlat28)
+    // smoothstep(0, factor.z, u_xlat28 - RimThreshold)
     shadowValue.xyz = shadowValue.xyz * float3(u_xlat28);
     lumaValue.xyz = shadowValue.xyz * input.COLOR0.yyy; // Vertex.G: Rim Intensity
     skinValue.xyz = half3(fma(shadowValue.xyz, input.COLOR0.yyy, float3(skinValue.xyz)));
 ```
+代码量有些多..不过写成算式就很清晰了
+$$
+a = smoothstep(sharpness - 1, 1 - sharpness, \hat{\mathbf{N}} \cdot \hat{\mathbf{L}}) \newline
+b = (1 - \hat{\mathbf{N}} \cdot \hat{\mathbf{V}})^{10 - factor_x} \newline
+c = (1 + factor_w * (\hat{\mathbf{V}} \cdot \hat{\mathbf{L}})) * b \newline
+d = c * (\hat{\mathbf{N}} \cdot \hat{\mathbf{L}} > 0)\newline
+e = smoothstep(0, factor_z, d - threshold) \newline
+I_{rim} = e * Color_0.y
+$$
+
+- $a$被用于计算灯光颜色
+  $$
+  C = lerp(C_{rim},C_{rimShadow},a)
+  $$
+
+- $b$中做幂像是Phong模型——但是用的是法线和视角向量计算故和光源无关 
+
+- $c$中继续加上视角相关贡献
+
+- $d$则clip掉背光部分
+
+- 最后直接做加法到之前的计算
+  $$
+  C_{frag} += I_{rim} * C
+  $$
+
+### Blender 实现
+
+#### 入射高光光源？
+
+首先值得注意的是这种光源是**每个角色一个**，同时，仍然是以**平行光**的形式出现
+
+维护一个光源即可；但是很显然由于光照公式非常不PBR无法直接用Specular BSDF = = 这里选择另辟蹊径
+
+使用一个Empty对象取其指向向量$$-E$$作为我们的$L$；从上述式子知不必考虑衰减等等故足矣
+
+![image-20250116180538901](/image-shading-reverse/image-20250116180538901.png)
+
+记法上入射$L$这里记录为着色点到光源指向；故需取$$-E$$而非$$E$$
+
+![img](/image-shading-reverse/220px-Blinn_Vectors.svg.png)
+
+Shader中可这样实现
+
+![image-20250116182025563](/image-shading-reverse/image-20250116182025563.png)
+
+
+
 ## 总体高光
+
 ```glsl
     // -- directional light specular
     shadowValue.xyz = input.TEXCOORD4.xyz + FGlobals._SekaiDirectionalLight.xyz; // V + L
