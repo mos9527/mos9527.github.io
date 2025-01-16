@@ -136,7 +136,7 @@ Unity doesn't do that, though, and adds a Flip pass before Present...
 
 ### Render mode
 
-Game still uses classic Forward Rendering, not the new [TBDR](https://developer.apple.com/documentation/metal/tailor_your_apps_for_apple_gpus_and _tile-based_deferred_rendering); looks like URP supports the latter?
+Game still uses classic Forward Rendering, not the new [TBDR](https://developer.apple.com/documentation/metal/tailor_your_apps_for_apple_gpus_and_tile-based_deferred_rendering); looks like URP supports the latter?
 
 ![image-20250113231200281](/image-shading-reverse/image-20250113231200281.png)
 
