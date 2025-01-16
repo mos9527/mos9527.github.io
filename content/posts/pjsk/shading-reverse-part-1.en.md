@@ -19,7 +19,7 @@ There's plenty of time before the rally, so let's see how much I can write
 - Version: Japanese 5.0.0 *(Yakimori update)*
 - Equipment: Mac Mini M4 (2024)
 
-# 1. preparatory work
+# 1. Preparatory work
 
 I've run captures with [RenderDoc](https://renderdoc.org/) on a live Android device (note: Pixel 2 XL) before... Usability is actually pretty good, except for the relatively weak device performance and slow capture.
 
