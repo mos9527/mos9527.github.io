@@ -551,7 +551,16 @@ Shader中可这样实现
     skinValue.xyz = half3(fma(u_xlat4.xzw, float3(UnityPerMaterial._PartsAmbientColor.xyz), (-float3(charaSpecular.xyz))));
     charaSpecular.xyz = fma(UnityPerMaterial._PartsAmbientColor.www, skinValue.xyz, charaSpecular.xyz);
 ```
+#### Blender 实现
+
+混合模式为直接乘法，细节暂略
+
+效果如图
+
+![image-20250116202717244](/image-shading-reverse/image-20250116202717244.png)
+
 ## 点光源支持
+
 ```glsl
     // -- add spot attenuation 
     u_xlatb1 = 0x0<FGlobals._SekaiGlobalSpotLightEnabled;
@@ -576,7 +585,10 @@ Shader中可这样实现
         shadowValue.xyz = float3(charaSpecular.xyz);
     }
 ```
+未实现，细节暂略
+
 ## 合并
+
 ```glsl
     u_xlat2.xyz = lumaValue.xyz * float3(FGlobals._SekaiRimLightFactor[charaId].yyy);
     u_xlat2.xyz = fma(shadowValue.xyz, float3(valueTexSmp.yyy), u_xlat2.xyz);
