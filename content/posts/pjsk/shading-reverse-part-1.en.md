@@ -144,9 +144,9 @@ But it's clear that what's being used here is actually an SRP
 
 ![image-20250113231746750](/image-shading-reverse/image-20250113231746750.png)
 
-## 3. Shallow view reprocessing
+## 3. A Brief Look At Post-Processing
 
-#### DoF
+### DoF
 
 Above, you can see that the pipeline spits out 5 tex after processing the geometry; one image, two pairs of Depth-Stencils, and accidentally leaves a “Depth” and.... Brightness?
 
@@ -176,7 +176,7 @@ Sampler is full of Linear/Nearest Mip Filter, figure omitted
 
 ...It's pretty simple and brutal.
 
-#### Bloom
+### Bloom
 
 Since the game isn't doing HDR rendering, Brightness tex comes in handy here!
 
@@ -186,7 +186,7 @@ Doing Box Blur after post-processing and final compositing
 
 ![image-20250114002138546](/image-shading-reverse/image-20250114002138546.png)
 
-#### Saturation?
+### Saturation?
 
 In addition, the post-processing part of the LUT color gradation processing and some other parameters to control the effect of the
 
@@ -222,7 +222,7 @@ The naming is a bit strange... Also the formal buffer has post-processing that t
 
 I can't guess what I'm trying to accomplish yet orz.
 
-#### SMAA
+### SMAA
 
 After the post-processing, do a SMAA and you're basically done.
 
