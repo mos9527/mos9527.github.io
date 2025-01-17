@@ -95,7 +95,7 @@ Enter 3D MV (脳內革命ガール - https://www.youtube.com/watch?v=ZKuk7PeBc0U
 
 **Native 4K 120**... We are told at least two things here
 
-1. 24 Mac Mini really smells good😋
+1. The Mac Mini (2024) is REALLY good 😋
 2. As with most mobile games - the pipeline is rather basic; it feels like you're picking on a soft target ()
 
 # 2. GPU capture!
