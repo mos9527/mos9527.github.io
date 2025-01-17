@@ -10,7 +10,7 @@ typora-root-url: ../../../static
 typora-copy-images-to: ../../../static/image-shading-reverse
 ---
 
-# Preface
+## Preface
 
 [Same as the last time I closed the book](https://mos9527.com/posts/pjsk/archive-20240105/#preface) It's kind of a follow up, just in time to (re)start with the part of figuring out the cartoon rendering... *After all, this aspect of the old work left far more problems than it solved ()
 
@@ -19,7 +19,7 @@ There's plenty of time before the rally, so let's see how much I can write
 - Version: Japanese 5.0.0 *(Yakimori update)*
 - Equipment: Mac Mini M4 (2024)
 
-# 1. Preparatory work
+## 1. Preparatory work
 
 I've run captures with [RenderDoc](https://renderdoc.org/) on a live Android device (note: Pixel 2 XL) before... Usability is actually pretty good, except for the relatively weak device performance and slow capture.
 
@@ -33,7 +33,7 @@ I read the README for [GPTK](https://developer.apple.com/games/game-porting-tool
 
 Change environment variables and you can debug... Much easier than capturing a third-party Game on Win; with the latter you learn all sorts of weird injections (?) with RenderDoc/PIX! --But, back to the point, does this variable work well outside of the `wine + D3DMetal` translation layer?
 
-## Game preparation
+### Game preparation
 
 Apple Silicon's Macs without exception *can* run iPhone/iPad OS apps natively -- zero CPU, zero GPU overhead!
 
@@ -43,7 +43,7 @@ But fortunately there is also [PlayCover](https://github.com/PlayCover/PlayCover
 
 ![image-20250113215418461](/image-shading-reverse/image-20250113215418461.png)
 
-## Environment variables
+### Environment variables
 
 I can't believe I'm trying to go straight to the settings with my muscle memory on Windows ==
 
@@ -55,7 +55,7 @@ That said, it can also be set up directly in Xcode, so this step can be skipped.
 
 ![image-20250113215800060](/image-shading-reverse/image-20250113215800060.png)
 
-## Xcode configuration
+### Xcode configuration
 
 Starting with empty projects
 
@@ -98,7 +98,7 @@ Enter 3D MV (脳內革命ガール - https://www.youtube.com/watch?v=ZKuk7PeBc0U
 1. The Mac Mini (2024) is REALLY good 😋
 2. As with most mobile games - the pipeline is rather basic; it feels like you're picking on a soft target ()
 
-# 2. GPU capture!
+## 2. GPU capture!
 
 Interestingly PJSK doesn't pause the rendering thread when pausing the 3D PV previews
 
@@ -112,9 +112,9 @@ Just tap the screen to come back to capture, press `Capture`.
 
 Pass is in full view... *¶¶It's quite a sight to behold. ¶¶*
 
-## Some observations
+### Some observations
 
-### Present flip
+#### Present flip
 
 You can notice that the graphics in the pipeline are flipped up and down, [here it has something to do with Metal's NDC space](https://developer.apple.com/documentation/metal/using_a_render_pipeline_to_render_primitives?language=objc)
 
@@ -134,7 +134,7 @@ Unity doesn't do that, though, and adds a Flip pass before Present...
 
 ...Reverse UV reblit all over again; considering the amount of shader the user would otherwise need to modify by hand seems inexcusable?
 
-### Render mode
+#### Render mode
 
 Game still uses classic Forward Rendering, not the new [TBDR](https://developer.apple.com/documentation/metal/tailor_your_apps_for_apple_gpus_and_tile-based_deferred_rendering); looks like URP supports the latter?
 
@@ -144,9 +144,9 @@ But it's clear that what's being used here is actually an SRP
 
 ![image-20250113231746750](/image-shading-reverse/image-20250113231746750.png)
 
-# 3. Shallow view reprocessing
+## 3. Shallow view reprocessing
 
-### DoF
+#### DoF
 
 Above, you can see that the pipeline spits out 5 tex after processing the geometry; one image, two pairs of Depth-Stencils, and accidentally leaves a “Depth” and.... Brightness?
 
@@ -176,7 +176,7 @@ Sampler is full of Linear/Nearest Mip Filter, figure omitted
 
 ...It's pretty simple and brutal.
 
-### Bloom
+#### Bloom
 
 Since the game isn't doing HDR rendering, Brightness tex comes in handy here!
 
@@ -186,7 +186,7 @@ Doing Box Blur after post-processing and final compositing
 
 ![image-20250114002138546](/image-shading-reverse/image-20250114002138546.png)
 
-### Saturation?
+#### Saturation?
 
 In addition, the post-processing part of the LUT color gradation processing and some other parameters to control the effect of the
 
@@ -222,7 +222,7 @@ The naming is a bit strange... Also the formal buffer has post-processing that t
 
 I can't guess what I'm trying to accomplish yet orz.
 
-### SMAA
+#### SMAA
 
 After the post-processing, do a SMAA and you're basically done.
 
@@ -230,7 +230,7 @@ After the post-processing, do a SMAA and you're basically done.
 
 And finally to the aforementioned Flip - rendering over
 
-# Conclusion
+## Conclusion
 
 First time writing a frame-by-frame analysis, and I have to say the workload is bigger than I thought it would be orz
 
@@ -240,7 +240,7 @@ In addition to the following citation, here's a special thanks to UnityPy and it
 
 ***SEE YOU SPACE COWBOY...***
 
-# References
+## References
 
 Real Time Rendering 4th Edition
 
