@@ -10,7 +10,7 @@ typora-root-url: ../../../static
 typora-copy-images-to: ../../../static/image-shading-reverse
 ---
 
-# Preface
+## Preface
 
 Shader部分其实已经有不少现成工作，比如
 
@@ -33,7 +33,7 @@ PV：[愛して愛して愛して](https://www.bilibili.com/video/BV1cP4y1P7TM/)
 
 ![image-20250114210417461](/image-shading-reverse/image-20250114210417461.png)
 
-# 1. Eye-Highlight
+## 1. Eye-Highlight
 
 简明概要的效果 - 即给角色眼睛表现添加卡通风格高光
 
@@ -75,7 +75,7 @@ PV：[愛して愛して愛して](https://www.bilibili.com/video/BV1cP4y1P7TM/)
 
   随时间对高光贴图进行**UV上偏移**后采样后根据**环境光强决定明亮**，同时产生动态效果
 
-## Blender 实现
+### Blender 实现
 
 - 效果随时间变化意味着需要某种方式访问动画当前帧；在`Timeline > Current Frame`右键可Copy Driver放在Shader里
 
@@ -92,7 +92,7 @@ PV：[愛して愛して愛して](https://www.bilibili.com/video/BV1cP4y1P7TM/)
 
 环境光影响暂不考虑，之后进行对应支持
 
-# 2. Toon-V3
+## 2. Toon-V3
 
 可以观察到其他Mesh都经历这个Pipeline；下面先从非`Face`部分的渲染开始
 
@@ -104,7 +104,7 @@ PV：[愛して愛して愛して](https://www.bilibili.com/video/BV1cP4y1P7TM/)
 
 *鉴于寄存器复用，变量名也是如此，阅读上带来不便还且谅解*
 
-## 结构体
+### 结构体
 ```glsl
 #include <metal_stdlib>
 #include <metal_texture>
@@ -171,7 +171,7 @@ struct UnityPerMaterial_Type
     float _ShadowTexWeight;
 };
 ```
-## 管线输出
+### 管线输出
 ```glsl
 struct Mtl_FragmentIn
 {
@@ -205,7 +205,7 @@ struct Mtl_FragmentOut
 
 接下来的观察都即将围绕第一个RenderTarget进行
 
-## 管线材质
+### 管线材质
 
 ```glsl
 fragment Mtl_FragmentOut xlatMtlMain(
@@ -263,7 +263,7 @@ fragment Mtl_FragmentOut xlatMtlMain(
 
 Vertex Shader部分将不直接查看；输出`TEXCOORD_`部分将在接下来对PS的分析中解释
 
-## 阈值阴影
+### 阈值阴影
 
 ```glsl
     mainTexSmp = _MainTex.sample(sampler_MainTex, input.TEXCOORD1.xy, bias(FGlobals._GlobalMipBias.xyxx.x));
@@ -298,13 +298,13 @@ Vertex Shader部分将不直接查看；输出`TEXCOORD_`部分将在接下来�
 ```
 之后由一次阈值化选择阴影/$Tc$完毕
 
-### Blender 实现
+#### Blender 实现
 
 首先可以注意到的是——这里点指向灯有且仅有**一个**
 
 意味着可以在整个场景中**复用**这一个指向灯进行光照与后边会用到的一些Trick；毕竟指向/平行光源即一个入射光向量
 
-#### 阈值来源
+##### 阈值来源
 
 除了直接计算$N \cdot L$以外，直接使用Diffuse BSDF将会是个更好的选择
 
@@ -315,7 +315,7 @@ Shader设置如下；Color为纯白，显然产生的明亮度也能量守恒
 
 ![image-20250116155618383](/image-shading-reverse/image-20250116155618383.png)
 
-#### 材质混合
+##### 材质混合
 
 暂时借用管线里的权重和阴影色彩；考虑到管线中这些值一致，故作Driver到全局对象处理；操作上之前已经介绍过
 
@@ -325,7 +325,7 @@ Shader设置如下；Color为纯白，显然产生的明亮度也能量守恒
 
 ![image-20250116161642565](/image-shading-reverse/image-20250116161642565.png)
 
-## 皮肤特化
+### 皮肤特化
 
 ```glsl
     // -- skin color when shadowed..are they trying to emulate SSS?    
@@ -355,7 +355,7 @@ Shader设置如下；Color为纯白，显然产生的明亮度也能量守恒
     skinValue.xyz = half3(fma(float3(lumaOffset), float3(skinValue.xyz), shadowValue.xyz));
     // skinValue = lerp([shadowed]skinValue, shadowValue, lumaOffset) -> over 0.5: skin region   
 ```
-### Blender 实现
+#### Blender 实现
 
 $T_h.R$决定是否使用肤色；借用管线中的一些值：
 
@@ -365,7 +365,7 @@ $T_h.R$决定是否使用肤色；借用管线中的一些值：
 
 ![image-20250116163847472](/image-shading-reverse/image-20250116163847472.png)
 
-## 边缘高光
+### 边缘高光
 
 ```glsl
   // -- rim light
@@ -461,9 +461,9 @@ $$
   C_{frag} += I_{rim} * C
   $$
 
-### Blender 实现
+#### Blender 实现
 
-#### 高光光源？
+##### 高光光源？
 
 首先值得注意的是这种光源是**每个角色一个**，同时，仍然是以**平行光**的形式出现
 
@@ -497,7 +497,7 @@ Shader中可这样实现
 
 ![image-20250116195212888](/image-shading-reverse/image-20250116195212888.png)
 
-## 总体高光
+### 总体高光
 
 ```glsl
 	// charaSpecular.xyz = FGlobals._SekaiCharacterSpecularColorArray[charaId].www * FGlobals._SekaiCharacterSpecularColorArray[charaId].xyz;    
@@ -522,7 +522,7 @@ Shader中可这样实现
 
 注意$T_a$对高光的选择性
 
-### Blender 实现
+#### Blender 实现
 
 对部分‘金属’物体有效，对比如图
 
@@ -533,7 +533,7 @@ Shader中可这样实现
 	​	![image-20250117142120315](/image-shading-reverse/image-20250117142120315.png)
 
 
-## 环境光
+### 环境光
 
 ```glsl
     // -- ambient lights
@@ -558,7 +558,7 @@ Shader中可这样实现
     skinValue.xyz = half3(fma(u_xlat4.xzw, float3(UnityPerMaterial._PartsAmbientColor.xyz), (-float3(charaSpecular.xyz))));
     charaSpecular.xyz = fma(UnityPerMaterial._PartsAmbientColor.www, skinValue.xyz, charaSpecular.xyz);
 ```
-#### Blender 实现
+##### Blender 实现
 
 混合模式为直接乘法，细节暂略
 
@@ -566,7 +566,7 @@ Shader中可这样实现
 
 ![image-20250116202717244](/image-shading-reverse/image-20250116202717244.png)
 
-## 点光源支持
+### 点光源支持
 
 ```glsl
     // -- add spot attenuation 
@@ -594,7 +594,7 @@ Shader中可这样实现
 ```
 未实现，细节暂略
 
-## 合并
+### 合并
 
 ```glsl
     u_xlat2.xyz = lumaValue.xyz * float3(FGlobals._SekaiRimLightFactor[charaId].yyy);
