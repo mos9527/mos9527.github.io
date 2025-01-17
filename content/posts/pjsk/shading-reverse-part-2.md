@@ -524,7 +524,14 @@ Shader中可这样实现
 
 ### Blender 实现
 
-(略)
+对部分‘金属’物体有效，对比如图
+
+- 开启
+  ![image-20250117142149291](/image-shading-reverse/image-20250117142149291.png)
+- 关闭
+
+	​	![image-20250117142120315](/image-shading-reverse/image-20250117142120315.png)
+
 
 ## 环境光
 
