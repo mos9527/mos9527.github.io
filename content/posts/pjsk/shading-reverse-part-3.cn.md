@@ -166,3 +166,16 @@ SDF面部阴影在解决朴素法线/N dot L阈值阴影在极端光照角度表
 
 ### 素材处理
 
+(明天再写?)
+
+### 最终效果
+<video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/b3f1f231-0b05-47a6-88b6-d25a326be6ba
+"/>
+
+可见阈值光照在骨骼动作上也有正确变化
+
+## References
+
+Real Time Rendering 4th Edition
+
+(明天再加...)
