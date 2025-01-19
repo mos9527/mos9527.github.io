@@ -117,31 +117,31 @@ struct linear_base : array<ll, 64> {
 };
 ```
 
-## 数论杂项
-### 皮萨诺周期
+## Miscellaneous number theory
+### Pisano cycle
 
 - https://codeforces.com/contest/2033/submission/287844746
 
-*摘自 https://oi-wiki.org/math/combinatorics/fibonacci/#%E7%9A%AE%E8%90%A8%E8%AF%BA%E5%91%A8%E6%9C%9F*
+*Retrieved from https://oi-wiki.org/math/combinatorics/fibonacci/#%E7%9A%AE%E8%90%A8%E8%AF%BA%E5%91%A8%E6%9C%9F*
 
-模 $m$ 意义下斐波那契数列的最小正周期被称为 [皮萨诺周期](https://en.wikipedia.org/wiki/Pisano_period)
-皮萨诺周期总是不超过 $6m$，且只有在满足 $m=2\times 5^k$ 的形式时才取到等号。
+The minimum positive period of the Fibonacci series in the sense of mode $m$ is called the [Pisano cycle](https://en.wikipedia.org/wiki/Pisano_period)
+The Pisano period is always no more than $6m$ and the equality sign is taken only if it satisfies the form $m=2\times 5^k$.
 
-当需要计算第 $n$ 项斐波那契数模 $m$ 的值的时候，如果 $n$ 非常大，就需要计算斐波那契数模 $m$ 的周期。当然，只需要计算周期，不一定是最小正周期。
-容易验证，斐波那契数模 $2$ 的最小正周期是 $3$，模 $5$ 的最小正周期是 $20$。
-显然，如果 $a$ 与 $b$ 互素，$ab$ 的皮萨诺周期就是 $a$ 的皮萨诺周期与 $b$ 的皮萨诺周期的最小公倍数。
+When it is necessary to calculate the value of the $n$th Fibonacci mode $m$, if $n$ is very large, it is necessary to calculate the period of the Fibonacci mode $m$. Of course, only the period needs to be calculated, not necessarily the least positive period.
+It is easy to verify that the least positive period of the Fibonacci numbers modulo $2$ is $3$ and the least positive period modulo $5$ is $20$.
+Clearly, if $a$ and $b$ are mutually prime, the Pisano period of $ab$ is the least common multiple of the Pisano period of $a$ and the Pisano period of $b$.
 
-结论 2：于奇素数 $p\equiv 2,3 \pmod 5$，$2p+2$ 是斐波那契数模 $p$ 的周期。即，奇素数 $p$ 的皮萨诺周期整除 $2p+2$。
+Conclusion 2: On the odd prime $p\equiv 2,3 \pmod 5$, $2p+2$ is the period of the Fibonacci modulus $p$. That is, the Pisano period of the odd prime $p$ divides $2p+2$.
 
-结论 3：对于素数 $p$，$M$ 是斐波那契数模 $p^{k-1}$ 的周期，等价于 $Mp$ 是斐波那契数模 $p^k$ 的周期。特别地，$M$ 是模 $p^{k-1}$ 的皮萨诺周期，等价于 $Mp$ 是模 $p^k$ 的皮萨诺周期。
+Conclusion 3: For a prime $p$, $M$ is the cycle of the Fibonacci modulus $p^{k-1}$, which is equivalent to $Mp$ being the cycle of the Fibonacci modulus $p^k$. In particular, $M$ is a Pisano cycle of modulus $p^{k-1}$, which is equivalent to $Mp$ being a Pisano cycle of modulus $p^k$.
 
 ---
-**因此也等价于 $Mp$ 是斐波那契数模 $p^k$ 的周期。**
-**因为周期等价，所以最小正周期也等价。**
+** Thus it is also equivalent that $Mp$ is the period of the Fibonacci modulus $p^k$. **
+** Because the periods are equivalent, the least positive period is also equivalent. **
 
-## 计算几何
+## Computational geometry
 
-### 二维几何
+### Two-dimensional geometry
 
 - https://codeforces.com/gym/104639/submission/281132024
 
@@ -189,7 +189,7 @@ template<typename T> struct vec2 {
 typedef vec2<lf> point;
 ```
 
-#### 二维凸包
+#### 2D Convex Packet
 
 ```c++
 struct convex_hull : vector<point> {
@@ -237,7 +237,7 @@ struct convex_hull : vector<point> {
 
 
 
-## 组合数
+## Number of combinations
 
 Lucas：$$\binom{n}{m}\bmod p = \binom{\left\lfloor n/p \right\rfloor}{\left\lfloor m/p\right\rfloor}\cdot\binom{n\bmod p}{m\bmod p}\bmod p$$​
 ```c++
@@ -260,22 +260,22 @@ namespace comb {
 ```
 
 
-## 数论
-### 乘法逆元
+## Number theory
+### Multiplying inverse elements
 - https://acm.hdu.edu.cn/showproblem.php?pid=7437
 
-给定质数$m$,求$a$的逆元$a^{-1}$​
+Given a prime $m$, find the inverse of $a$, $a^{-1}$.
 
-- 欧拉定理知 $a^{\phi (m)} \equiv 1 \mod m$
-- 对质数 $m$, $\phi (m) = m - 1$
-- 此情景即为费马小定理，i.e. $a^{m - 1} \equiv 1 \mod m$
-- 左右同时乘$a^{-1}$,可得 $a ^ {m - 2} \equiv a ^ {-1} \mod m$
-- 即 `a_inv = binpow_mod(a, m - 2, m)`
+- Euler's theorem knows that $a^{\phi (m)} \equiv 1 \mod m$
+- For prime $m$, $\phi (m) = m - 1$
+- This scenario is Fermat's Little Theorem, i.e. $a^{m - 1} \equiv 1 \mod m$
+- Multiplying left and right simultaneously by $a^{-1}$, gives $a ^ {m - 2} \equiv a ^ {-1} \mod m$
+- i.e. `a_inv = binpow_mod(a, m - 2, m)`
 
-### Eratosthenes 筛
+### Eratosthenes sieve
 
 - https://oi-wiki.org/math/number-theory/sieve
-- https://www.luogu.com.cn/problem/P2158 (欧拉函数)
+- https://www.luogu.com.cn/problem/P2158 (Euler function)
 
 ```c++
 namespace eratosthenes_sieve { // Eratosthenes筛法 + 区间筛
@@ -395,7 +395,7 @@ ll Pollard_Rho(ll x) {  // 找出x的一个非平凡因数
 }
 ```
 
-### 分解质因数
+### Decompose the prime factor
 
 ```c++
 // MR+PR
@@ -434,9 +434,9 @@ namespace euler_sieve {
 
 - https://ac.nowcoder.com/acm/contest/81603/E
 
-# 图论
+# Graphology
 
-## 拓扑排序
+## Topological sorting
 ### Khan BFS
 
 ```c++
@@ -488,7 +488,7 @@ auto dfs = [&](ll u, auto&& dfs) -> bool {
 bool ok = true;
 for (ll i = 0; ok && i < n; i++) if (vis[i] == 0) ok &= dfs(i, dfs);
 ```
-## 最短路
+## Shortest circuit
 
 ### Floyd
 
@@ -521,7 +521,7 @@ int main() {
 
 ### Dijkstra
 
-- https://codeforces.com/group/bAbX7h3CX1/contest/554012/submission/285834927 （跳点/验证途径点）
+- https://codeforces.com/group/bAbX7h3CX1/contest/554012/submission/285834927 (jump points/validation route points)
 
 ```c++
 #define INF 1e18
@@ -560,7 +560,7 @@ struct graph {
 };
 ```
 
-## 最小生成树
+## Minimum spanning tree
 
 ### Kruskal 
 
@@ -594,7 +594,7 @@ int main() {
 }
 ```
 
-## 欧拉回路
+## Euler's circuit
 
 ### Hierholzer
 
@@ -640,7 +640,7 @@ template<size_t Size> struct graph {
 
 ## LCA
 
-- RMQ (ST表)
+- RMQ (ST table)
 
 ```c++
 template<typename Container> struct sparse_table {
@@ -726,7 +726,7 @@ int main() {
 }
 ```
 
-- 倍增思路
+- Multiplying Ideas
   - https://codeforces.com/contest/2033/submission/288921361
   - https://blog.csdn.net/weixin_45799835/article/details/117289362
   - https://www.luogu.com.cn/problem/P5903 (会T...)
@@ -786,7 +786,7 @@ struct graph {
 };
 ```
 
-## 树的直径
+## Tree diameter
 
 - https://oi-wiki.org/graph/tree-diameter/
 
@@ -851,10 +851,10 @@ struct graph {
 };
 ```
 
-## Dinic 最大流
+## Dinic Maximum Flow
 
 - https://www.cnblogs.com/SYCstudio/p/7260613.html
-- https://codeforces.com/gym/105336/submission/280592598 (G. 疯狂星期六)
+- https://codeforces.com/gym/105336/submission/280592598 (G. Saturday Madness)
 
 ```c++
 struct graph {
@@ -911,7 +911,7 @@ public:
 };
 ```
 
-## 树链剖分 / HLD
+## Tree chain dissection / HLD
 
 - https://www.cnblogs.com/WIDA/p/17633758.html#%E6%A0%91%E9%93%BE%E5%89%96%E5%88%86hld
 - https://oi-wiki.org/graph/hld/
@@ -1005,14 +1005,14 @@ struct HLD {
 };
 ```
 
-# 动态规划 / DP
+# Dynamic Programming / DP
 
-移步 [DP 类型专题](https://mos9527.github.io/posts/cp/dp-problems/)
+Move to [DP type topic](https://mos9527.github.io/posts/cp/dp-problems/)
 
-# 数据结构 / DS
+# Data Structures / DS
 
-## RMQ 系列
-### 滑动窗口（单调队列）
+## RMQ Series
+### Sliding window (monotonic queue)
 
 - https://oi-wiki.org/ds/monotonous-queue/
 
@@ -1034,11 +1034,11 @@ for (ll i = 1; i <= n; i++) {
 }
 ```
 
-### 线段树
+### The line tree
 
-移步 [线段树专题](https://mos9527.github.io/posts/cp/segment-tree-problems/)
+Move to [Line Tree topic](https://mos9527.github.io/posts/cp/segment-tree-problems/)
 
-### ST 表
+### ST table
 
 ```c++
 template<typename Container> struct sparse_table {
@@ -1068,7 +1068,7 @@ template<typename Container> struct sparse_table {
 
 
 
-### 树状数组
+### Tree arrays
 ```c++
 struct fenwick : public vec {
     using vec::vec;
@@ -1093,9 +1093,9 @@ struct fenwick : public vec {
     };
 };
 ```
-#### 支持不可差分查询模板
+#### Support for non-differentiable query templates
 
-- 解释：https://oi-wiki.org/ds/fenwick/#树状数组维护不可差分信息
+- Explanation: https://oi-wiki.org/ds/fenwick/#树状数组维护不可差分信息
 - 题目：https://acm.hdu.edu.cn/showproblem.php?pid=7463
 
 ```C++
@@ -1132,10 +1132,10 @@ struct fenwick {
 };
 ```
 
-#### 区间模板
+#### Interval Templates
 
-- 解释：https://oi-wiki.org/ds/fenwick/#区间加区间和
-- 题目：https://hydro.ac/d/ahuacm/p/Algo0304
+- Explanation: https://oi-wiki.org/ds/fenwick/#区间加区间和
+- Title: https://hydro.ac/d/ahuacm/p/Algo0304
 ```c++
 int main() {
     std::ios::sync_with_stdio(false); std::cin.tie(0); std::cout.tie(0);
@@ -1168,7 +1168,7 @@ int main() {
 } 
 ```
 
-## 优先队列（二叉堆）
+## Priority queue (binary heap)
 
 > ```c++
 > auto pp = PRED( elem, lhs.w > rhs.w);
@@ -1177,7 +1177,7 @@ int main() {
 
 ## DSU
 
-- 不考虑边权
+- No consideration of side rights
 
 ```C++
 struct dsu {
@@ -1189,7 +1189,7 @@ struct dsu {
 };
 ```
 
-- 需要计算到根距离
+- Need to calculate the distance to the root
   - https://codeforces.com/contest/2008/submission/280865425
 
 
@@ -1222,8 +1222,8 @@ struct dsu {
 };
 ```
 
-# 字符串
-## AC自动机
+# String
+## AC automatics
 - https://www.luogu.com.cn/problem/P3796
 
 ```c++
