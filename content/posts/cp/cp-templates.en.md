@@ -1282,7 +1282,7 @@ struct AC {
 
 
 
-## 字符串哈希
+## String hash
 - https://acm.hdu.edu.cn/showproblem.php?pid=7433
 - https://acm.hdu.edu.cn/contest/problem?cid=1125&pid=1011
 ```c++
@@ -1313,9 +1313,9 @@ namespace substring_hash
 };
 ```
 
-# 杂项
+# Miscellaneous
 
-## 二分
+## Two points
 
 ```c++
 // 找min
@@ -1336,27 +1336,27 @@ while (l < r) {
 cout << l - 1 << endl;
 ```
 
-## 置换环
+## Replacement ring
 
 - https://www.cnblogs.com/TTS-TTS/p/17047104.html
 
-典中典之将长度$n$排列$p$中元素$i,j$交换$k$次使其变为排列$p'$，求最小$k$?
+The length $n$-arrangement $p$ in which elements $i,j$ are exchanged $k$ times so that it becomes an arrangement $p'$, find the minimum $k$?
 
-- 两个排列顺序连边；显然排列一致时图中有$n$个一元环
-- 在一个环中交换一次可多分出一个环；记环的大小为$s$
-- 显然，分成$n$个一元环即分环$s-1$次；记有$m$个环
-- 可得 $k = \sum_{1}^{m}{s - 1} = n - m$
+- The two permutations are sequentially connected to the edge; clearly there are $n$ unitary rings in the graph when the permutations coincide
+- Swapping once in a ring divides one more ring; remember that the size of the ring is $s$
+- Clearly, the division into $n$ unitary rings is the division into rings $s-1$ times; remember that there are $m$ rings
+- can be obtained as $k = \sum_{1}^{m}{s - 1} = n - m$
 
-附题：https://codeforces.com/contest/2033/submission/287844212
+Attachment: https://codeforces.com/contest/2033/submission/287844212
 
-- 不同于一般排序题，这里排列不需要完全一致；$p_i = i, p_i = p_{{i}_{i}}$皆可
-- 意味着，最后要的环大小也可以是$2$，此时显然大小更优；更改$k$的计算为$k = \sum_{1}^{m}{\frac{s - 1}{2}}$即可
+- Unlike general sorting problems, the arrangements do not need to be identical here; $p_i = i, p_i = p_{{i}_{i}}$ are both possible
+- means that the final ring size to be wanted can also be $2$, when clearly the size is better; changing the computation of $k$ to $k = \sum_{1}^{m}{\frac{s - 1}{2}}$ is sufficient
 
-## 离散化
+## Discrete
 
-适用于大$a_i$但小$n$情形
+For large $a_i$ but small $n$ cases
 
-- 在线`map`写法
+- Online `map` writing
 
 ```c++
 map<ll, ll> pfx;        
@@ -1377,7 +1377,7 @@ auto query = [&](ll x) -> ll {
 
 
 
-- 离线`map`写法
+- Offline `map` writing
 
 ```c++
 map<ll, ll> R;
@@ -1387,12 +1387,12 @@ ll cnt = 0; for (auto& [x, i] : R) i = cnt++, Ri.push_back(x);
 for (auto& [ai, bi] : a) ai = R[ai], bi = R[bi];
 ```
 
-- 离线`set`写法
-  - 注意该`set`若为STL set，复杂度($R(x)$) 实为$O(n)$
-    - 详见 https://codeforces.com/blog/entry/123961
-    - [TL;DR `std::distance`**对且仅对*随机***迭代器为$O(1)$操作](https://en.cppreference.com/w/cpp/iterator/distance)，其余迭代器(如果适用)皆为$O(n)$
-    - 在 https://codeforces.com/contest/2051/submission/298511255 可见产生TLE
-      - `map`解法(AC)：https://codeforces.com/contest/2051/submission/298511985
+- Offline `set` writing
+  - Note that the complexity ($R(x)$) of this `set`, if it is an STL set, is actually $O(n)$
+    - See https://codeforces.com/blog/entry/123961 for details
+    - [TL;DR `std::distance`** operates $O(1)$ for *random*** iterators only](https://en.cppreference.com/w/cpp/iterator/distance), $O(n)$ for all other iterators (if applicable)
+    - Generating TLE can be seen at https://codeforces.com/contest/2051/submission/298511255
+      - `map` solution (AC): https://codeforces.com/contest/2051/submission/298511985
 
 ```c++
 set<ll> Rs;
@@ -1404,7 +1404,7 @@ auto R = [&](ll x) -> ll { return distance(Rs.begin(), Rs.lower_bound(x)); };
 
 
 
-## MSVC也要用万能头!!
+## MSVC needs a universal header too!!!!
 
 - `bits/stdc++.h`
 ```c++
