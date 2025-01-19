@@ -19,7 +19,7 @@ typora-copy-images-to: ../../../static/image-shading-reverse
 **注意：** 由于个人水平有限错误难免，**强烈推荐**阅读以下文本作为预备知识：
 
 - [二次元角色卡通渲染—面部篇 by MIZI](https://zhuanlan.zhihu.com/p/411188212)
-- [卡通渲染——360度脸部SDF光照方案 by [Yu-ki016](https://www.zhihu.com/people/yu-ki-016)](https://zhuanlan.zhihu.com/p/670837192)
+- [卡通渲染——360度脸部SDF光照方案 by Yu-ki016](https://zhuanlan.zhihu.com/p/670837192)
 - [Signed Distance Field by 欧克欧克](https://zhuanlan.zhihu.com/p/337944099)
 
 ## 1. SDF 概述
@@ -84,8 +84,79 @@ SDF面部阴影在解决朴素法线/N dot L阈值阴影在极端光照角度表
   \omega = \theta_i * sgn(sin \phi_i)
   $$
 
+### 切空间角度
 
-### 法向量？
+> 注：其实这块完全不用写 = = $\theta$角和$N$的关系理应很显然为$cos\theta= \mathbf{L \cdot N}$
+>
+> 或许趁机复习线代下也是好事？（你不是刚考完吗😭）
+
+接下来介绍使用切空间/$\mathbf{TBN}$表示的方法
+
+首先由上文已知我们已经有了正交基$\mathbf{t,b,n}$($$b$$为$t,n$叉积），$\mathbf{TBN}$矩阵如下
+$$
+\mathbf{TBN} =
+\begin{bmatrix}
+T_0 & B_0 & N_0 \\
+T_1 & B_1 & N_1 \\
+T_2 & B_2 & N_2
+\end{bmatrix}.
+$$
+很显然，$\mathbf{TBN}$是个**正交矩阵**，意味着**它的转置等于它的逆**
+$$
+\mathbf{TBN}^\top = \mathbf{TBN}^{-1} = 
+\begin{bmatrix}
+T_0 & B_0 & N_0 \\
+T_1 & B_1 & N_1 \\
+T_2 & B_2 & N_2
+\end{bmatrix}.
+$$
+
+
+接下来做线形空间变换将光照向量$\mathbf{L}$放到切空间中有：
+$$
+\mathbf{L} = [x_0,y_0,z_0]^T = a\mathbf{T}+b\mathbf{B}+c\mathbf{N} \\
+
+\begin{bmatrix}
+a \\
+b \\
+c
+\end{bmatrix}
+= \mathbf{TBN}^{-1}
+\begin{bmatrix}
+x_0 \\
+y_0 \\
+z_0
+\end{bmatrix}
+= \mathbf{TBN}^\top
+\begin{bmatrix}
+x_0 \\
+y_0 \\
+z_0
+\end{bmatrix} \\
+
+\left\{
+\begin{array}{l}
+a = T_0 x_0 + T_1 y_0 + T_2 z_0 = \mathbf{L \cdot T} \\
+b = B_0 x_0 + B_1 y_0 + B_2 z_0 = \mathbf{L \cdot B} \\
+c = N_0 x_0 + N_1 y_0 + N_2 z_0 = \mathbf{L \cdot N}
+\end{array}
+\right.
+$$
+$$L$$在$\mathbf{t}$所在平面投影有
+$$
+\mathbf{L_bn} = b\mathbf{B}+c\mathbf{N} = \mathbf{L} - a\mathbf{T}
+$$
+求$\theta$即为
+$$
+cos\theta=\mathbf{L_{bn} \cdot N} = \mathbf{L \cdot N}
+$$
+同理易得
+$$
+cos\phi = \mathbf{L \cdot T}
+$$
+
+
+### 切空间构造
 
 相当多 Blender 中实现 SDF 的教程都作了“着色面法向量就是+Y轴”的假设，如设置 Driver 直接取指向光的 Euler Z作方位角
 
@@ -166,16 +237,38 @@ SDF面部阴影在解决朴素法线/N dot L阈值阴影在极端光照角度表
 
 ### 素材处理
 
-(明天再写?)
+- 其一，由于游戏内素材只考虑水平角的光照方案，故计算$\theta$角时有必要丢掉$z$轴计算；否则该角度上带来的角度差只会带来错误
+  - 带垂直角的方案请参见文首链接，暂不介绍
+
+- 其二，贴图只包含水平角在$[0,90\degree]$的信息；意味着超过该范围（于$[-90\degree,0]$）需要借用对称性反转
+  - 由此脸模也需要对称；当然，制作两张SDF贴图就不会有这样的限制
+
+
+Node如下
+
+![image-20250119111441108](/image-shading-reverse/image-20250119111441108.png)
+
+用于反转的Node如下
+
+![image-20250119111946143](/image-shading-reverse/image-20250119111946143.png)
+
+反转即简单的$u = 1 - u$
 
 ### 最终效果
+
 <video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/b3f1f231-0b05-47a6-88b6-d25a326be6ba
 "/>
-
 可见阈值光照在骨骼动作上也有正确变化
+
+在动画中实践效果如下
+
+<video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/f4fce0cf-2611-438d-96c3-529d69210c74"/>
 
 ## References
 
 Real Time Rendering 4th Edition
 
-(明天再加...)
+https://zhuanlan.zhihu.com/p/670837192
+
+https://zhuanlan.zhihu.com/p/411188212
+
