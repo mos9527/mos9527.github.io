@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2024-12-26T17:21:44.058182
-title: Calculating Competitive Notes: Question Set/Board Organization (C++)
+title: Competitive Programming - Algorithm Templates And Problem Sets (C++)
 tags: ["ACM","Competeive Programming","XCPC","(Code) Templates","Problem sets","Codeforces","C++"]
 categories: ["Problem Solutions", "Competeive Programming", "Collection/compilation"]
 ShowToc: true
