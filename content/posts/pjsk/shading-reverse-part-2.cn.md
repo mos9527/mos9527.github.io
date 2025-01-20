@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2025-01-14T01:08:34.159822
-title: PSJK Blender卡通渲染管线重现【2】：角色 Shader
+title: PSJK Blender卡通渲染管线重现【2】：角色及舞台 Shader
 tags: ["逆向","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "逆向", "合集", "CG"]
 ShowToc: true
@@ -465,17 +465,20 @@ $$
 
 ##### 高光光源？
 
+**注：** 后文向量都将以图示方向表示
+<p style="width=100%;text-align:center">
+<img style="background-color:white;margin:0 auto;display:block;" src="/image-shading-reverse/220px-Blinn_Vectors.svg.png">
+</p>
+
 首先值得注意的是这种光源是**每个角色一个**，同时，仍然是以**平行光**的形式出现
 
 维护一个光源即可；但是很显然由于光照公式非常不PBR无法直接用Specular BSDF = = 这里选择另辟蹊径
 
-使用一个Empty对象取其指向向量$$-E$$作为我们的$L$；从上述式子知不必考虑衰减等等故足矣
+使用一个Empty对象取其指向向量$-E$作为我们的$L$；从上述式子知不必考虑衰减等等故足矣
 
 ![image-20250116180538901](/image-shading-reverse/image-20250116180538901.png)
 
-记法上入射$L$这里记录为着色点到光源指向；故需取$$-E$$而非$$E$$
-
-![img](/image-shading-reverse/220px-Blinn_Vectors.svg.png)
+记法上入射$L$这里记录为着色点到光源指向；故需取$-E$而非$E$
 
 Shader中可这样实现
 
@@ -592,7 +595,6 @@ Shader中可这样实现
         shadowValue.xyz = float3(charaSpecular.xyz);
     }
 ```
-未实现，细节暂略
 
 ### 合并
 
@@ -623,3 +625,123 @@ Shader中可这样实现
 }
 ```
 
+### 最终效果
+
+（等待配图ing）
+
+## 3. Stage/LightMap
+
+此部分相当简单 - 混合烘焙好的LightMap，环境光与Diffuse部分即完成
+
+注意Vertex Color部分的使用也会造成影响
+
+```glsl
+    ...
+    u_xlat16_0 = _MainTex.sample(sampler_MainTex, input.TEXCOORD1.xy);
+    u_xlat16_1 = _LightMapTex.sample(sampler_LightMapTex, input.TEXCOORD2.xy);
+    u_xlat0 = float4(u_xlat16_0) * input.COLOR0;
+    u_xlat0 = u_xlat0 * float4(u_xlat16_1);
+    u_xlat19 = u_xlat0.w + u_xlat0.w;
+    u_xlatb2.xyz = (u_xlat0.xyz>=float3(0.25, 0.25, 0.25));
+    u_xlat16_3.x = (u_xlatb2.x) ? half(1.0) : half(0.0);
+    u_xlat16_3.y = (u_xlatb2.y) ? half(1.0) : half(0.0);
+    u_xlat16_3.z = (u_xlatb2.z) ? half(1.0) : half(0.0);
+    u_xlat16_4.xyz = half3(u_xlat0.xyz * float3(4.0, 4.0, 4.0));
+    u_xlat2.xyz = float3(u_xlat16_4.xyz) * FGlobals._SekaiAmbientLightColor.xyz;
+    u_xlat16_5.xyz = half3(fma((-u_xlat0.xyz), float3(2.0, 2.0, 2.0), float3(1.0, 1.0, 1.0)));
+    u_xlat16_5.xyz = u_xlat16_5.xyz + u_xlat16_5.xyz;
+    u_xlat0.xyz = (-FGlobals._SekaiAmbientLightColor.xyz) + float3(1.0, 1.0, 1.0);
+    u_xlat0.xyz = fma((-float3(u_xlat16_5.xyz)), u_xlat0.xyz, float3(1.0, 1.0, 1.0));
+    u_xlat16_4.xyz = half3(fma((-float3(u_xlat16_4.xyz)), FGlobals._SekaiAmbientLightColor.xyz, u_xlat0.xyz));
+    u_xlat16_3.xyz = half3(fma(float3(u_xlat16_3.xyz), float3(u_xlat16_4.xyz), u_xlat2.xyz));
+    u_xlat0.xyz = float3(u_xlat16_3.xyz) * float3(FGlobals._SekaiLightIntensity);
+    u_xlat0.xyz = u_xlat0.xyz * float3(FGlobals._SekaiAllLightIntensity);
+    u_xlatb18 = 0x0<FGlobals._SekaiGlobalSpotLightEnabled;
+    ...
+```
+
+### 最终效果
+
+（等待配图ing）
+
+## 4. Toon (描边)
+
+**注：** 强烈推荐阅读[5 ways to draw an outline](https://ameye.dev/notes/rendering-outlines/)作为前置知识！！
+
+直击Vertex Shader，标注后如下
+
+```glsl
+  Mtl_VertexOut output;
+  float4 position;
+  float4 position2;
+  float3 u_xlat2;
+  position.xyz = input.POSITION0.yyy * UnityPerDraw.hlslcc_mtx4x4unity_ObjectToWorld[1].xyz;
+  position.xyz = fma(UnityPerDraw.hlslcc_mtx4x4unity_ObjectToWorld[0].xyz, input.POSITION0.xxx, position.xyz);
+  position.xyz = fma(UnityPerDraw.hlslcc_mtx4x4unity_ObjectToWorld[2].xyz, input.POSITION0.zzz, position.xyz);
+  position2.xyz = position.xyz + UnityPerDraw.hlslcc_mtx4x4unity_ObjectToWorld[3].xyz;
+  // World Space
+  output.TEXCOORD2.xyz = fma(UnityPerDraw.hlslcc_mtx4x4unity_ObjectToWorld[3].xyz, input.POSITION0.www, position.xyz);
+  position.xyz = position2.xyz + (-VGlobals._WorldSpaceCameraPos.xyzx.xyz);
+  // View space
+  position.x = dot(position.xyz, position.xyz);
+  position.x = sqrt(position.x); // View Distance
+  position.x = position.x + (-VGlobals._SekaiOutlineFactor.x);
+  position.x = position.x * VGlobals._SekaiOutlineFactor.y;
+  position.x = clamp(position.x, 0.0f, 1.0f);
+  position.x = position.x * VGlobals._SekaiOutlineFactor.z;
+  position.x = min(position.x, 1.0); // [0,1]
+  u_xlat2.x = (-VGlobals._SekaiOutlineWidth.x) + VGlobals._SekaiOutlineWidth.y;
+  position.x = fma(position.x, u_xlat2.x, VGlobals._SekaiOutlineWidth.x);
+  // px = lerp(OutlineWidth.x, OutlineWidth.y, clamp((length(View) - Factor.x) * Factor.y,0,1) * Factor.z)
+  u_xlat2.x = dot(input.NORMAL0.xyz, input.NORMAL0.xyz);
+  u_xlat2.x = rsqrt(u_xlat2.x);
+  u_xlat2.xyz = u_xlat2.xxx * input.NORMAL0.xyz;
+  // N = normalize(N)
+  position.xyz = position.xxx * u_xlat2.xyz;
+  // Extrude by normal
+  position.xyz = fma(position.xyz, input.COLOR0.xxx, input.POSITION0.xyz);
+  // Done!
+  position2.xyz = position.yyy * UnityPerDraw.hlslcc_mtx4x4unity_ObjectToWorld[1].xyz;
+  position.xyw = fma(UnityPerDraw.hlslcc_mtx4x4unity_ObjectToWorld[0].xyz, position.xxx, position2.xyz);
+  position.xyz = fma(UnityPerDraw.hlslcc_mtx4x4unity_ObjectToWorld[2].xyz, position.zzz, position.xyw);
+  position.xyz = position.xyz + UnityPerDraw.hlslcc_mtx4x4unity_ObjectToWorld[3].xyz;
+  position2 = position.yyyy * VGlobals.hlslcc_mtx4x4unity_MatrixVP[1];
+  position2 = fma(VGlobals.hlslcc_mtx4x4unity_MatrixVP[0], position.xxxx, position2);
+  position = fma(VGlobals.hlslcc_mtx4x4unity_MatrixVP[2], position.zzzz, position2);
+  position = position + VGlobals.hlslcc_mtx4x4unity_MatrixVP[3];
+  // Screen Space Position
+  output.mtl_Position = position;
+  // Screen Space Position
+  output.TEXCOORD0 = position;
+  output.COLOR0 = input.COLOR0;
+  // Z depth (NDC)
+  output.TEXCOORD4 = position.z;
+  position.x = position.z / VGlobals._ProjectionParams.y;
+  position.x = (-position.x) + 1.0;
+  position.x = position.x * VGlobals._ProjectionParams.z;
+  position.x = max(position.x, 0.0);
+  position.x = fma((-VGlobals._SekaiFogFactor.xyxx.y), position.x, VGlobals._SekaiFogFactor.xyxx.x);
+  position.x = clamp(position.x, 0.0f, 1.0f);
+  output.TEXCOORD3 = half(position.x);
+  output.TEXCOORD1.xy = fma(input.TEXCOORD0.xy, UnityPerMaterial._MainTex_ST.xy, UnityPerMaterial._MainTex_ST.zw);
+  return output;
+```
+
+管线上将 `FrontFacingWinding` 改为 `CounterClockwise` 即翻转Vertex顺序，直接Cull掉几何原正面面向视角的部分
+
+![image-20250120193720688](/image-shading-reverse/image-20250120193720688.png)
+
+实现细节即一句话，在 World Space 直接做法线延伸，比较经典
+$$
+P_{shell} = P + N * VertexColor_x * lerp(OutlineWidth_x, OutlineWidth_y, clamp((length(View) - Factor_x) * Factor_y,0,1) * Factor_z)
+$$
+
+同时也有给美术微调描边强度的Color层，这点也是业界常规
+
+![image-20250120194641606](/image-shading-reverse/image-20250120194641606.png)
+
+（图源：https://cgworld.jp/article/202306-hifirush01.html）
+
+### 最终效果
+
+（等待配图ing）

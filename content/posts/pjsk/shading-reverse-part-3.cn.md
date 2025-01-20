@@ -61,7 +61,7 @@ SDF面部阴影在解决朴素法线/N dot L阈值阴影在极端光照角度表
 
 ### 光照角度
 
-从角度出发，考虑单个光向量$$l$$ —— 如图（来自 RTR4 *...当然这里和BRDF并没有直接联系*）
+从角度出发，考虑单个光向量l$ —— 如图（来自 RTR4 *...当然这里和BRDF并没有直接联系*）
 
 
 
@@ -71,7 +71,7 @@ SDF面部阴影在解决朴素法线/N dot L阈值阴影在极端光照角度表
 
 但引入切向量可以解决该问题！如此将允许我们将光向量放在**球面坐标**中观察
 
-只看法向量$$n$$和切向量$$t$$，不考虑视角$$v$$
+只看法向量$n$和切向量$t$，不考虑视角$v$
 
 - 显然有$cos\theta_i = n \cdot l, cos\phi_i = t \cdot l$
 
@@ -92,7 +92,7 @@ SDF面部阴影在解决朴素法线/N dot L阈值阴影在极端光照角度表
 
 接下来介绍使用切空间/$\mathbf{TBN}$表示的方法
 
-首先由上文已知我们已经有了正交基$\mathbf{t,b,n}$($$b$$为$t,n$叉积），$\mathbf{TBN}$矩阵如下
+首先由上文已知我们已经有了正交基$\mathbf{t,b,n}$($b$为$t,n$叉积），$\mathbf{TBN}$矩阵如下
 $$
 \mathbf{TBN} =
 \begin{bmatrix}
@@ -142,7 +142,7 @@ c = N_0 x_0 + N_1 y_0 + N_2 z_0 = \mathbf{L \cdot N}
 \end{array}
 \right.
 $$
-$$L$$在$\mathbf{t}$所在平面投影有
+$L$在$\mathbf{t}$所在平面投影有
 $$
 \mathbf{L_bn} = b\mathbf{B}+c\mathbf{N} = \mathbf{L} - a\mathbf{T}
 $$
