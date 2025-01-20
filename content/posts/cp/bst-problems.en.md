@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2024-12-26T17:21:44.057611
-title: Arithmetic Competition Notes - Balanced Trees Related Topics
+title: Competitive Programming - Balanced Trees Related Topics
 tags: ["ACM","Competitive Programming","XCPC","Templates","Problem set","Codeforces","C++","GCD","Mathematics","DS","data structures"]
 categories: ["Problem Solutions", "Competitive Programming", "Collection/compilation"]
 ShowToc: true

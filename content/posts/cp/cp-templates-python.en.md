@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2024-12-26T17:21:44.057776
-title: Arithmetic Competition Notes - Templates And Problem Sets (Python)
+title: Competitive Programming - Algorithm Templates And Problem Sets (Python)
 tags: ["ACM","Competeive Programming","XCPC","(Code) Templates","Problem Solutions","Codeforces","Python"]
 categories: ["Problem Solutions", "Competeive Programming", "Collection/compilation"]
 ShowToc: true

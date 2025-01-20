@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2025-01-14T01:08:34.159822
-title: PSJK Blender卡通渲染管线重现【2】：角色及舞台 Shader
+title: PSJK Blender卡通渲染管线重现【2】- 角色及舞台 Shader
 tags: ["逆向","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "逆向", "合集", "CG"]
 ShowToc: true

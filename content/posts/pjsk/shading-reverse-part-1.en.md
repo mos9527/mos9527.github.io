@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2025-01-14T01:08:34.159822
-title: PSJK Blender Cartoon Render Pipeline Revisited [1]： Preparations
+title: Recreating PSJK's Toon Shader in Blender [1] - Preparations
 tags: ["reverse engineering","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "reverse engineering", "collection", "CG"]
 ShowToc: true
