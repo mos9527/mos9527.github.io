@@ -263,12 +263,7 @@ Node如下
 反转即简单的$u = 1 - u$
 
 ### 最终效果
-
-<video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/b3f1f231-0b05-47a6-88b6-d25a326be6ba
-"/>
-可见阈值光照在骨骼动作上也有正确变化
-
-在动画中实践效果如下
+在动画中实践效果如下;可见阈值光照在骨骼动作上也有正确变化
 
 <video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/f4fce0cf-2611-438d-96c3-529d69210c74"/>
 
