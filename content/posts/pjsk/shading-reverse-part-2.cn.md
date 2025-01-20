@@ -33,6 +33,11 @@ PV：[愛して愛して愛して](https://www.bilibili.com/video/BV1cP4y1P7TM/)
 
 ![image-20250114210417461](/image-shading-reverse/image-20250114210417461.png)
 
+**注：** 后文向量都将以图示方向表示
+<p style="width=100%;text-align:center">
+<img style="background-color:white;margin:0 auto;display:block;" src="/image-shading-reverse/220px-Blinn_Vectors.svg.png">
+</p>
+
 ## 1. Eye-Highlight
 
 简明概要的效果 - 即给角色眼睛表现添加卡通风格高光
@@ -464,11 +469,6 @@ $$
 #### Blender 实现
 
 ##### 高光光源？
-
-**注：** 后文向量都将以图示方向表示
-<p style="width=100%;text-align:center">
-<img style="background-color:white;margin:0 auto;display:block;" src="/image-shading-reverse/220px-Blinn_Vectors.svg.png">
-</p>
 
 首先值得注意的是这种光源是**每个角色一个**，同时，仍然是以**平行光**的形式出现
 
