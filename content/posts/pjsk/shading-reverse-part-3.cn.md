@@ -95,8 +95,8 @@ SDF面部阴影在解决朴素法线/N dot L阈值阴影在极端光照角度表
 $$
 \mathbf{TBN} =
 \begin{bmatrix}
-T_0 & B_0 & N_0 \\
-T_1 & B_1 & N_1 \\
+T_0 & B_0 & N_0 \newline
+T_1 & B_1 & N_1 \newline
 T_2 & B_2 & N_2
 \end{bmatrix}.
 $$
@@ -104,8 +104,8 @@ $$
 $$
 \mathbf{TBN}^\top = \mathbf{TBN}^{-1} = 
 \begin{bmatrix}
-T_0 & B_0 & N_0 \\
-T_1 & B_1 & N_1 \\
+T_0 & B_0 & N_0 \newline
+T_1 & B_1 & N_1 \newline
 T_2 & B_2 & N_2
 \end{bmatrix}.
 $$
@@ -113,27 +113,27 @@ $$
 
 接下来做线形空间变换将光照向量$\mathbf{L}$放到切空间中有：
 $$
-\mathbf{L} = [x_0,y_0,z_0]^T = a\mathbf{T}+b\mathbf{B}+c\mathbf{N} \\
+\mathbf{L} = [x_0,y_0,z_0]^T = a\mathbf{T}+b\mathbf{B}+c\mathbf{N}
 $$
 
 $$
 \begin{bmatrix}
-a \\
-b \\
+a \newline
+b \newline
 c
 \end{bmatrix}
 = \mathbf{TBN}^{-1}
 \begin{bmatrix}
-x_0 \\
-y_0 \\
+x_0 \newline
+y_0 \newline
 z_0
 \end{bmatrix}
 = \mathbf{TBN}^\top
 \begin{bmatrix}
-x_0 \\
-y_0 \\
+x_0 \newline
+y_0 \newline
 z_0
-\end{bmatrix} \\
+\end{bmatrix}
 $$
 
 $$
