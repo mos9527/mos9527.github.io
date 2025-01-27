@@ -113,7 +113,7 @@ Official solution (a math. puzzle)：https://atcoder.jp/contests/abc238/editoria
 2. Unlike the previous question: the need to maintain differentiable prefix intervals is known from the form $f$; such a hash is designed as follows：
   - is the prime factor $p$ taken as a random integer $H_p \in [0,2]$
   - Denote the set of prime factors of each number as $S_i$, and compute its hash as $hash_i = \sum_{}{H_j}, \forall j \in S_i $
-  - Clearly, **such a hash has sufficiency**: $$ A_1 \cdot A_2 \cdot ... The number of prime factors of each of A_n is a multiple of 3 \implies hash_n \equiv 0 \mod 3$
+  - Clearly, **such a hash has sufficiency**: $ A_1 \cdot A_2 \cdot ... {number\ of\ prime\ factors\ of\ each\ of\ A_n\ is\ a\ multiple\ of\ 3} \implies hash_n \equiv 0 \mod 3 $
   - **but necessity doesn't exist** but pre-existing adequacy (no false negatives) can be exploited; iterative validation based on randomization (+ luck) can K questions
 3. hash do prefix and after due to the modulus nature can still on $\mod 3 $ directly determine the interval OK; see code
 
