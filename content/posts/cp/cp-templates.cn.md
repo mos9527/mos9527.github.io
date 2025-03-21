@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2024-12-26T17:21:44.058182
+lastmod: 2025-03-20T16:28:19.897000+08:00
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -20,12 +20,10 @@ typora-root-url: ..\..\static
 using namespace std;
 #define PRED(T,X) [&](T const& lhs, T const& rhs) {return X;}
 typedef long long ll; typedef unsigned long long ull; typedef double lf; typedef long double llf;
-typedef __int128 i128; typedef unsigned __int128 ui128;
 typedef pair<ll, ll> II; typedef vector<ll> vec;
 template<size_t size> using arr = array<ll, size>;
 const static void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0); cout.tie(0); }
 const static ll lowbit(const ll x) { return x & -x; }
-mt19937_64 RNG(chrono::steady_clock::now().time_since_epoch().count());
 const ll DIM = 1e5;
 const ll MOD = 1e9 + 7;
 const ll INF = 1e18;
@@ -69,10 +67,26 @@ ll binpow_mod(ll a, ll b, ll m) {
 }
 ```
 
+## 拓展欧几里得
+```c++
+ll exgcd(ll a, ll b, ll& x, ll& y) {
+    if (b == 0) {
+        x = 1, y = 0;
+        return a;
+    }
+    ll d = exgcd(b, a % b, x, y);
+    ll t = x;
+    x = y, y = t - (a / b) * y;
+    return d;
+}
+```
+
 ## 线性代数
+
 ### 矩阵
 - https://codeforces.com/gym/105170/submission/261977724
 - https://codeforces.com/gym/105336/submission/280576093 (D 编码器-解码器)
+- https://codeforces.com/gym/105170/submission/309042797 (Fib递推，二项式展开)
 ```c++
 template<typename T, size_t Size> struct matrix {
 	T m[Size][Size]{};
