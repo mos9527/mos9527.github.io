@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-03-20T16:28:19.897000+08:00
+lastmod: 2025-03-21T20:54:56.461000+08:00
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1106,6 +1106,28 @@ struct fenwick : public vec {
         for (; n < size(); n += lowbit(n)) (*this)[n] += k;
     };
 };
+```
+#### 求逆序对
+```c++
+int main() {
+    fast_io();
+    /* El Psy Kongroo */
+    ll n; cin >> n;
+    vec a(n); for (ll& x : a) cin >> x;
+    vec b = a; sort(b.begin(), b.end());
+	b.resize(unique(b.begin(), b.end()) - b.begin());
+    map<ll, ll> inv;
+    fenwick F(b.size());
+    for (ll i = 0; i < b.size(); i++) inv[b[i]] = b.size() - i; 
+    ll ans = 0;
+    for (ll x : a) {
+        ll i = inv[x];
+        ans += F.sum(i - 1);
+		F.add(i, 1);
+    }
+    cout << ans << endl;
+    return 0;
+}
 ```
 #### 支持不可差分查询模板
 
