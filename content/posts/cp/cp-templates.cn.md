@@ -166,24 +166,24 @@ template<typename T> struct vec2 {
     inline T length_sq() const { return x * x + y * y; }
     inline T length() const { return sqrt(length_sq()); }
     inline vec2& operator+=(vec2 const& other) { x += other.x, y += other.y; return *this; }
-    inline vec2& operator-=(vec2 const& other) { x -= other.x, y -= other.y; return *this; }    
+    inline vec2& operator-=(vec2 const& other) { x -= other.x, y -= other.y; return *this; }
     inline vec2& operator*=(T const& other) { x *= other, y *= other; return *this; }
     inline vec2& operator/=(T const& other) { x /= other, y /= other; return *this; }
     inline vec2 operator+(vec2 const& other) const { vec2 v = *this; v += other; return v; }
     inline vec2 operator-(vec2 const& other) const { vec2 v = *this; v -= other; return v; }
     inline vec2 operator*(T const& other) const { vec2 v = *this; v *= other; return v; }
-    inline vec2 operator/(T const& other) const { vec2 v = *this; v /= other; return v; }    
+    inline vec2 operator/(T const& other) const { vec2 v = *this; v /= other; return v; }
     ///
-    inline static lf dist_sq(vec2 const& a, vec2 const& b) {
+    inline static T dist_sq(vec2 const& a, vec2 const& b) {
         return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
     }
-    inline static lf dist(vec2 const& a, vec2 const& b) {
+    inline static T dist(vec2 const& a, vec2 const& b) {
         return sqrt(vec2::dist_sq(a, b));
     }
-    inline static lf cross(vec2 const& a, vec2 const& b) {
+    inline static T cross(vec2 const& a, vec2 const& b) {
         return a.x * b.y - a.y * b.x;
     }
-    inline static lf dot(vec2 const& a, vec2 const& b) {
+    inline static T dot(vec2 const& a, vec2 const& b) {
         return a.x * b.x + a.y * b.y;
     }
     ///
@@ -201,6 +201,7 @@ template<typename T> struct vec2 {
     }
 };
 typedef vec2<lf> point;
+typedef vec2<ll> Ipoint;
 ```
 
 #### 二维凸包
