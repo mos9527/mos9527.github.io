@@ -81,12 +81,53 @@ ll exgcd(ll a, ll b, ll& x, ll& y) {
 }
 ```
 
+- https://codeforces.com/gym/100963/attachments J - Once Upon A Time
+
+  ```c++
+  int main() {
+      fast_io();
+      /* El Psy Kongroo */
+      while (1) {
+          ll n, m, a, k; cin >> n >> m >> a >> k;
+          if (n == 0  ) break;
+          // Y1 = n + mt_1
+          // Y2 = k + at_2
+          // solve for Y1 = Y2
+          // n + mt_1 = k + at_2
+          // n + mx = k + ay
+          // mx - ay = k - n
+          // let A = m, B = -a, M = k - n
+          // Ax + By = M
+          // Solve for any x,y
+          // Solve for
+          // Ax + By = 1. With Bezout A B must be coprime
+          ll g, x, y, C = n - k;
+          ll A = a, B = -m;
+          g = exgcd(A, B, x, y);
+          if (C % g) cout << "Impossible" << endl;
+          else {
+              x *= C / g, y *= C / g;
+              // Ax + By = M
+              // We need positive soultions. What do?
+  			// x = x - B, y = y + A
+  			// x = x + B, y = y - A
+              ll kx = abs(B / g);
+              while (x <= 0) x += 10000 * kx; // ？？？
+              x %= kx;
+              while (x <= 0) x += kx;
+  			y = (C - A * x) / B;
+  			cout << k + a * x << endl;
+          }
+      }
+      return 0;
+  }
+  ```
+
+  
+
 ## 线性代数
 
 ### 矩阵
-- https://codeforces.com/gym/105170/submission/261977724
-- https://codeforces.com/gym/105336/submission/280576093 (D 编码器-解码器)
-- https://codeforces.com/gym/105170/submission/309042797 (Fib递推，二项式展开)
 ```c++
 template<typename T, size_t Size> struct matrix {
 	T m[Size][Size]{};
@@ -111,11 +152,109 @@ typedef matrix<ll, 3> mat3;
 typedef matrix<ll, 4> mat4;
 ```
 
-### 线性基
+- https://codeforces.com/gym/105170/submission/261977724
 
-- https://oi.men.ci/linear-basis-notes/
-- https://www.luogu.com.cn/article/zo12e4s5
-- https://codeforces.com/gym/105336/submission/280570848（J 找最小）
+  ```c++
+  mat2 Ti[DIM];
+  bool s[DIM];
+  ll s_len = 0;
+  int main() {
+  	ios::sync_with_stdio(false); cin.tie(0); cout.tie(0); cerr.tie(0);
+  	mat2 F0{ {0,1} }; // [F0,F1]
+  	mat2 T0 = F0;
+  	mat2 T1{ {0, 1}, {1, 1} };
+  	mat2 T{ {1, 1}, {1, 2} }; // T0 + T1
+  	char b;
+  	while ((b = getchar()) != EOF) if (b == '1' || b == '0') s[s_len++] = b == '1';
+  	Ti[0] = mat2{ mat2::identity{} }; Ti[1] = T; for (ll i = 2; i < s_len; i++) Ti[i] = Ti[i - 1] * T;
+  	ll ans = 0, n1 = 0;
+  	for (ll mask = 0; mask < s_len; mask++) {
+  		bool b = s[mask];
+  		ll rest = s_len - mask - 1;
+  		if (b) {
+  			ll d = (T0 * Ti[rest]).m[0][0];
+  			T0 = T0 * T1;
+  			ans = (ans + d) % MOD;
+  			// cerr << "d: " << d << " ans: " << ans << "\n";	
+  			n1++;
+  		}
+  	}
+  	ans = (ans + T0.m[0][0]) % MOD;
+  	cout << ans;
+  	return 0;
+  }
+  ```
+
+- https://codeforces.com/gym/105336/submission/280576093 (D 编码器-解码器)
+
+  ```c++
+  typedef matrix<ll, 101> m100;
+  map<char, m100> mp;
+  int main() {
+      fast_io();
+      /* El Psy Kongroo */
+      string s, t; cin >> s >> t;
+      for (char c : "abcdefghijklmnopqrstuvwxyz") mp[c] = m100{ m100::identity{} };
+      for (ll i = 0; i < t.length(); i++) mp[t[i]].m[i][i+1] = 1;
+      m100 ans = mp[s[0]];
+      for (ll i = 1; i < s.length(); i++) ans = ans * mp[s[i]] * ans;
+      cout << ans.m[0][t.length()] << '\n';
+      return 0;
+  }
+  ```
+
+- https://codeforces.com/gym/105170/submission/309042797 (Fib递推，二项式展开)
+
+  ```c++
+  typedef matrix<ll, 2> mat2;
+  typedef matrix<ll, 3> mat3;
+  typedef matrix<ll, 4> mat4;
+  mat2 M[DIM];
+  mat2 T = mat2{{0,1},{1,1}};
+  mat2 I = mat2{mat2::identity{}};
+  char S[DIM];
+  int main() {
+      fast_io();
+      M[0] = I;
+      M[1] = T + I;
+      /*
+       * 0 000
+       * 1 001
+       * 2 010
+       * 3 011
+       * 4 100
+       * 5 101
+       * 6 110
+       * 7 111
+       * -----
+       * I -> 0, T -> 1
+       * I^3 + I^2 * T + I.. + T^3
+       * This is binom expansion
+       * \sum = (I + T) ^ m where 2^m - 1 = 7
+      */
+      scanf("%s", S);
+      ll n = strlen(S);
+      for (ll i = 2; i < n + 1; i++) M[i] = M[i - 1] * M[1];
+      ll ans = 0;
+      mat2 pre = T;
+      for (ll i = 0; i < n; i++) {
+          if (S[i] == '1') {
+              // 2^(n - i) - 1
+              ans += (pre * M[n - i - 1]).m[0][0] ;
+              ans %= MOD;
+              pre = pre * T;
+          }
+      }
+      ans += pre.m[0][0];
+      ans %= MOD;
+      cout << ans << endl;
+      return 0;
+  }
+  ```
+
+  
+
+### 线性基
 
 ```c++
 struct linear_base : array<ll, 64> {
@@ -131,10 +270,43 @@ struct linear_base : array<ll, 64> {
 };
 ```
 
-## 数论杂项
-### 皮萨诺周期
+- https://oi.men.ci/linear-basis-notes/
 
-- https://codeforces.com/contest/2033/submission/287844746
+- https://www.luogu.com.cn/article/zo12e4s5
+
+- https://codeforces.com/gym/105336/submission/280570848（J 找最小）
+
+  ```c++
+  int main() {
+      fast_io();
+      /* El Psy Kongroo */
+      ll t; cin >> t;
+      while (t--) {
+          ll n; cin >> n;
+          ll xor_a = 0, xor_b = 0;
+          vec a(n); for (ll& x : a) cin >> x, xor_a ^= x;
+          vec b(n); for (ll& x : b) cin >> x, xor_b ^= x;
+          // swapping a[i],b[i] equals to xor_a ^= a[i] ^ b[i], xor_b ^= a[i] ^ b[i]
+          linear_base lb{};
+          for (ll i = 0; i < n; i++) lb.insert(a[i] ^ b[i]);
+          for (ll i = 63; i >= 0; i--) {
+              ll base = lb[i];
+              if (max(xor_a, xor_b) > (max(xor_a ^ base, xor_b ^ base))) {
+                  xor_a ^= base;
+                  xor_b ^= base;
+              }
+          }
+          cout << max(xor_a, xor_b) << endl;
+      }
+      return 0;
+  }
+  ```
+
+  
+
+## 数论杂项
+
+### 皮萨诺周期
 
 *摘自 https://oi-wiki.org/math/combinatorics/fibonacci/#%E7%9A%AE%E8%90%A8%E8%AF%BA%E5%91%A8%E6%9C%9F*
 
@@ -153,11 +325,40 @@ struct linear_base : array<ll, 64> {
 **因此也等价于 $Mp$ 是斐波那契数模 $p^k$ 的周期。**
 **因为周期等价，所以最小正周期也等价。**
 
+- https://codeforces.com/contest/2033/submission/287844746
+
+  ```c++
+  ll A[DIM], G[DIM];
+  bool vis[DIM];
+  int main() {
+      fast_io();
+      /* El Psy Kongroo */
+      ll t; cin >> t;
+      while (t--) {
+          ll n, k; cin >> n >> k;
+          ll a = 1, b = 1, pos = 1;
+          if (k == 1) cout << n % MOD << endl;
+          else {
+              for (ll i = 3; i <= 6 * k + 1; i++) {
+                  ll c = (a + b) % k;
+                  if (c % k == 0) {
+                      pos = i;
+                      break;
+                  }
+                  a = b % k, b = c % k;
+              }
+              cout << (n % MOD) * pos % MOD << endl;
+          }
+      }
+      return 0;
+  }
+  ```
+
+  
+
 ## 计算几何
 
 ### 二维几何
-
-- https://codeforces.com/gym/104639/submission/281132024
 
 ```c++
 template<typename T> struct vec2 {
@@ -250,7 +451,37 @@ struct convex_hull : vector<point> {
 };
 ```
 
+- https://codeforces.com/gym/104639/submission/281132024
 
+```c++
+typedef vec2<lf> point;
+int main() {
+    fast_io();
+    /* El Psy Kongroo */
+    ll n, q; cin >> n >> q;
+    vector<point> convex_hull(n); // 逆时针    
+    for (auto& p : convex_hull) cin >> p;
+    convex_hull.push_back(convex_hull.front());
+    while (q--) {
+        ll x11, y11, x22, y22; cin >> x11 >> y11 >> x22 >> y22;
+        point c1{ (lf)x11,(lf)y11 }, c2{ (lf)x22,(lf)y22 };
+        /*
+        圆外一点到圆内所有一点平均距离 -> 记点到圆心距为 $$d$$ 对称性易知
+        $$d^2_{sum} = \int_0^R \int_0^{2\pi} \sqrt{r^2 + d^2 - 2rd\cos \theta} \, r \, d\theta \, dr = \frac{\pi r^4}{2}+\pi d^2r^2$$
+        $$d^2_{avg} = d^2_{sum} / S_{C} = \frac{r^2}{2}+d^2$$
+        故求$$d_min$$；点在凸包内显然直接取$$0$$,凸包外则取点到边垂距min（若可取）或点到点min
+        */
+        point C = (c1 + c2) / 2.0; lf R = (c1 - c2).length() / 2;
+        lf ans = R * R / 2;
+        if (!is_inside(C)) {
+            lf dis = min_dis(C);
+            ans += dis * dis;
+        }            
+        cout << fixed << setprecision(10) << ans << endl;
+    }
+    return 0;
+}
+```
 
 ## 组合数
 
@@ -535,8 +766,6 @@ int main() {
 ```
 
 ### Dijkstra
-
-- https://codeforces.com/group/bAbX7h3CX1/contest/554012/submission/285834927 （跳点/验证途径点）
 
 ```c++
 #define INF 1e10
@@ -868,9 +1097,6 @@ struct graph {
 
 ## Dinic 最大流
 
-- https://www.cnblogs.com/SYCstudio/p/7260613.html
-- https://codeforces.com/gym/105336/submission/280592598 (G. 疯狂星期六)
-
 ```c++
 struct graph {
     ll n, cnt = 0;
@@ -925,6 +1151,45 @@ public:
     }
 };
 ```
+
+- https://www.cnblogs.com/SYCstudio/p/7260613.html
+
+- https://codeforces.com/gym/105336/submission/280592598 (G. 疯狂星期六)
+
+  ```c++
+  int main() {
+      fast_io();
+      /* El Psy Kongroo */
+      ll n, m; cin >> n >> m;
+      ll t = n + m + 1;
+      vec A(n + 1), V(n + 1);
+      for (ll i = 1; i <= n; i++) cin >> A[i] >> V[i];
+      graph G(n + m + 1);
+      ll cost_yyq = V[1], cost_all = 0;
+      for (ll i = 1; i <= m; i++) {
+          ll x, y, W; cin >> x >> y >> W;
+          if (x == 1 || y == 1) cost_yyq += W;
+          cost_all += W;
+          // 源点-菜，菜-两个人 
+          // 规定人点m开始
+          G.dinic_add_edge(0, i, W);
+          G.dinic_add_edge(i, x + m, W);
+          G.dinic_add_edge(i, y + m, W);
+      }
+      ll mxcost_yyq = min(cost_yyq, A[1]);
+      for (ll i = 1; i <= n; i++) {
+          if (i > 1 && V[i] >= mxcost_yyq) {
+              cout << "NO"; return 0;
+          } // 车费特判
+          if (i == 1) G.dinic_add_edge(i + m, t, mxcost_yyq - V[i]); // 最大费用->结点
+          else G.dinic_add_edge(i + m, t, min(mxcost_yyq - 1, A[i]) - V[i]); // **严格** 大于他人花费
+      }
+      ll ans = G.dinic(0, t);
+      if (ans == cost_all) cout << "YES";
+      else cout << "NO";
+      return 0;
+  }
+  ```
 
 ## 树链剖分 / HLD
 
@@ -1025,34 +1290,67 @@ struct HLD {
 ### Tarjan
 ```c++
 struct SCC {
-  ll n, dfn_cnt;
-  vec dfn, low, vis, sta;
-  stack<ll> stk;
-  vector<vec> G;
-  SSC(ll n): n(n), sta(n), dfn(n), low(n), G(n), dfn_cnt(0) {};
+    ll n, dfn_cnt;
+    vec dfn, low, vis, sta, dis;
+    vec in_loop;
+    stack<ll> stk;
+    vector<vector<II>> G;
+    SCC(ll n) : n(n), sta(n), dfn(n), low(n), G(n), dis(n), dfn_cnt(0), in_loop(n) {};
 
-  void add_edge(ll u, ll v) { G[u].push_back(v); }
+    void add_edge(ll u, ll v, ll w) { G[u].push_back({v, w}); }
 
-  map<ll, vec> scc;
-  void tarjan(ll u) {
-      dfn[u] = low[u] = ++dfn_cnt, stk.push(u), sta[u] = 1;
-      for (ll v : G[u]) {
-          if (!dfn[v])
-              tarjan(v), low[u] = min(low[u], low[v]);
-          else if (sta[v])
-              low[u] = min(low[u], dfn[v]);
-      }
-      if (dfn[u] == low[u]) {
-          for (ll v = stk.top();v != u;) {
-              v = stk.top(); stk.pop();
-              if (v != u) scc[u].push_back(v);
-              sta[v] = 0;
-              if (v == u) break;
-          }
-      }
-  }
+    map<ll, vec> scc;
+    void tarjan(ll u) {
+        if (dfn[u]) return;
+        dfn[u] = low[u] = ++dfn_cnt, stk.push(u), sta[u] = 1;
+        for (auto const& [v, w] : G[u]) {
+            if (!dfn[v])
+                dis[v] = dis[u] + w, tarjan(v), low[u] = min(low[u], low[v]);
+            else if (sta[v]) {
+                low[u] = min(low[u], dfn[v]);
+                // coming from another node. we have a loop in v's component
+				// note that components of only one node / zero weight are not considered here
+				if (dis[v] != dis[u] + w) in_loop[v] = 1;
+            }
+			in_loop[u] |= in_loop[v];
+        }
+        if (dfn[u] == low[u]) {            
+            ll v; do {
+                v = stk.top(), stk.pop();
+                sta[v] = 0;
+                scc[u].push_back(v);
+                in_loop[v] |= in_loop[u];
+            } while (u != v);
+        }
+    }
 };
 ```
+
+- https://codeforces.com/gym/105578/problem/M 2024 沈阳 M
+
+  - https://codeforces.com/gym/105578/submission/312325530
+  
+  ```c++
+  int main() {
+      fast_io();
+      /* El Psy Kongroo */
+      ll n, m, q; cin >> n >> m >> q;
+      SCC scc(n + 2);
+      while (m--) {
+          ll a, b; cin >> a >> b;
+          // a % n -> nth floor [-n/2,n/2]
+          scc.add_edge((a % n + n - 1) % n, ((a + b) % n + n - 1) % n, b);
+      }
+  	for (ll i = 0; i < n; i++) scc.tarjan(i);
+      while (q--) {
+          ll x; cin >> x;
+  		x = (x % n + n - 1) % n;
+          if (scc.in_loop[x]) cout << "Yes\n";
+          else cout << "No\n";
+      }
+      return 0;
+  }
+  ```
 
 # 动态规划 / DP
 
@@ -1181,6 +1479,42 @@ ll inversion(vec& a) {
 ```
 - https://codeforces.com/gym/105578/problem/D 2024 沈阳 D
   - https://codeforces.com/gym/105578/submission/312290991
+  
+    ```c++
+    int main() {
+        fast_io();
+        /* El Psy Kongroo */
+        ll t; cin >> t;
+        while (t--) {
+            ll n; cin >> n;
+            vec a(n); for (ll& x: a ) cin >> x;
+            vec b(n); for (ll& x: b ) cin >> x;
+            ll invs = inversion(a) + inversion(b);
+            // one can only *swap* when
+            // a_i * b_i + a_j * b_j < a_i * b_j + a_j * b_i
+            // (a_i - a_j) * (b_i - b_j) < 0
+            // operating this on either a or b will *decrease* the number of inversions on either side
+            // since the order would be more 'sorted' after the swap.
+            // no. of swaps is exactly the number of inversions.
+            // A starts first, odd ops -> A, even ops -> B
+            cout << "AB"[invs % 2 == 0];
+            for (ll i = 0; i < n - 1;i++) {
+                char t; ll l,r,d; cin >> t >> l >> r >>d;
+                // t -> a or b to 'shuffle' on. doesn't matter
+                // since we care only about the *total* inversions here
+                // shuffling an array in range [l,r] by d is simply
+                // swapping (r - l) * d times.
+                // we can simply add this to the total no. swaps
+                invs += (r - l) * d;
+                cout << "AB"[invs % 2 == 0];
+            }
+            cout << endl;
+        }
+        return 0;
+    }
+    ```
+  
+    
 
 
 #### 支持不可差分查询模板
@@ -1442,7 +1776,7 @@ cout << l - 1 << endl;
 - 不同于一般排序题，这里排列不需要完全一致；$p_i = i, p_i = p_{{i}_{i}}$皆可
 - 意味着，最后要的环大小也可以是$2$，此时显然大小更优；更改$k$的计算为$k = \sum_{1}^{m}{\frac{s - 1}{2}}$即可
 
-## 离散化
+## 离散化杂谈
 
 适用于大$a_i$但小$n$情形
 
