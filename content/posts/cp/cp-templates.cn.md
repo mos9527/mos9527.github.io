@@ -539,7 +539,7 @@ int main() {
 - https://codeforces.com/group/bAbX7h3CX1/contest/554012/submission/285834927 （跳点/验证途径点）
 
 ```c++
-#define INF 1e18
+#define INF 1e10
 struct edge { ll to, weight; };
 struct vert { ll vtx, dis; };
 struct graph {
@@ -1109,27 +1109,46 @@ struct fenwick : public vec {
 };
 ```
 #### 求逆序对
+
+>在一个排列中，如果某一个较大的数排在某一个较小的数前面，就说这两个数构成一个 **逆序**（inversion）或反序。这里的比较是在自然顺序下进行的。
+>  在一个排列里出现的逆序的总个数，叫做这个置换的 **逆序数**。排列的逆序数是它恢复成正序序列所需要做相邻对换的最少次数。因而，排列的逆序数的奇偶性和相应的置换的奇偶性一致。这可以作为置换的奇偶性的等价定义。
+
 ```c++
-int main() {
-    fast_io();
-    /* El Psy Kongroo */
-    ll n; cin >> n;
-    vec a(n); for (ll& x : a) cin >> x;
-    vec b = a; sort(b.begin(), b.end());
-	b.resize(unique(b.begin(), b.end()) - b.begin());
+// https://oi-wiki.org/math/permutation/#%E9%80%86%E5%BA%8F%E6%95%B0
+// 带离散化
+ll inversion_discreet(vec& a) {
     map<ll, ll> inv;
+    vec b = a;
+    sort(b.begin(), b.end());
+    b.resize(unique(b.begin(), b.end()) - b.begin());
+
     fenwick F(b.size());
-    for (ll i = 0; i < b.size(); i++) inv[b[i]] = b.size() - i; 
+    for (ll i = 0; i < b.size(); i++)
+        inv[b[i]] = b.size() - i;
+
     ll ans = 0;
     for (ll x : a) {
         ll i = inv[x];
         ans += F.sum(i - 1);
-		F.add(i, 1);
+        F.add(i, 1);
     }
-    cout << ans << endl;
-    return 0;
+    return ans;
+}
+// 不带离散化；注意上下界
+ll inversion(vec& a) {
+    fenwick F(*max_element(a.begin(),a.end()) + 1);
+    ll ans = 0;
+    for (ll i = a.size() - 1; i >= 0; i--) {
+        ans += F.sum(a[i] - 1);
+        F.add(a[i], 1);
+    }
+    return ans;
 }
 ```
+- https://codeforces.com/gym/105578/problem/D 2024 沈阳 D
+  - https://codeforces.com/gym/105578/submission/312290991
+
+
 #### 支持不可差分查询模板
 
 - 解释：https://oi-wiki.org/ds/fenwick/#树状数组维护不可差分信息
