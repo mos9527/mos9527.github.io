@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-03-25T16:28:08.678673
+lastmod: 2025-03-25T18:33:21.088370
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1017,6 +1017,40 @@ struct HLD {
     bool is_child_of(ll u, ll v) {
         return dfn[u] <= dfn[v] && dfn[v] <= dfn_out[u];
     }
+};
+```
+
+ ## 强连通分量 / SCC
+
+### Tarjan
+```c++
+struct SSC {
+  ll n, dfn_cnt;
+  vec dfn, low, vis, sta;
+  stack<ll> stk;
+  vector<vec> G;
+  SSC(ll n): n(n), sta(n), dfn(n), low(n), G(n), dfn_cnt(0) {};
+
+  void add_edge(ll u, ll v) { G[u].push_back(v); }
+
+  map<ll, vec> scc;
+  void tarjan(ll u) {
+      dfn[u] = low[u] = ++dfn_cnt, stk.push(u), sta[u] = 1;
+      for (ll v : G[u]) {
+          if (!dfn[v])
+              tarjan(v), low[u] = min(low[u], low[v]);
+          else if (sta[v])
+              low[u] = min(low[u], dfn[v]);
+      }
+      if (dfn[u] == low[u]) {
+          for (ll v = stk.top();v != u;) {
+              v = stk.top(); stk.pop();
+              if (v != u) scc[u].push_back(v);
+              sta[v] = 0;
+              if (v == u) break;
+          }
+      }
+  }
 };
 ```
 
