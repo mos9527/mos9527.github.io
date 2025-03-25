@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-03-20T16:24:19.886000+08:00
+lastmod: 2025-03-23T15:11:39.084083
 title: PSJK Blender Cartoon Render Pipeline Reproduction【2】- Character and Stage Shader
 tags: ["Reverse Engineering","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "Reverse Engineering", "Collection", "CG"]
