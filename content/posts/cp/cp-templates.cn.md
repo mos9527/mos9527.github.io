@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-03-25T18:33:21.088370
+lastmod: 2025-03-25T18:44:50.376891
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1024,7 +1024,7 @@ struct HLD {
 
 ### Tarjan
 ```c++
-struct SSC {
+struct SCC {
   ll n, dfn_cnt;
   vec dfn, low, vis, sta;
   stack<ll> stk;
