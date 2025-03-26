@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-03-25T18:44:50.376891
+lastmod: 2025-03-26T15:12:24.128000+08:00
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1325,6 +1325,8 @@ struct SCC {
     }
 };
 ```
+
+- https://byvoid.com/zhs/blog/scc-tarjan/
 
 - https://codeforces.com/gym/105578/problem/M 2024 沈阳 M
 
