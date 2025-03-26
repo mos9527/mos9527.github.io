@@ -1465,8 +1465,6 @@ auto query = [&](ll x) -> ll {
 };        
 ```
 
-
-
 - 离线`map`写法
 
 ```c++
@@ -1492,7 +1490,70 @@ vec Ri(R.begin(), R.end()); // kth-big
 auto R = [&](ll x) -> ll { return distance(Rs.begin(), Rs.lower_bound(x)); };
 ```
 
+## 前缀和
 
+摘自：https://oi-wiki.org/basic/prefix-sum/
+
+- 1D
+  $$
+  p(x) = \sum_{i=0}^{n}{a(i)}
+  $$
+
+  ```c++
+  p[0] = a[0];
+  for (ll i = 1;i < n;i++) p[i] = p[i - 1] + a[i];
+  ```
+
+- 2D
+  $$
+  S_{i,j} = \sum_{i'\le i}\sum_{j'\le j}A_{i',j'}.
+  $$
+  
+
+  - 容斥$O(1)$解法
+  $$
+  p(x,y) = S_{i,j} = A_{i,j} + S_{i-1,j} + S_{i,j-1} - S_{i-1,j-1}
+  $$
+
+  ```c++
+  for (ll i = 1; i <= n; i++)
+  	for (ll j = 1; j <= m; j++)
+  		p[i][j] = p[i][j - 1] + p[i - 1][j] - p[i - 1][j - 1] + a[i][j];
+  ```
+
+  
+
+- N-D
+  
+  
+  $$
+  S_{i_1,\cdots,i_k} = \sum_{i'_1\le i_1}\cdots\sum_{i'_k\le i_k} A_{i'_1,\cdots,i'_k}
+  $$
+  
+- > 显然的算法是，每次只考虑一个维度，固定所有其它维度，然后求若干个一维前缀和，这样对所有 $k$ 个维度分别求和之后，得到的就是 $k$ 维前缀和。
+  >
+
+三维样例如下：
+```c++
+// Prefix-sum for 3rd dimension.
+for (int i = 1; i <= N1; ++i)
+  for (int j = 1; j <= N2; ++j)
+    for (int k = 1; k <= N3; ++k) p[i][j][k] += p[i][j][k - 1];
+
+// Prefix-sum for 2nd dimension.
+for (int i = 1; i <= N1; ++i)
+  for (int j = 1; j <= N2; ++j)
+    for (int k = 1; k <= N3; ++k) p[i][j][k] += p[i][j - 1][k];
+
+// Prefix-sum for 1st dimension.
+for (int i = 1; i <= N1; ++i)
+  for (int j = 1; j <= N2; ++j)
+    for (int k = 1; k <= N3; ++k) p[i][j][k] += p[i - 1][j][k];
+
+```
+
+- https://codeforces.com/gym/105486/problem/B 2024 成都 B
+  - https://codeforces.com/gym/105486/submission/312575722
 
 ## MSVC也要用万能头!!
 
