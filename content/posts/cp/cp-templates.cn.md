@@ -1597,8 +1597,8 @@ int main() {
 ## 优先队列（二叉堆）
 
 > ```c++
-> auto pp = PRED( elem, lhs.w > rhs.w);
-> priority_queue < elem, vector<elem>, decltype(pp)> Q {pp};
+> auto pp = PRED(ll, lhs > rhs);
+> priority_queue<ll,vector<ll>,decltype(pp)> Q {pp};
 > ```
 
 ## DSU
