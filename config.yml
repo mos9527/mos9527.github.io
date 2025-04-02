@@ -14,6 +14,22 @@ markup:
   goldmark:
     renderer:
       unsafe: true
+    extensions:
+      passthrough:
+        delimiters:
+          block:
+          - - \[
+            - \]
+          - - $$
+            - $$
+          inline:
+          - - \(
+            - \)
+          - - $
+            - $
+        enable: true
+params:
+  math: true      
 giscus:
     repo: "mos9527/mos9527.github.io"
     repoID: "R_kgDOLvNT9A"

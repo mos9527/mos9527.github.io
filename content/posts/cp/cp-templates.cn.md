@@ -1860,14 +1860,7 @@ auto R = [&](ll x) -> ll { return distance(Rs.begin(), Rs.lower_bound(x)); };
   
 
 - N-D
-  
-  
-  $$
-  S_{i_1,\cdots,i_k} = \sum_{i'_1\le i_1}\cdots\sum_{i'_k\le i_k} A_{i'_1,\cdots,i'_k}
-  $$
-  
-- > 显然的算法是，每次只考虑一个维度，固定所有其它维度，然后求若干个一维前缀和，这样对所有 $k$ 个维度分别求和之后，得到的就是 $k$ 维前缀和。
-  >
+> 显然的算法是，每次只考虑一个维度，固定所有其它维度，然后求若干个一维前缀和，这样对所有 $k$ 个维度分别求和之后，得到的就是 $k$ 维前缀和。
 
 三维样例如下：
 ```c++
@@ -1895,20 +1888,16 @@ for (int i = 1; i <= N1; ++i)
 
 - https://codeforces.com/blog/entry/94470
 
-$$
-a|b = a  \oplus b + a\&b  \\ 
-a  \oplus (a\&b) = (a|b)  \oplus b \\ 
-b  \oplus (a\&b) = (a|b)  \oplus a \\ 
-(a\&b)  \oplus (a|b) = a  \oplus b \\ 
-\text{}\\
-a+b = a|b + a\&b \\
-a+b = a  \oplus b + 2(a\&b) \\ 
-\text{}\\
-a-b = (a  \oplus (a\&b))-((a|b)  \oplus a) \\ 
-a-b = ((a|b)  \oplus b)-((a|b)  \oplus a) \\ 
-a-b = (a  \oplus (a\&b))-(b  \oplus (a\&b)) \\ 
-a-b = ((a|b)  \oplus b)-(b  \oplus (a\&b)) \\
-$$
+$$a|b = a  \oplus b + a \\& b$$
+$$a  \oplus (a \\& b) = (a|b)  \oplus b $$
+$$b  \oplus (a \\& b) = (a|b)  \oplus a $$
+$$(a \\& b)  \oplus (a|b) = a  \oplus b $$
+$$a+b = a|b + a \\& b $$
+$$a+b = a  \oplus b + 2(a \\& b) \$$
+$$a-b = (a  \oplus (a \\& b))-((a|b)  \oplus a)$$
+$$a-b = ((a|b)  \oplus b)-((a|b)  \oplus a)$$
+$$a-b = (a  \oplus (a \\& b))-(b  \oplus (a \\& b))$$
+$$a-b = ((a|b)  \oplus b)-(b  \oplus (a \\& b)) $$
 
 
 
