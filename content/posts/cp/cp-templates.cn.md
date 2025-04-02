@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-03-26T15:12:24.128000+08:00
+lastmod: 2025-04-02T20:21:08.846253
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1890,6 +1890,27 @@ for (int i = 1; i <= N1; ++i)
 
 - https://codeforces.com/gym/105486/problem/B 2024 成都 B
   - https://codeforces.com/gym/105486/submission/312575722
+
+## 二进制奇技淫巧
+
+- https://codeforces.com/blog/entry/94470
+
+$$
+a|b = a  \oplus b + a\&b  \\ 
+a  \oplus (a\&b) = (a|b)  \oplus b \\ 
+b  \oplus (a\&b) = (a|b)  \oplus a \\ 
+(a\&b)  \oplus (a|b) = a  \oplus b \\ 
+\text{}\\
+a+b = a|b + a\&b \\
+a+b = a  \oplus b + 2(a\&b) \\ 
+\text{}\\
+a-b = (a  \oplus (a\&b))-((a|b)  \oplus a) \\ 
+a-b = ((a|b)  \oplus b)-((a|b)  \oplus a) \\ 
+a-b = (a  \oplus (a\&b))-(b  \oplus (a\&b)) \\ 
+a-b = ((a|b)  \oplus b)-(b  \oplus (a\&b)) \\
+$$
+
+
 
 ## MSVC也要用万能头!!
 
