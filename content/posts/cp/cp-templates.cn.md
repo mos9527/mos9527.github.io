@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-02T20:21:08.846253
+lastmod: 2025-04-04T16:52:33.808793
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -488,14 +488,14 @@ int main() {
 Lucas：$$\binom{n}{m}\bmod p = \binom{\left\lfloor n/p \right\rfloor}{\left\lfloor m/p\right\rfloor}\cdot\binom{n\bmod p}{m\bmod p}\bmod p$$​
 ```c++
 namespace comb {
-	ll fac[MOD], ifac[MOD]; // x!, 1/x!
-	void prep(ll N = MOD - 1) {
+	ll fac[DIM], ifac[DIM]; // x!, 1/x!
+	void prep(ll N = DIM - 1) {
 		fac[0] = fac[1] = ifac[0] = ifac[1] = 1;
 		for (ll i = 2; i <= N; i++) fac[i] = fac[i - 1] * i % MOD;
 		ifac[N] = binpow_mod(fac[N], MOD - 2, MOD);
 		for (ll i = N - 1; i >= 1; i--) ifac[i] = ifac[i + 1] * (i + 1) % MOD;
 	}
-	ll comb(ll n, ll m) {		
+	ll comb(ll n, ll m) {
 		return fac[n] * ifac[m] % MOD * ifac[n - m] % MOD;
 	}
 	ll lucas(ll n, ll m) {
@@ -1884,21 +1884,70 @@ for (int i = 1; i <= N1; ++i)
 - https://codeforces.com/gym/105486/problem/B 2024 成都 B
   - https://codeforces.com/gym/105486/submission/312575722
 
+- 子集和
+  - https://codeforces.com/contest/2086/problem/D；https://zhuanlan.zhihu.com/p/1891280211527590056
+  - $c_i$为每种数量
+  - 观察到每种字符只能出现在奇数位置或偶数位置之一后，考虑分配$c_i$中几部分到奇数位置
+  - 很显然记总共有$n$个位置可取奇数$odd = \lceil n/2 \rceil$个位置，选择$c_i$中某几个构成集合$S$，使得$\sum_{j \in S} c_j <= odd$
+  - 计这样的子集个数，实际上为01背包问题；记$i$为背包大小（总位置数量）
+    - $ dp_i = \sum_{j=odd}^{c_j} dp_{i - c_j}$
+    - 从后往前递推即可
+    
+  - AC Code
+  
+  ```c++
+  int main() {
+      fast_io();
+      /* El Psy Kongroo */
+      comb::prep();
+      ll t; cin >> t;
+      while (t--) {
+          ll sum = 0;
+          vec c(26 + 1); for (ll i = 1; i <= 26; i++) cin >> c[i], sum += c[i], sum %= MOD;
+          ll odd = ceil((lf)sum/2);
+          ll even = sum - odd;
+          vec dp(odd + 1); dp[0] = 1;
+          for (ll i = 1; i <= 26; i++)
+              if (c[i])  for (ll j = odd; j >= c[i];j--) dp[j] += dp[j - c[i]], dp[j] %= MOD;
+          ll ways = dp[odd]; // 1～26中取出数字填充奇数位数方法个数
+          // 设选取于奇数方案一定
+          // 设奇数位上的数字*类型*为 j_i (1~26)
+          // 奇数位方法为 odd! / c[j_1]! * c[j_2]! * c[j_3]! * ...
+          // 偶数位方法为 even! / c[j_4]! * c[j_5]! * c[j_6]! * ...
+          // 总方法   odd! * even! / c[j_1]! * c[j_2]! ... * c[j_n]!
+          // ncomb = odd! * even! / c_1! * c_2! ... * c_26!
+          // 带入选数方案即
+          // ans = ways * ncomb
+          ll ncomb = comb::fac[odd] % MOD * comb::fac[even] % MOD;
+          ll icomb = 1; for (ll i = 1;i <= 26;i++) icomb *= comb::ifac[c[i]], icomb %= MOD;
+          ll ans = ways % MOD * ncomb % MOD * icomb % MOD;
+          cout << ans << endl;
+      }
+      return 0;
+  }
+  ```
+  
+  
+
 ## 二进制奇技淫巧
 
 - https://codeforces.com/blog/entry/94470
 
-$$a|b = a  \oplus b + a \\& b$$
-$$a  \oplus (a \\& b) = (a|b)  \oplus b $$
-$$b  \oplus (a \\& b) = (a|b)  \oplus a $$
-$$(a \\& b)  \oplus (a|b) = a  \oplus b $$
-$$a+b = a|b + a \\& b $$
-$$a+b = a  \oplus b + 2(a \\& b) \$$
-$$a-b = (a  \oplus (a \\& b))-((a|b)  \oplus a)$$
-$$a-b = ((a|b)  \oplus b)-((a|b)  \oplus a)$$
-$$a-b = (a  \oplus (a \\& b))-(b  \oplus (a \\& b))$$
-$$a-b = ((a|b)  \oplus b)-(b  \oplus (a \\& b)) $$
+```c++
+a | b == (a ^ b) + (a & b);
 
+(a ^ (a & b)) == ((a | b) ^ b);
+(b ^ (a & b)) == ((a | b) ^ a);
+((a & b) ^ (a | b)) == (a ^ b);
+
+(a + b) == (a | b) + (a & b);
+(a + b) == (a ^ b) + 2 * (a & b);
+
+(a - b) == ((a ^ (a & b)) - ((a | b) ^ a));
+(a - b) == (((a | b) ^ b) - ((a | b) ^ a));
+(a - b) == ((a ^ (a & b)) - (b ^ (a & b)));
+(a - b) == (((a | b) ^ b) - (b ^ (a & b)));
+```
 
 
 ## MSVC也要用万能头!!
