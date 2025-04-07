@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-03-26T21:39:48.783322
+lastmod: 2025-04-07T19:44:31.188922
 title: 算竞笔记 - GCD及相关专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++","GCD","数学"]
 categories: ["题解", "算竞", "合集"]
@@ -36,7 +36,7 @@ int main() {
 }
 ```
 
-# 991F. Maximum modulo equality
+## 991F. Maximum modulo equality
 
 >You are given an array $a$ of length $n$ and $q$ queries $l$, $r$.
 For each query, find the maximum possible $m$, such that all elements $a_l$, $a_{l+1}$, ..., $a_r$ are equal modulo $m$. In other words, $a_l \bmod m = a_{l+1} \bmod m = \dots = a_r \bmod m$, where $a \bmod b$ — is the remainder of division $a$ by $b$. In particular, when $m$ can be infinite, print $0$.
@@ -303,3 +303,20 @@ int main() {
 }
 ```
 
+### 附：一些 Trick
+
+- $a$是否存在子序列$s$使得$gcd(s_1, s_2, ...) = k$
+
+  - 例：https://codeforces.com/contest/2084/problem/B
+
+  ```c++
+  for (ll i = 1; i < n; i++) {
+      if (a[i] % k == 0) a[i] /= k;
+      else a[i] = 0;
+  }
+  ll g = 0;
+  for (ll i = 1; i < n; i++) g = gcd(g, a[i]);
+  // g == 1 即可， 否则不存在
+  ```
+
+  
