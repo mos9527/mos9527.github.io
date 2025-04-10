@@ -813,7 +813,7 @@ struct dsu {
 	vector<ll> pa;
 	dsu(const ll size) : pa(size) { iota(pa.begin(), pa.end(), 0); }; // 初始时，每个集合都是自己的父亲
 	inline bool is_root(const ll leaf) { return pa[leaf] == leaf; }
-	inline ll find(const ll leaf) { return is_root(leaf) ? leaf : find(pa[leaf]); } // 路径压缩
+	inline ll find(const ll leaf) { return is_root(leaf) ? leaf : pa[leaf] = find(pa[leaf]); } // 路径压缩
 	inline void unite(const ll x, const ll y) { pa[find(x)] = find(y); }
 };
 struct edge { ll from, to, weight; };
@@ -1610,7 +1610,7 @@ struct dsu {
     vector<ll> pa;
     dsu(const ll size) : pa(size) { iota(pa.begin(), pa.end(), 0); }; // 初始时，每个集合都是自己的父亲
     inline bool is_root(const ll leaf) { return pa[leaf] == leaf; }
-    inline ll find(const ll leaf) { return is_root(leaf) ? leaf : find(pa[leaf]); } // 路径压缩
+    inline ll find(const ll leaf) { return is_root(leaf) ? leaf : pa[leaf] = find(pa[leaf]); } // 路径压缩
     inline void unite(const ll x, const ll y) { pa[find(x)] = find(y); }
 };
 ```
