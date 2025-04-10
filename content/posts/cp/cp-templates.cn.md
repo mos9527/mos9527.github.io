@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-04T16:52:33.808793
+lastmod: 2025-04-10T21:09:26.020558
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -20,6 +20,9 @@ typora-root-url: ..\..\static
 using namespace std;
 #define PRED(T,X) [&](T const& lhs, T const& rhs) {return X;}
 typedef long long ll; typedef unsigned long long ull; typedef double lf; typedef long double llf;
+#ifdef __SIZEOF_INT128__
+typedef __int128_t i128; typedef unsigned __int128 u128;
+#endif
 typedef pair<ll, ll> II; typedef vector<ll> vec;
 template<size_t size> using arr = array<ll, size>;
 const static void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0); cout.tie(0); }

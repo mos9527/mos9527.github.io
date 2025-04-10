@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-03-26T21:39:48.784200
+lastmod: 2025-04-10T20:32:05.448825
 title: 算竞笔记 - 线段树专题
 tags: ["线段树",ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
