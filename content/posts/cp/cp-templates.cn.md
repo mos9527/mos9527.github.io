@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-10T21:09:26.020558
+lastmod: 2025-04-10T22:15:50.815918
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -58,7 +58,7 @@ template<typename T> T binpow(T a, T res, ll b) {
 	}
 	return res;
 }
-ll binpow_mod(ll a, ll b, ll m) {
+ll binpow_mod(ll a, ll b, ll m = MOD) {
     a %= m;
     ll res = 1;
     while (b > 0) {
@@ -520,6 +520,12 @@ namespace comb {
 - 此情景即为费马小定理，i.e. $a^{m - 1} \equiv 1 \mod m$
 - 左右同时乘$a^{-1}$,可得 $a ^ {m - 2} \equiv a ^ {-1} \mod m$
 - 即 `a_inv = binpow_mod(a, m - 2, m)`
+
+相关trick
+
+- $p = \frac{x}{x+y}\ mod\ p$ 即为 `p = x * binpow_mod(x + y, m - 2, m)`
+  - $1 - p$ 可以为 $1 - \frac{x}{x+y} = \frac{y}{x+y}$ 即为 `inv_p = y * binpow_mod(x+u, m - 2, m)`
+  - 也可以为$1 - p\ mod\ m = m + 1 - p\ mod\ m$ 即为 `inv_p = binpow_mod(MOD + 1 - p, m - 2, m)`
 
 ### Eratosthenes 筛
 
