@@ -615,7 +615,7 @@ int main() {
 - C++ 风格实现
 
 ```c++
-template<typename T> struct segment_tree {    
+template<typename T> struct segment_tree {
     struct node {
         ll l, r; // 区间[l,r]
         T sum_v;
@@ -628,12 +628,12 @@ template<typename T> struct segment_tree {
     };
     vector<node> tree;
 private:
-    ll begin = 1, end = 1;   
+    ll begin = 1, end = 1;
     void push_up(ll o) {
         // 向上传递
         ll lc = o * 2, rc = o * 2 + 1;
         tree[o].sum_v = tree[lc].sum_v + tree[rc].sum_v;
-        tree[o].max_v = max_v(tree[lc].max_v, tree[rc].max_v);
+        tree[o].max_v = max(tree[lc].max_v, tree[rc].max_v);
     }
     void push_down(ll o) {
         // 向下传递
@@ -725,10 +725,10 @@ public:
     T range_max(ll l, ll r) { return range_query(l, r).max_v; }
     void reserve(const ll n) { tree.reserve(n); }
     void reset(const ll n) { end = n; tree.resize(end << 2); build(); }
-    // src -> 0开始的叶子节点
+    // 注意：src[0]会被省略
     void reset(const vector<T>& src) {
-        end = src.size(); tree.resize(end << 2);
-        build(src.data() - 1); // 邪恶指针trick - 毕竟我们的访问从1开始
+        end = src.size() - 1; tree.resize(end << 2);
+        build(src.data());
     }
     explicit segment_tree() {};
     explicit segment_tree(const ll n) : begin(1), end(n) { reset(n); }
