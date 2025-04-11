@@ -71,6 +71,7 @@ ll binpow_mod(ll a, ll b, ll m = MOD) {
 ```
 
 ## 拓展欧几里得
+求解 $gcd(a,b)$ 和 $ax+by=gcd(a,b)$ 的一组解
 ```c++
 ll exgcd(ll a, ll b, ll& x, ll& y) {
     if (b == 0) {
