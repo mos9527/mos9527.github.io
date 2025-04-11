@@ -138,7 +138,7 @@ int main() {
 
 - **引理：** **裴蜀等式**（英语：Bézout's identity），或**丢番图方程一次特殊情况**：设$a_1, \cdots a_n$为$n$个整数，$d$是它们的最大公约数，那么存在整数$x_1, \cdots x_n$ 使得 $x_1\cdot a_1 + \cdots x_n\cdot a_n = d$
 
-- 对操作`Q`，即询问$l,r$中的整数$x_i$能否构成 $x_1\cdot a_1 + \cdots x_n\cdot a_n = kd = v \to v \mod gcd(a_1,...,a_n) = 0 $
+- 对操作`Q`，即询问$l,r$中的整数$x_i$能否找到系数$a_i$构成 $x_1\cdot a_1 + \cdots x_n\cdot a_n = kd = v \to v \mod gcd(a_1,...,a_n) = 0 $
 
 - 对操作`I,D,A`维护个平衡树/Treap吧
   - 思路上和[线段树 Subtask 3](https://mos9527.com/posts/cp/segment-tree-problems/#p11373-czoi-r2%E5%A4%A9%E5%B9%B3)基本一致
