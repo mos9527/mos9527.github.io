@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-10T16:23:38.169000+08:00
+lastmod: 2025-04-17T09:02:42.761561
 title: PSJK Blender Cartoon Render Pipeline Revisited【3】- SDF face rendering implementation
 tags: ["Reverse Engineering","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "Reverse Engineering", "Collection/compilation", "CG"]

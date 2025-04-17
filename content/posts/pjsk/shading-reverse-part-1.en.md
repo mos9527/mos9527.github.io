@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-10T16:23:38.169000+08:00
+lastmod: 2025-04-17T09:02:42.760683
 title: Recreating PSJK's Toon Shader in Blender [1] - Preparations
 tags: ["reverse engineering","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "reverse engineering", "collection", "CG"]
