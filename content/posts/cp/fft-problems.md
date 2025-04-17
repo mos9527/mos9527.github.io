@@ -541,15 +541,43 @@ namespace Poly {
 			res[i] = a[i].real();
 		return res;
 	}
+	inline RVec2 as_real(CVec2 const& a) {
+		RVec2 res(a.size());
+		for (ll i = 0; i < a.size(); i++)
+			res[i] = as_real(a[i]);
+		return res;
+	}
 	inline CVec as_complex(RVec const& a) {
 		return CVec(a.begin(), a.end());
+	}
+	inline CVec2 as_complex(RVec2 const& a) {
+		CVec2 res(a.size());
+		for (ll i = 0; i < a.size(); i++)
+			res[i] = as_complex(a[i]);
+		return res;
+	}
+	inline ll to_pow2(ll a, ll b) {
+		ll n = a + b;
+		n = 1ll << (ll)ceil(log2(n));
+		return n;
+	}
+	inline II to_pow2(II a, II b) {
+		ll n = a.first + b.first;
+		ll m = a.second + b.second;
+		n = 1ll << (ll)ceil(log2(n));
+		m = 1ll << (ll)ceil(log2(m));
+		return { n, m };
+	}
+	template<typename T> inline void resize(T& a, ll n) { a.resize(n); }
+	template<typename T> inline void resize(T& a, II nm) {
+		a.resize(nm.first);
+		for (auto& row : a) row.resize(nm.second);
 	}
 	// 包络
 	// 1D: IVec, CVec, RVec
 	template<typename T> inline T& convolve(T& a, T& b) {
-		ll n = a.size() + b.size();
-		n = 1ll << (ll)ceil(log2(n));
-		a.resize(n), b.resize(n);
+		ll n = to_pow2(a.size(), b.size());
+		resize(a, n), resize(b, n);
 		DFT(a), DFT(b);
 		for (ll i = 0; i < n; i++)
 			a[i] *= b[i];
@@ -566,11 +594,9 @@ namespace Poly {
 	inline CVec2& convolve2D(CVec2& a, CVec2& b) {
 		ll n = a.size(), m = a[0].size();
 		ll k = b.size(), l = b[0].size();
-		ll N = 1ll << (ll)ceil(log2(n + k - 1));
-		ll M = 1ll << (ll)ceil(log2(m + l - 1));
-		a.resize(N), b.resize(N);
-		for (auto& row : a) row.resize(M);
-		for (auto& row : b) row.resize(M);
+		II NM = to_pow2({ n,m },{ k,l });
+		auto [N, M] = NM;
+		resize(a, NM), resize(b, NM);
 		DFT2(a), DFT2(b);
 		for (ll i = 0; i < N; ++i)
 			for (ll j = 0; j < M; ++j)
@@ -582,15 +608,9 @@ namespace Poly {
 		return a;
 	}
 	inline RVec2& convolve2D(RVec2& a, RVec2& b) {
-		CVec2 a_c(a.size()), b_c(b.size());
-		for (ll i = 0; i < a.size(); i++)
-			a_c[i] = as_complex(a[i]);
-		for (ll i = 0; i < b.size(); i++)
-			b_c[i] = as_complex(b[i]);
+		CVec2 a_c = as_complex(a), b_c = as_complex(b);
 		convolve2D(a_c, b_c);
-		a.resize(a_c.size());
-		for (ll i = 0; i < a.size(); i++)
-			a[i] = as_real(a_c[i]);
+		a = as_real(a_c);
 		return a;
 	}
 }
