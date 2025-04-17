@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-17T17:32:29.981339
+lastmod: 2025-04-17T17:46:16.056384
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -142,7 +142,7 @@ $$
 
 $FFT$的过程如下
 
-- 令$A(x) = a_0 x^0 + a_1 x^1 + \dots + a_{n-1} x^{n-1}$, 按奇偶拆成两个子多项式
+- 令 $A(x) = a_0 x^0 + a_1 x^1 + \dots + a_{n-1} x^{n-1}$, 按奇偶拆成两个子多项式
 
 $$
 \begin{align}
@@ -155,7 +155,15 @@ $$
 $$
 A(x) = A_0(x^2) + x A_1(x^2).
 $$
-- 设$\left(y_k^0\right)_{k=0}^{n/2-1} = \text{DFT}(A_0), \left(y_k^1\right)_{k=0}^{n/2-1} = \text{DFT}(A_1)$，前$\frac{n}{2}$项即为
+
+- 设 
+$$
+\left(y_k^0 \right)_{k=0}^{n/2-1} = \text{DFT}(A_0)
+$$
+
+$$
+\left(y_k^1 \right)_{k=0}^{n/2-1} = \text{DFT}(A_1)
+$$
 
 $$
 y_k = y_k^0 + w_n^k y_k^1, \quad k = 0 \dots \frac{n}{2} - 1.
