@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-17T20:55:09.358000+08:00
+lastmod: 2025-04-17T21:54:50.733000+08:00
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -431,7 +431,7 @@ ll binpow_mod(ll a, ll b, ll m = MOD) {
     ll res = 1;
     while (b > 0) {
         if (b & 1) res = (__int128)res * a % m;
-        a = (__int128)a * a % m
+        a = (__int128)a * a % m;
         b >>= 1;
     }
     return res;
@@ -448,27 +448,27 @@ namespace Poly {
         ll n = a.size();
         auto R = [n](ll x) {
             ll msb = ceil(log2(n)), res = 0;
-            for (ll i = 0;i < msb;i++)
-                if (x & (1 << i))
-                    res |= 1 << (msb - 1 - i);
+            for (ll i = 0; i < msb; i++)
+                if (x & (1ll << i))
+                    res |= 1ll << (msb - 1 - i);
             return res;
-        };
+            };
         // Resort
-        for (ll i = 0;i < n;i++)
+        for (ll i = 0; i < n; i++)
             if (i < R(i))
                 swap(a[i], a[R(i)]);
         // 从下至上n_i = 2, 4, 6,...,n直接递推
-        for (ll n_i = 2;n_i <= n;n_i <<= 1) {
+        for (ll n_i = 2; n_i <= n; n_i <<= 1) {
             Complex w_n = exp(Complex{ 0, 2 * PI / n_i });
             if (invert) w_n = conj(w_n);
-            for (ll i = 0;i < n;i += n_i) {
+            for (ll i = 0; i < n; i += n_i) {
                 Complex w_k = Complex{ 1, 0 };
-                for (ll j = 0;j < n_i / 2;j++) {
+                for (ll j = 0; j < n_i / 2; j++) {
                     Complex u = a[i + j], v = a[i + j + n_i / 2] * w_k;
                     a[i + j] = u + v;
                     a[i + j + n_i / 2] = u - v;
                     if (invert)
-                        a[i+j] /= 2, a[i+j+n_i/2] /= 2;
+                        a[i + j] /= 2, a[i + j + n_i / 2] /= 2;
                     w_k *= w_n;
                 }
             }
@@ -480,23 +480,23 @@ namespace Poly {
         ll n = a.size();
         auto R = [n](ll x) {
             ll msb = ceil(log2(n)), res = 0;
-            for (ll i = 0;i < msb;i++)
-                if (x & (1 << i))
-                    res |= 1 << (msb - 1 - i);
+            for (ll i = 0; i < msb; i++)
+                if (x & (1ll << i))
+                    res |= 1ll << (msb - 1 - i);
             return res;
-        };
+            };
         // Resort
-        for (ll i = 0;i < n;i++)
+        for (ll i = 0; i < n; i++)
             if (i < R(i)) swap(a[i], a[R(i)]);
         // 从下至上n_i = 2, 4, 6,...,n直接递推
         ll inv_2 = binpow_mod(2, p - 2, p);
-        for (ll n_i = 2;n_i <= n;n_i <<= 1) {
+        for (ll n_i = 2; n_i <= n; n_i <<= 1) {
             ll w_n = binpow_mod(g, (p - 1) / n_i, p);
             if (invert)
                 w_n = binpow_mod(w_n, p - 2, p);
-            for (ll i = 0;i < n;i += n_i) {
+            for (ll i = 0; i < n; i += n_i) {
                 ll w_k = 1;
-                for (ll j = 0;j < n_i / 2;j++) {
+                for (ll j = 0; j < n_i / 2; j++) {
                     ll u = a[i + j], v = a[i + j + n_i / 2] * w_k;
                     a[i + j] = (u + v + p) % p;
                     a[i + j + n_i / 2] = (u - v + p) % p;
@@ -514,68 +514,84 @@ namespace Poly {
     inline CVec& DFT(CVec& a) { return FFT(a, false); }
     inline CVec& IDFT(CVec& a) { return FFT(a, true); }
     // 模数域
-    inline IVec& DFT(IVec& a, ll p=MOD, ll g=MOD_proot) { return NTT(a, p, g, false); }
-    inline IVec& IDFT(IVec& a, ll p=MOD, ll g=MOD_proot) { return NTT(a, p, g, true); }
+    inline IVec& DFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return NTT(a, p, g, false); }
+    inline IVec& IDFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return NTT(a, p, g, true); }
+    // 2D
+    using CVec2 = vector<CVec>;
+    using RVec2 = vector<RVec>;
+    CVec2& FFT2(CVec2& a, bool invert) {
+        ll n = a.size(), m = a[0].size();
+        for (ll row = 0; row < n; row++) FFT(a[row], invert);
+        CVec c(n);
+        for (ll col = 0; col < m; col++) {
+            for (ll row = 0; row < n; row++)
+                c[row] = a[row][col];
+            FFT(c, invert);
+            for (ll row = 0; row < n; row++)
+                a[row][col] = c[row];
+        }
+        return a;
+    }
+    CVec2& DFT2(CVec2& a) { return FFT2(a, false); }
+    CVec2& IDFT2(CVec2& a) { return FFT2(a, true); }
     // 工具
     inline RVec as_real(CVec const& a) {
         RVec res(a.size());
-        for (ll i = 0;i < a.size();i++)
+        for (ll i = 0; i < a.size(); i++)
             res[i] = a[i].real();
         return res;
     }
     inline CVec as_complex(RVec const& a) {
         return CVec(a.begin(), a.end());
     }
-    void normalize(IVec& a, ll radiax) {
-        for (ll i = 0;i < a.size() - 1;i++)
-            a[i + 1] += a[i] / radiax,
-            a[i] %= radiax;
-    }
-    void normalize(RVec& a, ll radiax) {
-        for (ll i = 0;i < a.size() - 1;i++)
-            a[i + 1] += (ll)a[i] / radiax,
-            a[i] = (ll)a[i] % radiax;
-    }
-    // 多项式乘法
-    template<typename T> ll mul_poly(T& a, T& b) {
+    // 包络
+    // 1D: IVec, CVec, RVec
+    template<typename T> T& convolve(T& a, T& b) {
         ll n = a.size() + b.size();
-        n = ceil(log2(n)), n = 1ll << n;
+        n = 1ll << (ll)ceil(log2(n));
         a.resize(n), b.resize(n);
         DFT(a), DFT(b);
-        for (ll i = 0;i < n;i++)
+        for (ll i = 0; i < n; i++)
             a[i] *= b[i];
         IDFT(a);
-        return n;
+        return a;
     }
-    ll mul_poly(RVec& a, RVec& b) {
+    RVec& convolve(RVec& a, RVec& b) {
         CVec a_c = as_complex(a), b_c = as_complex(b);
-        ll n = mul_poly(a_c, b_c);
+        convolve(a_c, b_c);
         a = as_real(a_c);
-        return n;
+        return a;
     }
-}
-int main() {
-    fast_io();
-    /* El Psy Kongroo */
-    string a,b;
-    while (cin >> a >> b)
-    {
-        {
-            Poly::IVec A(a.size()), B(b.size());
-            for (ll i = 0;i < a.size();i++)
-                A[i] = a[a.size() - 1 - i] - '0';
-            for (ll i = 0;i < b.size();i++)
-                B[i] = b[b.size() - 1 - i] - '0';
-            ll len = Poly::mul_poly(A, B);
-            Poly::normalize(A, 10u);
-            for (ll i = len - 1, flag = 0;i >= 0;i--) {
-                flag |= A[i] != 0;
-                if (flag || i == 0)
-                    cout << (ll)A[i];
-            }
-            cout << endl;
-        }
+	// 2D: CVec2, RVec2
+    CVec2& convolve2D(CVec2& a, CVec2& b) {
+        ll n = a.size(), m = a[0].size();
+		ll k = b.size(), l = b[0].size();
+        ll N = 1ll << (ll)ceil(log2(n + k - 1));
+        ll M = 1ll << (ll)ceil(log2(m + l - 1));
+		a.resize(N), b.resize(N);
+		for (auto& row : a) row.resize(M);
+		for (auto& row : b) row.resize(M);
+        DFT2(a), DFT2(b);       
+        for (ll i = 0; i < N; ++i)
+            for (ll j = 0; j < M; ++j)
+                a[i][j] *= b[i][j];
+        IDFT2(a);        
+        return a;
     }
+	RVec2& convolve2D(RVec2& a, RVec2& b) {
+        CVec2 a_c(a.size()), b_c(b.size());
+        for (ll i = 0; i < a.size(); i++)
+            a_c[i] = as_complex(a[i]);
+        for (ll i = 0; i < b.size(); i++)
+            b_c[i] = as_complex(b[i]);
+		convolve2D(a_c, b_c);
+        a.resize(a_c.size()), b.resize(b_c.size());
+        for (ll i = 0; i < a.size(); i++)
+            a[i] = as_real(a_c[i]);
+        for (ll i = 0; i < b.size(); i++)
+            b[i] = as_real(b_c[i]);
+		return a;
+	}
 }
 ```
 
@@ -611,7 +627,7 @@ int main() {
                 A[i] = a[a.size() - 1 - i] - '0';
             for (ll i = 0; i < b.size(); i++)
                 B[i] = b[b.size() - 1 - i] - '0';
-            ll len = Poly::mul_poly(A, B);
+            ll len = Poly::Convolve(A, B);
             carry(A, 10u);
             for (ll i = len - 1, flag = 0; i >= 0; i--) {
                 flag |= A[i] != 0;
