@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-17T21:54:50.733000+08:00
+lastmod: 2025-04-17T17:47:48.518604
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -427,172 +427,174 @@ const ll INF = 1e18;
 const ll MOD = 1e9 + 7;
 const ll DIM = 1e5;
 ll binpow_mod(ll a, ll b, ll m = MOD) {
-    a %= m;
-    ll res = 1;
-    while (b > 0) {
-        if (b & 1) res = (__int128)res * a % m;
-        a = (__int128)a * a % m;
-        b >>= 1;
-    }
-    return res;
+	a %= m;
+	ll res = 1;
+	while (b > 0) {
+		if (b & 1) res = (__int128)res * a % m;
+		a = (__int128)a * a % m;
+		b >>= 1;
+	}
+	return res;
 }
 namespace Poly {
-    using Real = lf;
-    using Complex = complex<lf>;
-    using CVec = vector<Complex>;
-    using RVec = vector<Real>;
-    using IVec = vec;
-    const ll MOD = 998244353, MOD_proot = 3;
-    // 快速傅里叶变换
-    inline CVec& FFT(CVec& a, bool invert) {
-        ll n = a.size();
-        auto R = [n](ll x) {
-            ll msb = ceil(log2(n)), res = 0;
-            for (ll i = 0; i < msb; i++)
-                if (x & (1ll << i))
-                    res |= 1ll << (msb - 1 - i);
-            return res;
-            };
-        // Resort
-        for (ll i = 0; i < n; i++)
-            if (i < R(i))
-                swap(a[i], a[R(i)]);
-        // 从下至上n_i = 2, 4, 6,...,n直接递推
-        for (ll n_i = 2; n_i <= n; n_i <<= 1) {
-            Complex w_n = exp(Complex{ 0, 2 * PI / n_i });
-            if (invert) w_n = conj(w_n);
-            for (ll i = 0; i < n; i += n_i) {
-                Complex w_k = Complex{ 1, 0 };
-                for (ll j = 0; j < n_i / 2; j++) {
-                    Complex u = a[i + j], v = a[i + j + n_i / 2] * w_k;
-                    a[i + j] = u + v;
-                    a[i + j + n_i / 2] = u - v;
-                    if (invert)
-                        a[i + j] /= 2, a[i + j + n_i / 2] /= 2;
-                    w_k *= w_n;
-                }
-            }
-        }
-        return a;
-    }
-    //（快速）数论变换
-    inline IVec& NTT(IVec& a, ll p, ll g, bool invert) {
-        ll n = a.size();
-        auto R = [n](ll x) {
-            ll msb = ceil(log2(n)), res = 0;
-            for (ll i = 0; i < msb; i++)
-                if (x & (1ll << i))
-                    res |= 1ll << (msb - 1 - i);
-            return res;
-            };
-        // Resort
-        for (ll i = 0; i < n; i++)
-            if (i < R(i)) swap(a[i], a[R(i)]);
-        // 从下至上n_i = 2, 4, 6,...,n直接递推
-        ll inv_2 = binpow_mod(2, p - 2, p);
-        for (ll n_i = 2; n_i <= n; n_i <<= 1) {
-            ll w_n = binpow_mod(g, (p - 1) / n_i, p);
-            if (invert)
-                w_n = binpow_mod(w_n, p - 2, p);
-            for (ll i = 0; i < n; i += n_i) {
-                ll w_k = 1;
-                for (ll j = 0; j < n_i / 2; j++) {
-                    ll u = a[i + j], v = a[i + j + n_i / 2] * w_k;
-                    a[i + j] = (u + v + p) % p;
-                    a[i + j + n_i / 2] = (u - v + p) % p;
-                    if (invert) {
-                        a[i + j] = (a[i + j] * inv_2 % p + p) % p;
-                        a[i + j + n_i / 2] = (a[i + j + n_i / 2] * inv_2 % p + p) % p;
-                    }
-                    w_k = w_k * w_n % p;
-                }
-            }
-        }
-        return a;
-    }
-    // 虚数域
-    inline CVec& DFT(CVec& a) { return FFT(a, false); }
-    inline CVec& IDFT(CVec& a) { return FFT(a, true); }
-    // 模数域
-    inline IVec& DFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return NTT(a, p, g, false); }
-    inline IVec& IDFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return NTT(a, p, g, true); }
-    // 2D
-    using CVec2 = vector<CVec>;
-    using RVec2 = vector<RVec>;
-    CVec2& FFT2(CVec2& a, bool invert) {
-        ll n = a.size(), m = a[0].size();
-        for (ll row = 0; row < n; row++) FFT(a[row], invert);
-        CVec c(n);
-        for (ll col = 0; col < m; col++) {
-            for (ll row = 0; row < n; row++)
-                c[row] = a[row][col];
-            FFT(c, invert);
-            for (ll row = 0; row < n; row++)
-                a[row][col] = c[row];
-        }
-        return a;
-    }
-    CVec2& DFT2(CVec2& a) { return FFT2(a, false); }
-    CVec2& IDFT2(CVec2& a) { return FFT2(a, true); }
-    // 工具
-    inline RVec as_real(CVec const& a) {
-        RVec res(a.size());
-        for (ll i = 0; i < a.size(); i++)
-            res[i] = a[i].real();
-        return res;
-    }
-    inline CVec as_complex(RVec const& a) {
-        return CVec(a.begin(), a.end());
-    }
-    // 包络
-    // 1D: IVec, CVec, RVec
-    template<typename T> T& convolve(T& a, T& b) {
-        ll n = a.size() + b.size();
-        n = 1ll << (ll)ceil(log2(n));
-        a.resize(n), b.resize(n);
-        DFT(a), DFT(b);
-        for (ll i = 0; i < n; i++)
-            a[i] *= b[i];
-        IDFT(a);
-        return a;
-    }
-    RVec& convolve(RVec& a, RVec& b) {
-        CVec a_c = as_complex(a), b_c = as_complex(b);
-        convolve(a_c, b_c);
-        a = as_real(a_c);
-        return a;
-    }
+	using Real = lf;
+	using Complex = complex<lf>;
+	using CVec = vector<Complex>;
+	using RVec = vector<Real>;
+	using IVec = vec;
+	const ll MOD = 998244353, MOD_proot = 3;
+	// 快速傅里叶变换
+	inline CVec& FFT(CVec& a, bool invert) {
+		ll n = a.size();
+		auto R = [n](ll x) {
+			ll msb = ceil(log2(n)), res = 0;
+			for (ll i = 0; i < msb; i++)
+				if (x & (1ll << i))
+					res |= 1ll << (msb - 1 - i);
+			return res;
+			};
+		// Resort
+		for (ll i = 0; i < n; i++)
+			if (i < R(i))
+				swap(a[i], a[R(i)]);
+		// 从下至上n_i = 2, 4, 6,...,n直接递推
+		for (ll n_i = 2; n_i <= n; n_i <<= 1) {
+			Complex w_n = exp(Complex{ 0, 2 * PI / n_i });
+			if (invert) w_n = conj(w_n);
+			for (ll i = 0; i < n; i += n_i) {
+				Complex w_k = Complex{ 1, 0 };
+				for (ll j = 0; j < n_i / 2; j++) {
+					Complex u = a[i + j], v = a[i + j + n_i / 2] * w_k;
+					a[i + j] = u + v;
+					a[i + j + n_i / 2] = u - v;
+					if (invert)
+						a[i + j] /= 2, a[i + j + n_i / 2] /= 2;
+					w_k *= w_n;
+				}
+			}
+		}
+		return a;
+	}
+	//（快速）数论变换
+	inline IVec& NTT(IVec& a, ll p, ll g, bool invert) {
+		ll n = a.size();
+		auto R = [n](ll x) {
+			ll msb = ceil(log2(n)), res = 0;
+			for (ll i = 0; i < msb; i++)
+				if (x & (1ll << i))
+					res |= 1ll << (msb - 1 - i);
+			return res;
+			};
+		// Resort
+		for (ll i = 0; i < n; i++)
+			if (i < R(i)) swap(a[i], a[R(i)]);
+		// 从下至上n_i = 2, 4, 6,...,n直接递推
+		ll inv_2 = binpow_mod(2, p - 2, p);
+		for (ll n_i = 2; n_i <= n; n_i <<= 1) {
+			ll w_n = binpow_mod(g, (p - 1) / n_i, p);
+			if (invert)
+				w_n = binpow_mod(w_n, p - 2, p);
+			for (ll i = 0; i < n; i += n_i) {
+				ll w_k = 1;
+				for (ll j = 0; j < n_i / 2; j++) {
+					ll u = a[i + j], v = a[i + j + n_i / 2] * w_k;
+					a[i + j] = (u + v + p) % p;
+					a[i + j + n_i / 2] = (u - v + p) % p;
+					if (invert) {
+						a[i + j] = (a[i + j] * inv_2 % p + p) % p;
+						a[i + j + n_i / 2] = (a[i + j + n_i / 2] * inv_2 % p + p) % p;
+					}
+					w_k = w_k * w_n % p;
+				}
+			}
+		}
+		return a;
+	}
+	// 虚数域
+	inline CVec& DFT(CVec& a) { return FFT(a, false); }
+	inline CVec& IDFT(CVec& a) { return FFT(a, true); }
+	// 模数域
+	inline IVec& DFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return NTT(a, p, g, false); }
+	inline IVec& IDFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return NTT(a, p, g, true); }
+	// 2D
+	using CVec2 = vector<CVec>;
+	using RVec2 = vector<RVec>;
+	inline CVec2& FFT2(CVec2& a, bool invert) {
+		ll n = a.size(), m = a[0].size();
+		for (ll row = 0; row < n; row++) FFT(a[row], invert);
+		CVec c(n);
+		for (ll col = 0; col < m; col++) {
+			for (ll row = 0; row < n; row++)
+				c[row] = a[row][col];
+			FFT(c, invert);
+			for (ll row = 0; row < n; row++)
+				a[row][col] = c[row];
+		}
+		return a;
+	}
+	inline CVec2& DFT2(CVec2& a) { return FFT2(a, false); }
+	inline CVec2& IDFT2(CVec2& a) { return FFT2(a, true); }
+	// 工具
+	inline RVec as_real(CVec const& a) {
+		RVec res(a.size());
+		for (ll i = 0; i < a.size(); i++)
+			res[i] = a[i].real();
+		return res;
+	}
+	inline CVec as_complex(RVec const& a) {
+		return CVec(a.begin(), a.end());
+	}
+	// 包络
+	// 1D: IVec, CVec, RVec
+	template<typename T> inline T& convolve(T& a, T& b) {
+		ll n = a.size() + b.size();
+		n = 1ll << (ll)ceil(log2(n));
+		a.resize(n), b.resize(n);
+		DFT(a), DFT(b);
+		for (ll i = 0; i < n; i++)
+			a[i] *= b[i];
+		IDFT(a);
+		return a;
+	}
+	inline RVec& convolve(RVec& a, RVec& b) {
+		CVec a_c = as_complex(a), b_c = as_complex(b);
+		convolve(a_c, b_c);
+		a = as_real(a_c);
+		return a;
+	}
 	// 2D: CVec2, RVec2
-    CVec2& convolve2D(CVec2& a, CVec2& b) {
-        ll n = a.size(), m = a[0].size();
+	inline CVec2& convolve2D(CVec2& a, CVec2& b) {
+		ll n = a.size(), m = a[0].size();
 		ll k = b.size(), l = b[0].size();
-        ll N = 1ll << (ll)ceil(log2(n + k - 1));
-        ll M = 1ll << (ll)ceil(log2(m + l - 1));
+		ll N = 1ll << (ll)ceil(log2(n + k - 1));
+		ll M = 1ll << (ll)ceil(log2(m + l - 1));
 		a.resize(N), b.resize(N);
 		for (auto& row : a) row.resize(M);
 		for (auto& row : b) row.resize(M);
-        DFT2(a), DFT2(b);       
-        for (ll i = 0; i < N; ++i)
-            for (ll j = 0; j < M; ++j)
-                a[i][j] *= b[i][j];
-        IDFT2(a);        
-        return a;
-    }
-	RVec2& convolve2D(RVec2& a, RVec2& b) {
-        CVec2 a_c(a.size()), b_c(b.size());
-        for (ll i = 0; i < a.size(); i++)
-            a_c[i] = as_complex(a[i]);
-        for (ll i = 0; i < b.size(); i++)
-            b_c[i] = as_complex(b[i]);
+		DFT2(a), DFT2(b);
+		for (ll i = 0; i < N; ++i)
+			for (ll j = 0; j < M; ++j)
+				a[i][j] *= b[i][j];
+		IDFT2(a);
+		a.resize(n + k - 1);
+		for (auto& row : a) 
+			row.resize(m + l - 1);
+		return a;
+	}
+	inline RVec2& convolve2D(RVec2& a, RVec2& b) {
+		CVec2 a_c(a.size()), b_c(b.size());
+		for (ll i = 0; i < a.size(); i++)
+			a_c[i] = as_complex(a[i]);
+		for (ll i = 0; i < b.size(); i++)
+			b_c[i] = as_complex(b[i]);
 		convolve2D(a_c, b_c);
-        a.resize(a_c.size()), b.resize(b_c.size());
-        for (ll i = 0; i < a.size(); i++)
-            a[i] = as_real(a_c[i]);
-        for (ll i = 0; i < b.size(); i++)
-            b[i] = as_real(b_c[i]);
+		a.resize(a_c.size());
+		for (ll i = 0; i < a.size(); i++)
+			a[i] = as_real(a_c[i]);
 		return a;
 	}
 }
+
 ```
 
 ## Problems
@@ -694,3 +696,123 @@ $$
 - 设$P$中部分字符任意，则倒序后可令这些位置多项式系数$b_i=0$；设有$x$个这种位置
 - 回顾上式易知当且仅当匹配到这些系数时有$c_i = \sum_{j=0}^{m-1-x} e^{\cdots} + \sum_0^x 0$
 - 显然，当$c_{m-1+i} = m - x$，带任意匹配模式的模式串$P$在$S_i$处有出现
+
+### 杂项：图像处理？？？
+
+> 正常人应该用[FFTW](https://www.fftw.org/) - 但可惜你是ACM选手。
+
+#### 加载读取
+
+>  STB is All You Need.
+
+```c++
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb/stb_image.h"
+#include "stb/stb_image_write.h"
+namespace Image {
+	using Texel = unsigned char;
+	using Texels = vector<Texel>;
+	using Image = vector<Poly::RVec2>;
+	// Channels, Height, Width
+	inline tuple<ll, ll, ll> image_size(const Image& img) {
+		ll nchn = img.size(), h = img[0].size(), w = img[0][0].size();
+		return { nchn, h, w };
+	}
+	// Assuming 8bit sRGB space
+	inline Image from_texels(const Texel* img_data, int w, int h, int nchn) {
+		Image chns(nchn, Poly::RVec2(h, Poly::RVec(w)));
+		for (ll y = 0; y < h; ++y)
+			for (ll x = 0; x < w; ++x)
+				for (ll c = 0; c < nchn; ++c)
+					chns[c][y][x] = img_data[(y * w + x) * nchn + c];
+		return chns;
+	}
+	inline Texels to_texels(const Image& res, int& w, int& h, int& nchn) {
+		tie(nchn, h, w) = image_size(res);
+		Texels texels(w * h * nchn);
+		for (ll y = 0; y < h; ++y)
+			for (ll x = 0; x < w; ++x)
+				for (ll c = 0; c < nchn; ++c)
+					texels[(y * w + x) * nchn + c] = round(res[c][y][x]);
+		return texels;
+	}
+	inline Image from_file(const char* filename) {
+		int w, h, nchn;
+		Texel* img_data = stbi_load(filename, &w, &h, &nchn, 0);
+		assert(img_data && "cannot load image");
+		auto chns = from_texels(img_data, w, h, nchn);
+		stbi_image_free(img_data);
+		return chns;
+	}
+	void to_file(const Image& res, const char* filename) {
+		int w, h, nchn;
+		auto texels = to_texels(res, w, h, nchn);
+		int success = stbi_write_png(filename, w, h, nchn, texels.data(), w * nchn);
+		assert(success && "image data failed to save!");
+	}
+}
+```
+
+#### 二维包络
+
+> 想玩转超大kernel还想不等半年？？
+
+- 设原图像$A[N,M]$,包络核$B[K,L]$空间上进行包络有时间复杂度$O(N * M * K * L)$
+- 利用$\text{FFT}$则为$O(N * M * log(N * M))$
+
+下面以高斯模糊为例。
+
+```c++
+Poly::RVec2 gaussian(ll size, lf sigma) {
+	Poly::RVec2 kern(size, Poly::RVec(size));
+	lf sum = 0.0;
+	ll x0y0 = size / 2;
+	lf sigma_sq = sigma * sigma;
+	lf term1 = 1.0 / (2.0 * PI * sigma_sq);
+	for (ll i = 0; i < size; ++i) {
+		for (ll j = 0; j < size; ++j) {
+			ll x = i - x0y0, y = j - x0y0;
+			lf term2 = exp(-(lf)(x * x + y * y) / (2.0 * sigma_sq));
+			kern[i][j] = term1 * term2;
+			sum += kern[i][j];
+		}
+	}
+	for (ll i = 0; i < size; ++i)
+		for (ll j = 0; j < size; ++j)
+			kern[i][j] /= sum;
+	return kern;
+}
+#include <execution> // 什么？？STL并行化就**一行**？？
+int main() {
+	const char* input = "input.png";
+	const char* output = "output.png";
+	const int kern_size = 256;
+	const lf kern_sigma = 64.0;
+	
+	Poly::RVec2 kern = gaussian(kern_size, kern_sigma);
+	auto image = Image::from_file(input)；
+    {
+		auto [w, h, nchn] = Image::image_size(image);
+		cout << "preparing image w=" << w << " h=" << h << " nchn=" << nchn << endl;
+		for_each(execution::par, image.begin(), image.end(), [&](auto& ch) {
+			cout << "channel 0x" << hex << &ch << dec << endl;
+			Poly::convolve2D(ch, kern);
+		});		
+	}
+	{
+		Image::to_file(image, output);
+		auto [w, h, nchn] = Image::image_size(image);
+		cout << "output image w=" << w << " h=" << h << " nchn=" << nchn << endl;
+	}
+	return 0;
+}
+```
+
+- 测试样例
+
+  | 输入                                                         | 输出                                                         |
+  | ------------------------------------------------------------ | ------------------------------------------------------------ |
+  | ![input](https://github.com/user-attachments/assets/52c8860a-c118-406c-9ef1-2211b9e5ecc9) | ![output](https://github.com/user-attachments/assets/7f7bfe51-db49-4295-ab3a-76751c395c1b) |
+
+  
