@@ -13,7 +13,7 @@ typora-root-url: ..\..\static
 
 参考主要来自 https://cp-algorithms.com/algebra/fft.html, https://en.wikipedia.org/wiki/Discrete_Fourier_transform, https://oi.wiki/math/poly/fft/
 
-~~为照顾某OJ~~ 本文例程C++标准仅需`11`；**[板子传送门](#reference)**,[题目传送门](#problems)
+~~为照顾某OJ~~ 本文例程（杂项除外）C++标准仅需`11`；**[板子传送门](#reference)**,[题目传送门](#problems)
 
 ## 定义
 
@@ -761,7 +761,7 @@ namespace Image {
 - 设原图像$A[N,M]$,包络核$B[K,L]$空间上进行包络有时间复杂度$O(N * M * K * L)$
 - 利用$\text{FFT}$则为$O(N * M * log(N * M))$
 
-下面以高斯模糊为例。
+##### 高斯模糊
 
 ```c++
 Poly::RVec2 gaussian(ll size, lf sigma) {
@@ -815,4 +815,65 @@ int main() {
   | ------------------------------------------------------------ | ------------------------------------------------------------ |
   | ![input](https://github.com/user-attachments/assets/52c8860a-c118-406c-9ef1-2211b9e5ecc9) | ![output](https://github.com/user-attachments/assets/7f7bfe51-db49-4295-ab3a-76751c395c1b) |
 
-  
+##### Wiener 去卷积（逆包络）
+
+> 2025，cf愚人节H题见
+
+- https://en.wikipedia.org/wiki/Wiener_deconvolution
+- Wiener 去卷积可表示为
+
+$$
+\ F(f) = \frac{H^*(f)}{ |H(f)|^2 + N(f) }G(f)= \frac{H^*(f)}{ H(f)\times H^*(f) + N(f) }G(f)
+$$
+
+- 都在频域下，其中$F$为原图像，$G$为包络后图像，$H$为卷积核，$N$为噪声函数
+
+```c++
+#include <execution>
+int main() {
+	const char* input = "blurred.png";
+	const char* output = "deblur.png";
+	const int kern_size = 25;
+	const lf kern_sigma = 7.0;
+	
+	Poly::RVec2 kern = gaussian(kern_size, kern_sigma);
+	auto wiener = [&](Poly::RVec2& ch, Poly::RVec2 kern, lf noise = 5e-4) {
+		II og_size = { ch.size(), ch[0].size() };
+		II size = Poly::to_pow2({ ch.size(), ch[0].size() }, { kern.size(), kern[0].size() });
+		auto [N, M] = size;
+		Poly::CVec2 kern_fft = Poly::as_complex(kern);		
+		Poly::resize(kern_fft, size);
+		Poly::DFT2(kern_fft);
+		Poly::CVec2 img_fft = Poly::as_complex(ch);
+		Poly::resize(img_fft, size);
+		Poly::DFT2(img_fft);
+		Poly::CVec2 kern_fft_conj = kern_fft;
+		for (auto& row : kern_fft_conj)
+			for (auto& val : row)
+				val = conj(val);
+		for (ll i = 0; i < N; i++)
+			for (ll j = 0; j < M; j++) 
+				img_fft[i][j] = (img_fft[i][j] * kern_fft_conj[i][j]) / (kern_fft[i][j] * kern_fft_conj[i][j] + noise);
+		Poly::IDFT2(img_fft);
+		ch = Poly::as_real(img_fft);
+		Poly::resize(ch, og_size);
+	};
+	auto image = Image::from_file(input);		
+	{
+		auto [w, h, nchn] = Image::image_size(image);
+		cout << "preparing image w=" << w << " h=" << h << " nchn=" << nchn << endl;
+		for_each(execution::par, image.begin(), image.end(), [&](auto& ch) {
+			cout << "channel 0x" << hex << &ch << dec << endl;
+			// Poly::convolve2D(ch, kern);
+			wiener(ch, kern);
+		});		
+	}
+	{
+		Image::to_file(image, output);
+		auto [w, h, nchn] = Image::image_size(image);
+		cout << "output image w=" << w << " h=" << h << " nchn=" << nchn << endl;
+	}
+	return 0;
+}
+```
+
