@@ -837,23 +837,22 @@ int main() {
 	const lf kern_sigma = 7.0;
 	
 	Poly::RVec2 kern = gaussian(kern_size, kern_sigma);
-	auto wiener = [&](Poly::RVec2& ch, Poly::RVec2 kern, lf noise = 5e-4) {
+	auto wiener = [&](Poly::RVec2& ch, Poly::RVec2 kern, lf noise = 5e-5) {
 		II og_size = { ch.size(), ch[0].size() };
 		II size = Poly::to_pow2({ ch.size(), ch[0].size() }, { kern.size(), kern[0].size() });
 		auto [N, M] = size;
-		Poly::CVec2 kern_fft = Poly::as_complex(kern);		
-		Poly::resize(kern_fft, size);
-		Poly::DFT2(kern_fft);
 		Poly::CVec2 img_fft = Poly::as_complex(ch);
 		Poly::resize(img_fft, size);
 		Poly::DFT2(img_fft);
-		Poly::CVec2 kern_fft_conj = kern_fft;
-		for (auto& row : kern_fft_conj)
-			for (auto& val : row)
-				val = conj(val);
+		Poly::CVec2 kern_fft = Poly::as_complex(kern);		
+		Poly::resize(kern_fft, size);
+		Poly::DFT2(kern_fft);
 		for (ll i = 0; i < N; i++)
-			for (ll j = 0; j < M; j++) 
-				img_fft[i][j] = (img_fft[i][j] * kern_fft_conj[i][j]) / (kern_fft[i][j] * kern_fft_conj[i][j] + noise);
+			for (ll j = 0; j < M; j++) {
+				auto kern_fft_conj = conj(kern_fft[i][j]);
+				auto denom = kern_fft[i][j] * kern_fft_conj + noise;
+				img_fft[i][j] = (img_fft[i][j] * kern_fft_conj) / denom;
+			}
 		Poly::IDFT2(img_fft);
 		ch = Poly::as_real(img_fft);
 		Poly::resize(ch, og_size);
