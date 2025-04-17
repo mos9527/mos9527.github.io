@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-17T17:47:48.518604
+lastmod: 2025-04-17T18:31:26.976000+08:00
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -13,7 +13,7 @@ typora-root-url: ..\..\static
 
 参考主要来自 https://cp-algorithms.com/algebra/fft.html, https://en.wikipedia.org/wiki/Discrete_Fourier_transform, https://oi.wiki/math/poly/fft/
 
-~~为照顾某OJ~~ 本文例程C++标准仅需`11`；**[板子传送门](#reference)**
+~~为照顾某OJ~~ 本文例程C++标准仅需`11`；**[板子传送门](#reference)**,[题目传送门](#problems)
 
 ## 定义
 
@@ -416,8 +416,6 @@ void IFFT(vec& y) { NTT(y, 998244353,3, true); }
 
 本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，即插即用。为准确起见，API以`DFT(...), IDFT(...)`命名。
 
-- https://acm.hdu.edu.cn/showproblem.php?pid=1402
-
 ```c++
 #include "bits/stdc++.h"
 using namespace std;
@@ -433,7 +431,7 @@ ll binpow_mod(ll a, ll b, ll m = MOD) {
     ll res = 1;
     while (b > 0) {
         if (b & 1) res = (__int128)res * a % m;
-        a = (__int128)a * a % m;
+        a = (__int128)a * a % m
         b >>= 1;
     }
     return res;
@@ -557,6 +555,8 @@ namespace Poly {
     }
 }
 int main() {
+    fast_io();
+    /* El Psy Kongroo */
     string a,b;
     while (cin >> a >> b)
     {
@@ -569,6 +569,49 @@ int main() {
             ll len = Poly::mul_poly(A, B);
             Poly::normalize(A, 10u);
             for (ll i = len - 1, flag = 0;i >= 0;i--) {
+                flag |= A[i] != 0;
+                if (flag || i == 0)
+                    cout << (ll)A[i];
+            }
+            cout << endl;
+        }
+    }
+}
+```
+
+# Problems
+
+## 大整数乘法
+
+- https://acm.hdu.edu.cn/showproblem.php?pid=1402
+
+- $10$ 进制数，各位数字从低到高为$d_i$可看作是多项式$A(x) = x^n \times d_n + ... + x^1 \times d_1 + x^0 \times d_0$于$x=10$时的解
+
+- 两个十进制数即可看成是$A(x), B(x)$，求$A(x) * B(x)$即求$AB(x)$，由上文所述$\text{DFT,IDFT}$关系已知我们可以借此通过$\text{FFT}$在$O(n\log n)$时间计算这样的数
+
+- 由于是$10$进制，最后多项式的系数即对应$x=10$解；注意进位。
+
+```c++
+void carry(Poly::IVec& a, ll radiax) {
+    for (ll i = 0; i < a.size() - 1; i++)
+        a[i + 1] += a[i] / radiax,
+        a[i] %= radiax;
+}
+int main() {
+    fast_io();
+    /* El Psy Kongroo */
+    string a, b;
+    while (cin >> a >> b)
+    {
+        {
+            Poly::IVec A(a.size()), B(b.size());
+            for (ll i = 0; i < a.size(); i++)
+                A[i] = a[a.size() - 1 - i] - '0';
+            for (ll i = 0; i < b.size(); i++)
+                B[i] = b[b.size() - 1 - i] - '0';
+            ll len = Poly::mul_poly(A, B);
+            carry(A, 10u);
+            for (ll i = len - 1, flag = 0; i >= 0; i--) {
                 flag |= A[i] != 0;
                 if (flag || i == 0)
                     cout << (ll)A[i];

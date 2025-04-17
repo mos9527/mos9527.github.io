@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-17T09:02:42.760549
+lastmod: 2025-04-17T18:01:50.933000+08:00
 title: PSJK Blender卡通渲染管线重现【1】- 预备工作
 tags: ["逆向","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "逆向", "合集", "CG"]

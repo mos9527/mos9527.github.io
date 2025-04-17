@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-17T09:02:42.758193
+lastmod: 2025-04-17T18:01:50.929000+08:00
 title: Computing Notes - GCD and Related Topics
 tags: ["ACM","Competeive Programming","XCPC","(Code) Templates","Problem sets","Codeforces","C++","GCD","Mathematics"]
 categories: ["Problem Solutions", "Competeive Programming", "Collection"]
