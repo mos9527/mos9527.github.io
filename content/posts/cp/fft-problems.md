@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T12:17:23.032000+08:00
+lastmod: 2025-04-18T19:17:12.394781
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -37,13 +37,14 @@ $$
 
   - 积性
     $$
-    w^n = 1 \newline
-    w^k \ne 1, 0 \lt k \lt n
+    w_n^n = 1 \newline
+    w_n^{\frac{n}{2}} = -1 \newline
+    w_n^k \ne 1, 0 \lt k \lt n
     $$
-
+    
   - 所有单位根和为$0$
     $$
-    \sum_{k=0}^{n-1} w^k = 0
+    \sum_{k=0}^{n-1} w_n^k = 0
     $$
     这点利用欧拉公式$e^{ix} = cos x + i\ sin x$看$n$边形对称性很显然
 
@@ -412,11 +413,15 @@ void FFT(vec& a) { NTT(a,998244353, 3, false); }
 void IFFT(vec& y) { NTT(y, 998244353,3, true); }
 ```
 
+## 余弦变换（DCT）
+
+咱略；见下文实现
+
 ## Reference
 
 #### poly.h
 
-本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，开箱即用。为准确起见，API以`DFT(...), IDFT(...)`命名。
+本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，开箱即用。
 
 心情好的话（link下`tbb`?还是说你用的就是`msvc`...）本实现中二维FFT可以实现并行（`execution = std::execution::par_unseq`）
 
@@ -432,112 +437,23 @@ void IFFT(vec& y) { NTT(y, 998244353,3, true); }
 namespace Poly {
     using ll = long long;   using lf = double;  using II = std::pair<ll, ll>;
     constexpr lf PI = std::acos(-1);
-    constexpr ll MOD = 998244353, MOD_proot = 3;
+    constexpr ll NTT_Mod = 998244353, NTT_Root = 3;
     using Complex = std::complex<lf>;
     using CVec = std::vector<Complex>;
     using RVec = std::vector<lf>;
     using IVec = std::vector<ll>;
     using CVec2 = std::vector<CVec>;
     using RVec2 = std::vector<RVec>;
+    using IVec2 = std::vector<IVec>;
 #if __cplusplus >= 202002L
     template <typename T> concept ExecutionPolicy = std::is_execution_policy_v<T>;
+    template <typename T> concept Vec1D = std::is_same_v<T, CVec> || std::is_same_v<T, RVec> || std::is_same_v<T, IVec>;
+    template <typename T> concept Vec2D = std::is_same_v<T, CVec2> || std::is_same_v<T, RVec2> || std::is_same_v<T, IVec2>;
 #else
 #define ExecutionPolicy class
+#define Callable class
+#define Vec2D class
 #endif
-    namespace details {
-        inline ll qpow(ll a, ll b, ll m) {
-            a %= m;
-            ll res = 1;
-            while (b > 0) {
-                if (b & 1) res = res * a % m;
-                a = a * a % m;
-                b >>= 1;
-            }
-            return res;
-        }
-        inline ll bit_reverse_perm(ll n, ll x) {
-            ll msb = ceil(log2(n)), res = 0;
-            for (ll i = 0; i < msb; i++)
-                if (x & (1ll << i))
-                    res |= 1ll << (msb - 1 - i);
-            return res;
-        }
-        inline CVec& FFT(CVec& a, bool invert) {
-            ll n = a.size();
-            for (ll i = 0, r; i < n; i++)
-                if (i < (r = bit_reverse_perm(n, i)))
-                    swap(a[i], a[r]);
-            for (ll n_i = 2; n_i <= n; n_i <<= 1) {
-                // Complex w_n = exp(Complex{ 0, 2 * PI / n_i });
-                Complex w_n = { std::cos(2 * PI / n_i), std::sin(2 * PI / n_i) };
-                if (invert) w_n = conj(w_n);
-                for (ll i = 0; i < n; i += n_i) {
-                    Complex w_k = Complex{ 1, 0 };
-                    for (ll j = 0; j < n_i / 2; j++) {
-                        Complex u = a[i + j], v = a[i + j + n_i / 2] * w_k;
-                        a[i + j] = u + v;
-                        a[i + j + n_i / 2] = u - v;
-                        if (invert)
-                            a[i + j] /= 2, a[i + j + n_i / 2] /= 2;
-                        w_k *= w_n;
-                    }
-                }
-            }
-            return a;
-        }
-        inline IVec& NTT(IVec& a, ll p, ll g, bool invert) {
-            ll n = a.size();
-            for (ll i = 0, r; i < n; i++)
-                if (i < (r = bit_reverse_perm(n, i)))
-                    swap(a[i], a[r]);
-            ll inv_2 = qpow(2, p - 2, p);
-            for (ll n_i = 2; n_i <= n; n_i <<= 1) {
-                ll w_n = qpow(g, (p - 1) / n_i, p);
-                if (invert)
-                    w_n = qpow(w_n, p - 2, p);
-                for (ll i = 0; i < n; i += n_i) {
-                    ll w_k = 1;
-                    for (ll j = 0; j < n_i / 2; j++) {
-                        ll u = a[i + j], v = a[i + j + n_i / 2] * w_k;
-                        a[i + j] = (u + v + p) % p;
-                        a[i + j + n_i / 2] = (u - v + p) % p;
-                        if (invert) {
-                            a[i + j] = (a[i + j] * inv_2 % p + p) % p;
-                            a[i + j + n_i / 2] = (a[i + j + n_i / 2] * inv_2 % p + p) % p;
-                        }
-                        w_k = w_k * w_n % p;
-                    }
-                }
-            }
-            return a;
-        }
-        template<ExecutionPolicy Exec> CVec2& FFT2(CVec2& a, bool invert, Exec const& execution) {
-            const ll n = a.size(), m = a[0].size();
-            IVec mn(max(m, n)); iota(mn.begin(), mn.end(), 0);
-            for_each(execution, mn.begin(), mn.begin() + n, [&](ll row) {
-                FFT(a[row], invert);
-            });
-            for_each(execution, mn.begin(), mn.begin() + m, [&](ll col){
-                CVec c(n);
-                for (ll row = 0; row < n; row++)
-                    c[row] = a[row][col];
-                FFT(c, invert);
-                for (ll row = 0; row < n; row++)
-                    a[row][col] = c[row];
-            });
-            return a;
-        }
-    }
-    namespace fourier {
-        inline CVec& DFT(CVec& a) { return details::FFT(a, false); }
-        inline CVec& IDFT(CVec& a) { return details::FFT(a, true); }
-        inline IVec& DFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return details::NTT(a, p, g, false); }
-        inline IVec& IDFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return details::NTT(a, p, g, true); }
-        template<ExecutionPolicy Exec>
-        CVec2& DFT2(CVec2& a, Exec const& execution) { return details::FFT2(a, false, execution); }
-        template<ExecutionPolicy Exec>
-        CVec2& IDFT2(CVec2& a, Exec const& execution) { return details::FFT2(a, true, execution); }
-    }
     namespace utils {
         inline RVec as_real(CVec const& a) {
             RVec res(a.size());
@@ -560,17 +476,18 @@ namespace Poly {
                 res[i] = as_complex(a[i]);
             return res;
         }
-        inline ll to_pow2(ll a, ll b) {
-            ll n = a + b;
+        inline bool is_pow2(ll x) {
+            return (x & (x - 1)) == 0;
+        }
+        inline ll to_pow2(ll n) {
             n = ceil(log2(n)), n = 1ll << n;
             return n;
         }
+        inline ll to_pow2(ll a, ll b) {
+            return to_pow2(a + b);
+        }
         inline II to_pow2(II const& a, II const& b) {
-            ll n = a.first + b.first;
-            ll m = a.second + b.second;
-            n = ceil(log2(n)), n = 1ll << n;
-            m = ceil(log2(m)), m = 1ll << m;
-            return { n, m };
+            return { to_pow2(a.first + b.first), to_pow2(a.second + b.second)};
         }
         template<typename T> inline void resize(T& a, ll n) { a.resize(n); }
         template<typename T> inline void resize(T& a, II nm) {
@@ -593,45 +510,222 @@ namespace Poly {
             }
         }
     }
-    namespace conv {
-        template<typename T> inline T& convolve(T& a, T& b) {
-            ll n = utils::to_pow2(a.size(), b.size());
-            utils::resize(a, n), utils::resize(b, n);
-            fourier::DFT(a), fourier::DFT(b);
-            for (ll i = 0; i < n; i++)
-                a[i] *= b[i];
-            fourier::IDFT(a);
+    namespace details {
+        inline ll qpow(ll a, ll b, ll m) {
+            a %= m;
+            ll res = 1;
+            while (b > 0) {
+                if (b & 1) res = res * a % m;
+                a = a * a % m;
+                b >>= 1;
+            }
+            return res;
+        }
+        inline ll bit_reverse_perm(ll n, ll x) {
+            ll msb = ceil(log2(n)), res = 0;
+            for (ll i = 0; i < msb; i++)
+                if (x & (1ll << i))
+                    res |= 1ll << (msb - 1 - i);
+            return res;
+        }
+        // Cooley-Tukey FFT
+        inline CVec& FFT(CVec& a, bool invert) {
+            const ll n = a.size();
+            assert(utils::is_pow2(n));
+            for (ll i = 0, r; i < n; i++)
+                if (i < (r = bit_reverse_perm(n, i)))
+                    swap(a[i], a[r]);
+            for (ll n_i = 2; n_i <= n; n_i <<= 1) {
+                lf w_ang = 2 * PI / n_i;
+                // Complex w_n = exp(Complex{ 0, ang });
+                Complex w_n = { std::cos(w_ang), std::sin(w_ang) };
+                if (invert) w_n = conj(w_n);
+                for (ll i = 0; i < n; i += n_i) {
+                    Complex w_k = Complex{ 1, 0 };
+                    for (ll j = 0; j < n_i / 2; j++) {
+                        Complex u = a[i + j], v = a[i + j + n_i / 2] * w_k;
+                        a[i + j] = u + v;
+                        a[i + j + n_i / 2] = u - v;
+                        if (invert)
+                            a[i + j] /= 2, a[i + j + n_i / 2] /= 2;
+                        w_k *= w_n;
+                    }
+                }
+            }
             return a;
         }
-        inline RVec& convolve(RVec& a, RVec const& b) {
-            CVec a_c = utils::as_complex(a), b_c = utils::as_complex(b);
-            convolve(a_c, b_c);
-            a = utils::as_real(a_c);
+        // Cooley-Tukey FFT in modular arithmetic / Number Theoretic Transform
+        inline IVec& NTT(IVec& a, ll p, ll g, bool invert) {
+            const ll n = a.size();
+            assert(utils::is_pow2(n));
+            for (ll i = 0, r; i < n; i++)
+                if (i < (r = bit_reverse_perm(n, i)))
+                    swap(a[i], a[r]);
+            const ll inv_2 = qpow(2, p - 2, p);
+            for (ll n_i = 2; n_i <= n; n_i <<= 1) {
+                ll w_n = qpow(g, (p - 1) / n_i, p);
+                if (invert)
+                    w_n = qpow(w_n, p - 2, p);
+                for (ll i = 0; i < n; i += n_i) {
+                    ll w_k = 1;
+                    for (ll j = 0; j < n_i / 2; j++) {
+                        ll u = a[i + j], v = a[i + j + n_i / 2] * w_k;
+                        a[i + j] = (u + v + p) % p;
+                        a[i + j + n_i / 2] = (u - v + p) % p;
+                        if (invert) {
+                            a[i + j] = (a[i + j] * inv_2 % p + p) % p;
+                            a[i + j + n_i / 2] = (a[i + j + n_i / 2] * inv_2 % p + p) % p;
+                        }
+                        w_k = w_k * w_n % p;
+                    }
+                }
+            }
             return a;
+        }
+        // (Normalized Output) Discrete Cosine Transform (DCT-II), aka DCT
+        inline RVec& DCT2(RVec& a) {
+            // https://docs.scipy.org/doc/scipy/reference/generated/scipy.fftpack.dct.html
+            // https://zh.wikipedia.org/wiki/离散余弦变换#方法一[8]
+            const ll n = a.size(), N = 2 * n;
+            const lf k2N = std::sqrt(N), k4N = std::sqrt(2.0 * N);
+            assert(utils::is_pow2(n));
+            CVec a_n2 = utils::as_complex(a);
+            a_n2.resize(N);
+            std::copy(a_n2.begin(), a_n2.begin() + n, a_n2.begin() + n);
+            std::reverse(a_n2.begin() + n, a_n2.end());
+            FFT(a_n2, false);
+            for (ll m = 0; m < n;m++) {
+                lf w_ang = PI * m / N;
+                Complex w_n = { std::cos(w_ang), std::sin(w_ang) };
+                a[m] = (a_n2[m] * w_n).real(); // imag = 0
+                a[m] /= (m == 0 ? k4N : k2N);
+            }
+            return a;
+        }
+        // (Normalized Input) Discrete Cosine Transform (DCT-III), aka IDCT
+        inline RVec& DCT3(RVec& a) {
+            // https://dsp.stackexchange.com/questions/51311/computation-of-the-inverse-dct-idct-using-dct-or-ifft
+            // https://docs.scipy.org/doc/scipy/reference/generated/scipy.fftpack.dct.html
+            const ll n = a.size(), N = 2 * n;
+            const lf k2N = std::sqrt(N);
+            assert(utils::is_pow2(n));
+            CVec a_n = utils::as_complex(a);
+            a[0] /= std::sqrt(2.0);
+            for (ll m = 0; m < n;m++) {
+                lf w_ang = -PI * m / N;
+                Complex w_n = { std::cos(w_ang), std::sin(w_ang) };
+                a[m] *= k2N;
+                a_n[m] = a[m] * w_n;
+            }
+            FFT(a_n, true);
+            for (ll m = 0; m < n/2;m++)
+                a[m * 2] = a_n[m].real(),
+                a[m * 2 + 1] = a_n[n - m - 1].real();
+            return a;
+        }
+    }
+    namespace transform {
+        template<Vec2D T, ExecutionPolicy Execution, class Transform> T& __transform2D(T& a, Transform const& transform, Execution const& execution) {
+            const ll n = a.size(), m = a[0].size();
+            IVec mn(max(m, n)); iota(mn.begin(), mn.end(), 0);
+            for_each(execution, mn.begin(), mn.begin() + n, [&](ll row) {
+                transform(a[row]);
+            });
+            for_each(execution, mn.begin(), mn.begin() + m, [&](ll col){
+                CVec c(n);
+                for (ll row = 0; row < n; row++)
+                    c[row] = a[row][col];
+                transform(c);
+                for (ll row = 0; row < n; row++)
+                    a[row][col] = c[row];
+            });
+            return a;
+        }
+        inline CVec& DFT(CVec& a) {
+            return details::FFT(a, false);
+        }
+        inline CVec& IDFT(CVec& a) {
+            return details::FFT(a, true);
+        }
+        inline IVec& NTT(IVec& a, ll p, ll g) {
+            return details::NTT(a, p, g, false);
+        }
+        inline IVec& INTT(IVec& a, ll p, ll g) {
+            return details::NTT(a, p, g, true);
+        }
+        inline RVec& DCT(RVec& a) {
+            return details::DCT2(a);
+        }
+        inline RVec& IDCT(RVec& a) {
+            return details::DCT3(a);
         }
         template<ExecutionPolicy Exec>
-        CVec2& convolve2D(CVec2& a, CVec2& b, Exec const& execution) {
+        CVec2& DFT2(CVec2& a, Exec execution) {
+            return __transform2D(a, DFT, execution);
+        }
+        template<ExecutionPolicy Exec>
+        CVec2& IDFT2(CVec2& a, Exec execution) {
+            return __transform2D(a, IDFT, execution);
+        }
+        template<ExecutionPolicy Exec>
+        RVec2& DCT2(RVec2& a, Exec execution) {
+            return __transform2D(a, DCT, execution);
+        }
+        template<ExecutionPolicy Exec>
+        RVec2& IDCT2(RVec2& a, Exec execution) {
+            return __transform2D(a, IDCT, execution);
+        }
+    }
+    namespace conv {
+        template<Vec1D T, class Transform, class InvTransform>
+        T& __convolve(T& a, T& b, Transform const& transform, InvTransform const& inv_transform) {
+            ll n = utils::to_pow2(a.size(), b.size());
+            utils::resize(a, n), utils::resize(b, n);
+            transform(a), transform(b);
+            for (ll i = 0; i < n; i++)
+                a[i] *= b[i];
+            inv_transform(a);
+            return a;
+        }
+        template<Vec2D T, class Transform, class InvTransform, ExecutionPolicy Exec>
+        T& __convolve2D(T& a, T& b, Transform const& transform, InvTransform const& inv_transform, Exec const& execution) {
             ll n = a.size(), m = a[0].size();
             ll k = b.size(), l = b[0].size();
             II NM = utils::to_pow2({ n,m },{ k,l });
             auto [N, M] = NM;
             utils::resize(a, NM), utils::resize(b, NM);
-            fourier::DFT2(a, execution), fourier::DFT2(b, execution);
+            transform(a, execution), transform(b, execution);
             for (ll i = 0; i < N; ++i)
                 for (ll j = 0; j < M; ++j)
                     a[i][j] *= b[i][j];
-            fourier::IDFT2(a, execution);
+            inv_transform(a, execution);
             a.resize(n + k - 1);
             for (auto& row : a)
                 row.resize(m + l - 1);
             return a;
         }
-        template<ExecutionPolicy Exec>
-        RVec2& convolve2D(RVec2& a, RVec2& b, Exec const& execution) {
-            CVec2 a_c = utils::as_complex(a), b_c = utils::as_complex(b);
-            convolve2D(a_c, b_c, execution);
-            a = utils::as_real(a_c);
-            return a;
+        // Performs complex convolution with DFT
+        CVec& convolve(CVec& a, CVec& b) {
+            return __convolve(a, b,transform::DFT,transform::IDFT);
+        }
+        // Performs modular convolution with NTT
+        IVec& convolve(IVec& a, IVec& b, ll mod=NTT_Mod, ll root=NTT_Root) {
+            return __convolve(
+                a, b,
+                [=](IVec& x){return transform::NTT(x,mod,root);},
+                [=](IVec& x){return transform::INTT(x,mod,root);});
+        }
+        // Performs real-valued convolution with DCT
+        RVec& convolve(RVec& a, RVec& b) {
+            return __convolve(a, b, transform::DCT, transform::IDCT);
+        }
+        // Performs complex 2D convolution with DFT
+        template<ExecutionPolicy Exec> CVec2& convolve2D(CVec2& a, CVec2& b, Exec const& execution) {
+            return __convolve2D(a, b, transform::DFT2<Exec>, transform::IDFT2<Exec>, execution);
+        }
+        // Performs real-valued 2D convolution with DCT
+        template<ExecutionPolicy Exec> RVec2& convolve2D(RVec2& a, RVec2& b, Exec const& execution) {
+            return __convolve2D(a, b, transform::DCT2<Exec>, transform::IDCT2<Exec>, execution);
         }
     }
 }
