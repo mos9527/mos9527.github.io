@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T10:07:11.644098
+lastmod: 2025-04-18T10:25:14.853644
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -414,6 +414,8 @@ void IFFT(vec& y) { NTT(y, 998244353,3, true); }
 
 ## Reference
 
+#### poly.h
+
 本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，开箱即用。为准确起见，API以`DFT(...), IDFT(...)`命名。
 
 心情好的话（link下`tbb`?还是说你用的就是`msvc`...）本实现中二维FFT可以实现并行（`execution = std::execution::par_unseq`）
@@ -466,7 +468,8 @@ namespace Poly {
                 if (i < (r = bit_reverse_perm(n, i)))
                     swap(a[i], a[r]);
             for (ll n_i = 2; n_i <= n; n_i <<= 1) {
-                Complex w_n = exp(Complex{ 0, 2 * PI / n_i });
+                // Complex w_n = exp(Complex{ 0, 2 * PI / n_i });
+                Complex w_n = { std::cos(2 * PI / n_i), std::sin(2 * PI / n_i) };
                 if (invert) w_n = conj(w_n);
                 for (ll i = 0; i < n; i += n_i) {
                     Complex w_k = Complex{ 1, 0 };
@@ -725,7 +728,7 @@ $$
 
 > 正常人应该用[FFTW](https://www.fftw.org/) - 但可惜你是ACM选手。
 
-#### 加载读取
+#### image.h
 
 >  STB is All You Need.
 
