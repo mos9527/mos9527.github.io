@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T10:05:39.362383
+lastmod: 2025-04-18T10:07:11.644098
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -835,7 +835,7 @@ int main() {
         cout << "preparing image w=" << w << " h=" << h << " nchn=" << nchn << endl;
         for_each(__Exec, image.begin(), image.end(), [&](auto& ch) {
             cout << "channel 0x" << hex << &ch << dec << endl;
-            Poly::convolve2D(ch, kern);
+            Poly::conv::convolve2D(ch, kern, __Exec);
         });
     }
     {
