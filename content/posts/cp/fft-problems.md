@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T10:55:10.404321
+lastmod: 2025-04-18T11:25:17.399903
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -513,13 +513,11 @@ namespace Poly {
         }
         template<ExecutionPolicy Exec> CVec2& FFT2(CVec2& a, bool invert, Exec const& execution) {
             const ll n = a.size(), m = a[0].size();
-            IVec mn(max(n,m)); iota(mn.begin(), mn.end(), 0);
-            mn.resize(n);
-            for_each(execution, mn.begin(), mn.end(), [&](ll row) {
+            IVec mn(max(m, n)); iota(mn.begin(), mn.end(), 0);
+            for_each(execution, mn.begin(), mn.begin() + n, [&](ll row) {
                 FFT(a[row], invert);
             });
-            mn.resize(m);
-            for_each(execution, mn.begin(), mn.end(), [&](ll col){
+            for_each(execution, mn.begin(), mn.begin() + m, [&](ll col){
                 CVec c(n);
                 for (ll row = 0; row < n; row++)
                     c[row] = a[row][col];
@@ -578,6 +576,21 @@ namespace Poly {
         template<typename T> inline void resize(T& a, II nm) {
             a.resize(nm.first);
             for (auto& row : a) row.resize(nm.second);
+        }
+        template<typename T, typename Ty> inline void resize(T& a, II nm, Ty fill) {
+            auto [N,M] = nm;
+            ll n = a.size(), m = a[0].size();
+            resize(a, nm);
+            if (M > m) {
+                for (ll i = 0;i < n;++i)
+                    for (ll j = m; j < M; ++j)
+                        a[i][j] = fill;
+            }
+            if (N > n) {
+                for (ll i = n; i < N; ++i)
+                    for (ll j = 0; j < M; ++j)
+                        a[i][j] = fill;
+            }
         }
     }
     namespace conv {
@@ -901,18 +914,20 @@ Poly::RVec2 gaussian(ll size, lf sigma) {
 }
 const auto __Exec = std::execution::par_unseq;
 int main() {
-    const char* input = "data/output.png";
+    const char* input = "data/blurred.png";
     const char* output = "data/deblur.png";
     const int kern_size = 25;
     const lf kern_sigma = 7.0;
 
     Poly::RVec2 kern = gaussian(kern_size, kern_sigma);
-    auto wiener = [&](Poly::RVec2& ch, Poly::RVec2 kern, lf noise = 5e-5) {
+    auto wiener = [&](Poly::RVec2& ch, Poly::RVec2 kern, lf noise = 5e-6) {
         II og_size = { ch.size(), ch[0].size() };
         II size = Poly::utils::to_pow2({ ch.size(), ch[0].size() }, { kern.size(), kern[0].size() });
         auto [N, M] = size;
+        Poly::utils::resize(ch, size, 255.0);
+        // 需要窗口
         Poly::CVec2 img_fft = Poly::utils::as_complex(ch);
-        Poly::utils::resize(img_fft, size);
+        ch = Poly::utils::as_real(img_fft);
         Poly::fourier::DFT2(img_fft, __Exec);
         Poly::CVec2 kern_fft = Poly::utils::as_complex(kern);
         Poly::utils::resize(kern_fft, size);
