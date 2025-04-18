@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T20:02:21.868000+08:00
+lastmod: 2025-04-18T20:04:28.868000+08:00
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -972,7 +972,7 @@ int main() {
 - Wiener 去卷积可表示为
 
 $$
-\ F(f) = \frac{H^*(f)}{ |H(f)|^2 + N(f) }G(f)= \frac{H^*(f)}{ H(f)\times H^*(f) + N(f) }G(f)
+\ F(f) = \frac{H^\star(f)}{ |H(f)|^2 + N(f) }G(f)= \frac{H^\star(f)}{ H(f)\times H^\star(f) + N(f) }G(f)
 $$
 
 - 都在频域下，其中$F$为原图像，$G$为包络后图像，$H$为卷积核，$N$为噪声函数
