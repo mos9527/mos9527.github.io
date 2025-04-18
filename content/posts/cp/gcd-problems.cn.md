@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T14:31:36.682137
+lastmod: 2025-04-18T19:45:14.498000+08:00
 title: 算竞笔记 - GCD及相关专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++","GCD","数学"]
 categories: ["题解", "算竞", "合集"]

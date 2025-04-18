@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T14:31:36.682559
+lastmod: 2025-04-18T19:45:14.500000+08:00
 title: Arithmetic Notes - Hash Types Topic
 tags: ["Hashing","ACM","Competeive Programming","XCPC","(Code) Templates","Problem sets","Codeforces","C++","Mathematics"]
 categories: ["Problem Solutions", "Competeive Programming", "Collection/compilation"]
