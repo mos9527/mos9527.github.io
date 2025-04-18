@@ -435,7 +435,7 @@ $$
 
 ## Reference
 
-#### poly.h
+#### lib/poly.h
 
 本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，开箱即用。
 
@@ -698,7 +698,7 @@ namespace Poly {
     }
     namespace conv {
         template<Vec1D T, class Transform, class InvTransform>
-        T& __convolve(T& a, T& b, Transform const& transform, InvTransform const& inv_transform) {
+        T& __convolve(T& a, T b, Transform const& transform, InvTransform const& inv_transform) {
             ll n = utils::to_pow2(a.size(), b.size());
             utils::resize(a, n), utils::resize(b, n);
             transform(a), transform(b);
@@ -707,7 +707,7 @@ namespace Poly {
             return a;
         }
         template<Vec2D T, class Transform, class InvTransform, ExecutionPolicy Exec>
-        T& __convolve2D(T& a, T& b, Transform const& transform, InvTransform const& inv_transform, Exec const& execution) {
+        T& __convolve2D(T& a, T b, Transform const& transform, InvTransform const& inv_transform, Exec const& execution) {
             ll n = a.size(), m = a[0].size();
             ll k = b.size(), l = b[0].size();
             II NM = utils::to_pow2({ n,m },{ k,l });
@@ -721,23 +721,23 @@ namespace Poly {
             return a;
         }
         // Performs complex convolution with DFT
-        CVec& convolve(CVec& a, CVec& b) {
+        CVec& convolve(CVec& a, CVec b) {
             return __convolve(a, b,transform::DFT,transform::IDFT);
         }
         // Performs modular convolution with NTT
-        IVec& convolve(IVec& a, IVec& b, ll mod=NTT_Mod, ll root=NTT_Root) {
+        IVec& convolve(IVec& a, IVec b, ll mod=NTT_Mod, ll root=NTT_Root) {
             return __convolve(a, b,[=](IVec& x){return transform::NTT(x,mod,root);},[=](IVec& x){return transform::INTT(x,mod,root);});
         }
         // Performs real-valued convolution with DCT
-        RVec& convolve(RVec& a, RVec& b) {
+        RVec& convolve(RVec& a, RVec b) {
             return __convolve(a, b, transform::DCT, transform::IDCT);
         }
         // Performs complex 2D convolution with DFT
-        template<ExecutionPolicy Exec> CVec2& convolve2D(CVec2& a, CVec2& b, Exec const& execution) {
+        template<ExecutionPolicy Exec> CVec2& convolve2D(CVec2& a, CVec2 b, Exec const& execution) {
             return __convolve2D(a, b, transform::DFT2<Exec>, transform::IDFT2<Exec>, execution);
         }
         // Performs real-valued 2D convolution with DCT
-        template<ExecutionPolicy Exec> RVec2& convolve2D(RVec2& a, RVec2& b, Exec const& execution) {
+        template<ExecutionPolicy Exec> RVec2& convolve2D(RVec2& a, RVec2 b, Exec const& execution) {
             return __convolve2D(a, b, transform::DCT2<Exec>, transform::IDCT2<Exec>, execution);
         }
     }
@@ -848,7 +848,7 @@ $$
 
 > 正常人应该用[FFTW](https://www.fftw.org/) - 但可惜你是ACM选手。
 
-### image.h
+### lib/image.h
 
 >  STB is All You Need.
 
@@ -988,7 +988,7 @@ int main() {
 - Wiener 去卷积可表示为
 
 $$
-\ F(f) = \frac{H^*(f)}{ |H(f)|^2 + N(f) }G(f)= \frac{H^*(f)}{ H(f)\times H^*(f) + N(f) }G(f)
+\ F(f) = \frac{H^\star(f)}{ |H(f)|^2 + N(f) }G(f)= \frac{H^\star(f)}{ H(f)\times H^\star(f) + N(f) }G(f)
 $$
 
 - 都在频域下，其中$F$为原图像，$G$为包络后图像，$H$为卷积核，$N$为噪声函数

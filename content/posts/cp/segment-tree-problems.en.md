@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T14:31:36.682991
+lastmod: 2025-04-18T19:45:14.501000+08:00
 title: Arithmetic Competition Notes - Line Tree Topics
 tags: ["Line segment tree",ACM","Competeive Programming","XCPC","(Code) Templates","Problem sets","Codeforces","C++"]
 categories: ["Problem Solutions", "Competeive Programming", "Collection/compilation"]
