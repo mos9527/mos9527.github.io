@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T10:41:36.520734
+lastmod: 2025-04-18T10:55:10.404321
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -901,7 +901,7 @@ Poly::RVec2 gaussian(ll size, lf sigma) {
 }
 const auto __Exec = std::execution::par_unseq;
 int main() {
-    const char* input = "data/blurred.png";
+    const char* input = "data/output.png";
     const char* output = "data/deblur.png";
     const int kern_size = 25;
     const lf kern_sigma = 7.0;
