@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T20:57:23.383605
+lastmod: 2025-04-18T22:34:43.865000+08:00
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -448,6 +448,7 @@ $$
  * ...Though in truth, use something like FFTW instead. This is for reference and educational purposes only. */
 #pragma once
 #define _POLY_H
+#include <cassert>
 #include <cmath>
 #include <vector>
 #include <complex>
@@ -456,8 +457,8 @@ $$
 #include <execution>
 namespace Poly {
     using ll = long long;   using lf = double;  using II = std::pair<ll, ll>;
-    constexpr lf PI = std::acos(-1);
-    constexpr ll NTT_Mod = 998244353, NTT_Root = 3;
+    const lf PI = std::acos(-1);
+    const ll NTT_Mod = 998244353, NTT_Root = 3;
     using Complex = std::complex<lf>;
     using CVec = std::vector<Complex>;
     using RVec = std::vector<lf>;
@@ -473,6 +474,7 @@ namespace Poly {
 #define ExecutionPolicy class
 #define Callable class
 #define Vec2D class
+#define Vec1D class
 #endif
     namespace utils {
         inline RVec as_real(CVec const& a) {
@@ -488,7 +490,7 @@ namespace Poly {
             return res;
         }
         inline CVec as_complex(RVec const& a) {
-            return {a.begin(), a.end()};
+            return { a.begin(), a.end() };
         }
         inline CVec2 as_complex(RVec2 const& a) {
             CVec2 res(a.size());
@@ -507,7 +509,7 @@ namespace Poly {
             return to_pow2(a + b);
         }
         inline II to_pow2(II const& a, II const& b) {
-            return { to_pow2(a.first + b.first), to_pow2(a.second + b.second)};
+            return { to_pow2(a.first + b.first), to_pow2(a.second + b.second) };
         }
         template<typename T> inline void resize(T& a, ll n) { a.resize(n); }
         template<typename T> inline void resize(T& a, II nm) {
@@ -515,11 +517,11 @@ namespace Poly {
             for (auto& row : a) row.resize(nm.second);
         }
         template<typename T, typename Ty> inline void resize(T& a, II nm, Ty fill) {
-            auto [N,M] = nm;
+            auto [N, M] = nm;
             ll n = a.size(), m = a[0].size();
             resize(a, nm);
             if (M > m) {
-                for (ll i = 0;i < n;++i)
+                for (ll i = 0; i < n; ++i)
                     for (ll j = m; j < M; ++j)
                         a[i][j] = fill;
             }
@@ -580,7 +582,7 @@ namespace Poly {
             assert(utils::is_pow2(n));
             for (ll i = 0, r; i < n; i++)
                 if (i < (r = bit_reverse_perm(n, i)))
-                    swap(a[i], a[r]);
+                    std::swap(a[i], a[r]);
             const ll inv_2 = qpow(2, p - 2, p);
             for (ll n_i = 2; n_i <= n; n_i <<= 1) {
                 ll w_n = qpow(g, (p - 1) / n_i, p);
@@ -614,7 +616,7 @@ namespace Poly {
             std::copy(a_n2.begin(), a_n2.begin() + n, a_n2.begin() + n);
             std::reverse(a_n2.begin() + n, a_n2.end());
             FFT(a_n2, false);
-            for (ll m = 0; m < n;m++) {
+            for (ll m = 0; m < n; m++) {
                 lf w_ang = PI * m / N;
                 Complex w_n = { std::cos(w_ang), std::sin(w_ang) };
                 a[m] = (a_n2[m] * w_n).real(); // imag = 0
@@ -631,14 +633,14 @@ namespace Poly {
             assert(utils::is_pow2(n));
             CVec a_n = utils::as_complex(a);
             a[0] /= std::sqrt(2.0);
-            for (ll m = 0; m < n;m++) {
+            for (ll m = 0; m < n; m++) {
                 lf w_ang = -PI * m / N;
                 Complex w_n = { std::cos(w_ang), std::sin(w_ang) };
                 a[m] *= k2N;
                 a_n[m] = a[m] * w_n;
             }
             FFT(a_n, true);
-            for (ll m = 0; m < n/2;m++)
+            for (ll m = 0; m < n / 2; m++)
                 a[m * 2] = a_n[m].real(),
                 a[m * 2 + 1] = a_n[n - m - 1].real();
             return a;
@@ -650,15 +652,15 @@ namespace Poly {
             IVec mn(max(m, n)); iota(mn.begin(), mn.end(), 0);
             for_each(execution, mn.begin(), mn.begin() + n, [&](ll row) {
                 transform(a[row]);
-            });
-            for_each(execution, mn.begin(), mn.begin() + m, [&](ll col){
+                });
+            for_each(execution, mn.begin(), mn.begin() + m, [&](ll col) {
                 typename T::value_type c(n);
                 for (ll row = 0; row < n; row++)
                     c[row] = a[row][col];
                 transform(c);
                 for (ll row = 0; row < n; row++)
                     a[row][col] = c[row];
-            });
+                });
             return a;
         }
         inline CVec& DFT(CVec& a) {
@@ -710,7 +712,7 @@ namespace Poly {
         T& __convolve2D(T& a, T b, Transform const& transform, InvTransform const& inv_transform, Exec const& execution) {
             ll n = a.size(), m = a[0].size();
             ll k = b.size(), l = b[0].size();
-            II NM = utils::to_pow2({ n,m },{ k,l });
+            II NM = utils::to_pow2({ n,m }, { k,l });
             auto [N, M] = NM;
             utils::resize(a, NM), utils::resize(b, NM);
             transform(a, execution), transform(b, execution);
@@ -722,11 +724,11 @@ namespace Poly {
         }
         // Performs complex convolution with DFT
         CVec& convolve(CVec& a, CVec b) {
-            return __convolve(a, b,transform::DFT,transform::IDFT);
+            return __convolve(a, b, transform::DFT, transform::IDFT);
         }
         // Performs modular convolution with NTT
-        IVec& convolve(IVec& a, IVec b, ll mod=NTT_Mod, ll root=NTT_Root) {
-            return __convolve(a, b,[=](IVec& x){return transform::NTT(x,mod,root);},[=](IVec& x){return transform::INTT(x,mod,root);});
+        IVec& convolve(IVec& a, IVec b, ll mod = NTT_Mod, ll root = NTT_Root) {
+            return __convolve(a, b, [=](IVec& x) {return transform::NTT(x, mod, root); }, [=](IVec& x) {return transform::INTT(x, mod, root); });
         }
         // Performs real-valued convolution with DCT
         RVec& convolve(RVec& a, RVec b) {
