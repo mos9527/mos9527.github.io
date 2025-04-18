@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T19:17:12.394781
+lastmod: 2025-04-18T19:23:23.014846
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -915,23 +915,23 @@ const lf PI = acos(-1);
 #include "lib/poly.h"
 #include "lib/image.h"
 Poly::RVec2 gaussian(ll size, lf sigma) {
-	Poly::RVec2 kern(size, Poly::RVec(size));
-	lf sum = 0.0;
-	ll x0y0 = size / 2;
-	lf sigma_sq = sigma * sigma;
-	lf term1 = 1.0 / (2.0 * PI * sigma_sq);
-	for (ll i = 0; i < size; ++i) {
-		for (ll j = 0; j < size; ++j) {
-			ll x = i - x0y0, y = j - x0y0;
-			lf term2 = exp(-(lf)(x * x + y * y) / (2.0 * sigma_sq));
-			kern[i][j] = term1 * term2;
-			sum += kern[i][j];
-		}
-	}
-	for (ll i = 0; i < size; ++i)
-		for (ll j = 0; j < size; ++j)
-			kern[i][j] /= sum;
-	return kern;
+    Poly::RVec2 kern(size, Poly::RVec(size));
+    lf sum = 0.0;
+    ll x0y0 = size / 2;
+    lf sigma_sq = sigma * sigma;
+    lf term1 = 1.0 / (2.0 * PI * sigma_sq);
+    for (ll i = 0; i < size; ++i) {
+        for (ll j = 0; j < size; ++j) {
+            ll x = i - x0y0, y = j - x0y0;
+            lf term2 = exp(-(lf)(x * x + y * y) / (2.0 * sigma_sq));
+            kern[i][j] = term1 * term2;
+            sum += kern[i][j];
+        }
+    }
+    for (ll i = 0; i < size; ++i)
+        for (ll j = 0; j < size; ++j)
+            kern[i][j] /= sum;
+    return kern;
 }
 const auto __Exec = std::execution::par_unseq;
 int main() {
@@ -940,14 +940,16 @@ int main() {
     const int kern_size = 25;
     const lf kern_sigma = 7.0;
 
-    Poly::RVec2 kern = gaussian(kern_size, kern_sigma);    
+    Poly::RVec2 kern = gaussian(kern_size, kern_sigma);
     auto image = Image::from_file(input);
     {
         auto [nchn,h,w] = Image::image_size(image);
         cout << "preparing image w=" << w << " h=" << h << " nchn=" << nchn << endl;
         for_each(__Exec, image.begin(), image.end(), [&](auto& ch) {
             cout << "channel 0x" << hex << &ch << dec << endl;
-            Poly::conv::convolve2D(ch, kern, __Exec);
+            auto c_ch = Poly::utils::as_complex(ch), k_ch = Poly::utils::as_complex(kern);
+            Poly::conv::convolve2D(c_ch, k_ch, __Exec);
+            ch = Poly::utils::as_real(c_ch);
         });
     }
     {
@@ -1006,7 +1008,7 @@ Poly::RVec2 gaussian(ll size, lf sigma) {
 			kern[i][j] /= sum;
 	return kern;
 }
-const auto __Exec = std::execution::par_unseq;
+const auto exec = std::execution::par_unseq;
 int main() {
     const char* input = "data/blurred.png";
     const char* output = "data/deblur.png";
@@ -1022,17 +1024,17 @@ int main() {
         // 需要窗口
         Poly::CVec2 img_fft = Poly::utils::as_complex(ch);
         ch = Poly::utils::as_real(img_fft);
-        Poly::fourier::DFT2(img_fft, __Exec);
+        Poly::transform::DFT2(img_fft, exec);
         Poly::CVec2 kern_fft = Poly::utils::as_complex(kern);
         Poly::utils::resize(kern_fft, size);
-        Poly::fourier::DFT2(kern_fft, __Exec);
+        Poly::transform::DFT2(kern_fft, exec);
         for (ll i = 0; i < N; i++)
             for (ll j = 0; j < M; j++) {
                 auto kern_fft_conj = conj(kern_fft[i][j]);
                 auto denom = kern_fft[i][j] * kern_fft_conj + noise;
                 img_fft[i][j] = (img_fft[i][j] * kern_fft_conj) / denom;
             }
-        Poly::fourier::IDFT2(img_fft, __Exec);
+        Poly::transform::IDFT2(img_fft, exec);
         ch = Poly::utils::as_real(img_fft);
         Poly::utils::resize(ch, og_size);
     };
@@ -1040,10 +1042,11 @@ int main() {
     {
         auto [nchn,h,w] = Image::image_size(image);
         cout << "preparing image w=" << w << " h=" << h << " nchn=" << nchn << endl;
-        for_each(__Exec, image.begin(), image.end(), [&](auto& ch) {
+        for_each(exec, image.begin(), image.end(), [&](auto& ch) {
             cout << "channel 0x" << hex << &ch << dec << endl;
-            // Poly::conv::convolve2D(ch, kern, __Exec);
+            auto c_ch = Poly::utils::as_complex(ch), k_ch = Poly::utils::as_complex(kern);
             wiener(ch, kern);
+            ch = Poly::utils::as_real(c_ch);
         });
     }
     {
