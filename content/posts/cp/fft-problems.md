@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-17T17:47:48.518604
+lastmod: 2025-04-18T10:04:36.147467
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -414,207 +414,211 @@ void IFFT(vec& y) { NTT(y, 998244353,3, true); }
 
 ## Reference
 
-本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，即插即用。为准确起见，API以`DFT(...), IDFT(...)`命名。
+本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，开箱即用。为准确起见，API以`DFT(...), IDFT(...)`命名。
+
+心情好的话（link下`tbb`?还是说你用的就是`msvc`...）本实现中二维FFT可以实现并行（`execution = std::execution::par_unseq`）
 
 ```c++
-#include "bits/stdc++.h"
-using namespace std;
-typedef long long ll; typedef double lf; typedef pair<ll, ll> II; typedef vector<ll> vec;
-const inline void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0u); cout.tie(0u); }
-const lf PI = acos(-1);
-const lf EPS = 1e-8;
-const ll INF = 1e18;
-const ll MOD = 1e9 + 7;
-const ll DIM = 1e5;
-ll binpow_mod(ll a, ll b, ll m = MOD) {
-	a %= m;
-	ll res = 1;
-	while (b > 0) {
-		if (b & 1) res = (__int128)res * a % m;
-		a = (__int128)a * a % m;
-		b >>= 1;
-	}
-	return res;
-}
+#pragma once
+#define POLY_IMPLEMENTATION
+#include <cmath>
+#include <vector>
+#include <complex>
+#include <numeric>
+#include <algorithm>
+#include <execution>
 namespace Poly {
-	using Real = lf;
-	using Complex = complex<lf>;
-	using CVec = vector<Complex>;
-	using RVec = vector<Real>;
-	using IVec = vec;
-	const ll MOD = 998244353, MOD_proot = 3;
-	// 快速傅里叶变换
-	inline CVec& FFT(CVec& a, bool invert) {
-		ll n = a.size();
-		auto R = [n](ll x) {
-			ll msb = ceil(log2(n)), res = 0;
-			for (ll i = 0; i < msb; i++)
-				if (x & (1ll << i))
-					res |= 1ll << (msb - 1 - i);
-			return res;
-			};
-		// Resort
-		for (ll i = 0; i < n; i++)
-			if (i < R(i))
-				swap(a[i], a[R(i)]);
-		// 从下至上n_i = 2, 4, 6,...,n直接递推
-		for (ll n_i = 2; n_i <= n; n_i <<= 1) {
-			Complex w_n = exp(Complex{ 0, 2 * PI / n_i });
-			if (invert) w_n = conj(w_n);
-			for (ll i = 0; i < n; i += n_i) {
-				Complex w_k = Complex{ 1, 0 };
-				for (ll j = 0; j < n_i / 2; j++) {
-					Complex u = a[i + j], v = a[i + j + n_i / 2] * w_k;
-					a[i + j] = u + v;
-					a[i + j + n_i / 2] = u - v;
-					if (invert)
-						a[i + j] /= 2, a[i + j + n_i / 2] /= 2;
-					w_k *= w_n;
-				}
-			}
-		}
-		return a;
-	}
-	//（快速）数论变换
-	inline IVec& NTT(IVec& a, ll p, ll g, bool invert) {
-		ll n = a.size();
-		auto R = [n](ll x) {
-			ll msb = ceil(log2(n)), res = 0;
-			for (ll i = 0; i < msb; i++)
-				if (x & (1ll << i))
-					res |= 1ll << (msb - 1 - i);
-			return res;
-			};
-		// Resort
-		for (ll i = 0; i < n; i++)
-			if (i < R(i)) swap(a[i], a[R(i)]);
-		// 从下至上n_i = 2, 4, 6,...,n直接递推
-		ll inv_2 = binpow_mod(2, p - 2, p);
-		for (ll n_i = 2; n_i <= n; n_i <<= 1) {
-			ll w_n = binpow_mod(g, (p - 1) / n_i, p);
-			if (invert)
-				w_n = binpow_mod(w_n, p - 2, p);
-			for (ll i = 0; i < n; i += n_i) {
-				ll w_k = 1;
-				for (ll j = 0; j < n_i / 2; j++) {
-					ll u = a[i + j], v = a[i + j + n_i / 2] * w_k;
-					a[i + j] = (u + v + p) % p;
-					a[i + j + n_i / 2] = (u - v + p) % p;
-					if (invert) {
-						a[i + j] = (a[i + j] * inv_2 % p + p) % p;
-						a[i + j + n_i / 2] = (a[i + j + n_i / 2] * inv_2 % p + p) % p;
-					}
-					w_k = w_k * w_n % p;
-				}
-			}
-		}
-		return a;
-	}
-	// 虚数域
-	inline CVec& DFT(CVec& a) { return FFT(a, false); }
-	inline CVec& IDFT(CVec& a) { return FFT(a, true); }
-	// 模数域
-	inline IVec& DFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return NTT(a, p, g, false); }
-	inline IVec& IDFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return NTT(a, p, g, true); }
-	// 2D
-	using CVec2 = vector<CVec>;
-	using RVec2 = vector<RVec>;
-	inline CVec2& FFT2(CVec2& a, bool invert) {
-		ll n = a.size(), m = a[0].size();
-		for (ll row = 0; row < n; row++) FFT(a[row], invert);
-		CVec c(n);
-		for (ll col = 0; col < m; col++) {
-			for (ll row = 0; row < n; row++)
-				c[row] = a[row][col];
-			FFT(c, invert);
-			for (ll row = 0; row < n; row++)
-				a[row][col] = c[row];
-		}
-		return a;
-	}
-	inline CVec2& DFT2(CVec2& a) { return FFT2(a, false); }
-	inline CVec2& IDFT2(CVec2& a) { return FFT2(a, true); }
-	// 工具
-	inline RVec as_real(CVec const& a) {
-		RVec res(a.size());
-		for (ll i = 0; i < a.size(); i++)
-			res[i] = a[i].real();
-		return res;
-	}
-	inline RVec2 as_real(CVec2 const& a) {
-		RVec2 res(a.size());
-		for (ll i = 0; i < a.size(); i++)
-			res[i] = as_real(a[i]);
-		return res;
-	}
-	inline CVec as_complex(RVec const& a) {
-		return CVec(a.begin(), a.end());
-	}
-	inline CVec2 as_complex(RVec2 const& a) {
-		CVec2 res(a.size());
-		for (ll i = 0; i < a.size(); i++)
-			res[i] = as_complex(a[i]);
-		return res;
-	}
-	inline ll to_pow2(ll a, ll b) {
-		ll n = a + b;
-		n = 1ll << (ll)ceil(log2(n));
-		return n;
-	}
-	inline II to_pow2(II a, II b) {
-		ll n = a.first + b.first;
-		ll m = a.second + b.second;
-		n = 1ll << (ll)ceil(log2(n));
-		m = 1ll << (ll)ceil(log2(m));
-		return { n, m };
-	}
-	template<typename T> inline void resize(T& a, ll n) { a.resize(n); }
-	template<typename T> inline void resize(T& a, II nm) {
-		a.resize(nm.first);
-		for (auto& row : a) row.resize(nm.second);
-	}
-	// 包络
-	// 1D: IVec, CVec, RVec
-	template<typename T> inline T& convolve(T& a, T& b) {
-		ll n = to_pow2(a.size(), b.size());
-		resize(a, n), resize(b, n);
-		DFT(a), DFT(b);
-		for (ll i = 0; i < n; i++)
-			a[i] *= b[i];
-		IDFT(a);
-		return a;
-	}
-	inline RVec& convolve(RVec& a, RVec& b) {
-		CVec a_c = as_complex(a), b_c = as_complex(b);
-		convolve(a_c, b_c);
-		a = as_real(a_c);
-		return a;
-	}
-	// 2D: CVec2, RVec2
-	inline CVec2& convolve2D(CVec2& a, CVec2& b) {
-		ll n = a.size(), m = a[0].size();
-		ll k = b.size(), l = b[0].size();
-		II NM = to_pow2({ n,m },{ k,l });
-		auto [N, M] = NM;
-		resize(a, NM), resize(b, NM);
-		DFT2(a), DFT2(b);
-		for (ll i = 0; i < N; ++i)
-			for (ll j = 0; j < M; ++j)
-				a[i][j] *= b[i][j];
-		IDFT2(a);
-		a.resize(n + k - 1);
-		for (auto& row : a) 
-			row.resize(m + l - 1);
-		return a;
-	}
-	inline RVec2& convolve2D(RVec2& a, RVec2& b) {
-		CVec2 a_c = as_complex(a), b_c = as_complex(b);
-		convolve2D(a_c, b_c);
-		a = as_real(a_c);
-		return a;
-	}
+    using ll = long long;   using lf = double;  using II = std::pair<ll, ll>;
+    constexpr lf PI = std::acos(-1);
+    constexpr ll MOD = 998244353, MOD_proot = 3;
+    using Complex = std::complex<lf>;
+    using CVec = std::vector<Complex>;
+    using RVec = std::vector<lf>;
+    using IVec = std::vector<ll>;
+    using CVec2 = std::vector<CVec>;
+    using RVec2 = std::vector<RVec>;
+#if __cplusplus >= 202002L
+    template <typename T> concept ExecutionPolicy = std::is_execution_policy_v<T>;
+#else
+#define ExecutionPolicy class
+#endif
+    namespace details {
+        inline ll qpow(ll a, ll b, ll m) {
+            a %= m;
+            ll res = 1;
+            while (b > 0) {
+                if (b & 1) res = res * a % m;
+                a = a * a % m;
+                b >>= 1;
+            }
+            return res;
+        }
+        inline ll bit_reverse_perm(ll n, ll x) {
+            ll msb = ceil(log2(n)), res = 0;
+            for (ll i = 0; i < msb; i++)
+                if (x & (1ll << i))
+                    res |= 1ll << (msb - 1 - i);
+            return res;
+        }
+        inline CVec& FFT(CVec& a, bool invert) {
+            ll n = a.size();
+            for (ll i = 0, r; i < n; i++)
+                if (i < (r = bit_reverse_perm(n, i)))
+                    swap(a[i], a[r]);
+            for (ll n_i = 2; n_i <= n; n_i <<= 1) {
+                Complex w_n = exp(Complex{ 0, 2 * PI / n_i });
+                if (invert) w_n = conj(w_n);
+                for (ll i = 0; i < n; i += n_i) {
+                    Complex w_k = Complex{ 1, 0 };
+                    for (ll j = 0; j < n_i / 2; j++) {
+                        Complex u = a[i + j], v = a[i + j + n_i / 2] * w_k;
+                        a[i + j] = u + v;
+                        a[i + j + n_i / 2] = u - v;
+                        if (invert)
+                            a[i + j] /= 2, a[i + j + n_i / 2] /= 2;
+                        w_k *= w_n;
+                    }
+                }
+            }
+            return a;
+        }
+        inline IVec& NTT(IVec& a, ll p, ll g, bool invert) {
+            ll n = a.size();
+            for (ll i = 0, r; i < n; i++)
+                if (i < (r = bit_reverse_perm(n, i)))
+                    swap(a[i], a[r]);
+            ll inv_2 = qpow(2, p - 2, p);
+            for (ll n_i = 2; n_i <= n; n_i <<= 1) {
+                ll w_n = qpow(g, (p - 1) / n_i, p);
+                if (invert)
+                    w_n = qpow(w_n, p - 2, p);
+                for (ll i = 0; i < n; i += n_i) {
+                    ll w_k = 1;
+                    for (ll j = 0; j < n_i / 2; j++) {
+                        ll u = a[i + j], v = a[i + j + n_i / 2] * w_k;
+                        a[i + j] = (u + v + p) % p;
+                        a[i + j + n_i / 2] = (u - v + p) % p;
+                        if (invert) {
+                            a[i + j] = (a[i + j] * inv_2 % p + p) % p;
+                            a[i + j + n_i / 2] = (a[i + j + n_i / 2] * inv_2 % p + p) % p;
+                        }
+                        w_k = w_k * w_n % p;
+                    }
+                }
+            }
+            return a;
+        }
+        template<ExecutionPolicy Exec> CVec2& FFT2(CVec2& a, bool invert, Exec const& execution) {
+            const ll n = a.size(), m = a[0].size();
+            IVec mn(max(n,m)); iota(mn.begin(), mn.end(), 0);
+            mn.resize(n);
+            for_each(execution, mn.begin(), mn.end(), [&](ll row) {
+                FFT(a[row], invert);
+            });
+            mn.resize(m);
+            for_each(execution, mn.begin(), mn.end(), [&](ll col){
+                CVec c(n);
+                for (ll row = 0; row < n; row++)
+                    c[row] = a[row][col];
+                FFT(c, invert);
+                for (ll row = 0; row < n; row++)
+                    a[row][col] = c[row];
+            });
+            return a;
+        }
+    }
+    namespace fourier {
+        inline CVec& DFT(CVec& a) { return details::FFT(a, false); }
+        inline CVec& IDFT(CVec& a) { return details::FFT(a, true); }
+        inline IVec& DFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return details::NTT(a, p, g, false); }
+        inline IVec& IDFT(IVec& a, ll p = MOD, ll g = MOD_proot) { return details::NTT(a, p, g, true); }
+        template<ExecutionPolicy Exec>
+        CVec2& DFT2(CVec2& a, Exec const& execution) { return details::FFT2(a, false, execution); }
+        template<ExecutionPolicy Exec>
+        CVec2& IDFT2(CVec2& a, Exec const& execution) { return details::FFT2(a, true, execution); }
+    }
+    namespace utils {
+        inline RVec as_real(CVec const& a) {
+            RVec res(a.size());
+            for (ll i = 0; i < a.size(); i++)
+                res[i] = a[i].real();
+            return res;
+        }
+        inline RVec2 as_real(CVec2 const& a) {
+            RVec2 res(a.size());
+            for (ll i = 0; i < a.size(); i++)
+                res[i] = as_real(a[i]);
+            return res;
+        }
+        inline CVec as_complex(RVec const& a) {
+            return {a.begin(), a.end()};
+        }
+        inline CVec2 as_complex(RVec2 const& a) {
+            CVec2 res(a.size());
+            for (ll i = 0; i < a.size(); i++)
+                res[i] = as_complex(a[i]);
+            return res;
+        }
+        inline ll to_pow2(ll a, ll b) {
+            ll n = a + b;
+            n = ceil(log2(n)), n = 1ll << n;
+            return n;
+        }
+        inline II to_pow2(II const& a, II const& b) {
+            ll n = a.first + b.first;
+            ll m = a.second + b.second;
+            n = ceil(log2(n)), n = 1ll << n;
+            m = ceil(log2(m)), m = 1ll << m;
+            return { n, m };
+        }
+        template<typename T> inline void resize(T& a, ll n) { a.resize(n); }
+        template<typename T> inline void resize(T& a, II nm) {
+            a.resize(nm.first);
+            for (auto& row : a) row.resize(nm.second);
+        }
+    }
+    namespace conv {
+        template<typename T> inline T& convolve(T& a, T& b) {
+            ll n = utils::to_pow2(a.size(), b.size());
+            utils::resize(a, n), utils::resize(b, n);
+            fourier::DFT(a), fourier::DFT(b);
+            for (ll i = 0; i < n; i++)
+                a[i] *= b[i];
+            fourier::IDFT(a);
+            return a;
+        }
+        inline RVec& convolve(RVec& a, RVec const& b) {
+            CVec a_c = utils::as_complex(a), b_c = utils::as_complex(b);
+            convolve(a_c, b_c);
+            a = utils::as_real(a_c);
+            return a;
+        }
+        template<ExecutionPolicy Exec>
+        CVec2& convolve2D(CVec2& a, CVec2& b, Exec const& execution) {
+            ll n = a.size(), m = a[0].size();
+            ll k = b.size(), l = b[0].size();
+            II NM = utils::to_pow2({ n,m },{ k,l });
+            auto [N, M] = NM;
+            utils::resize(a, NM), utils::resize(b, NM);
+            fourier::DFT2(a, execution), fourier::DFT2(b, execution);
+            for (ll i = 0; i < N; ++i)
+                for (ll j = 0; j < M; ++j)
+                    a[i][j] *= b[i][j];
+            fourier::IDFT2(a, execution);
+            a.resize(n + k - 1);
+            for (auto& row : a)
+                row.resize(m + l - 1);
+            return a;
+        }
+        template<ExecutionPolicy Exec>
+        RVec2& convolve2D(RVec2& a, RVec2& b, Exec const& execution) {
+            CVec2 a_c = utils::as_complex(a), b_c = utils::as_complex(b);
+            convolve2D(a_c, b_c, execution);
+            a = utils::as_real(a_c);
+            return a;
+        }
+    }
 }
-
 ```
 
 ## Problems
@@ -649,7 +653,7 @@ int main() {
                 A[i] = a[a.size() - 1 - i] - '0';
             for (ll i = 0; i < b.size(); i++)
                 B[i] = b[b.size() - 1 - i] - '0';
-            ll len = Poly::Convolve(A, B);
+            ll len = Poly::conv::convolve(A, B);
             carry(A, 10u);
             for (ll i = len - 1, flag = 0; i >= 0; i--) {
                 flag |= A[i] != 0;
@@ -726,51 +730,57 @@ $$
 >  STB is All You Need.
 
 ```c++
+#pragma once
+#ifndef POLY_IMPLEMENTATION
+#include "poly.h"
+#endif
+#define IMAGE_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image.h"
 #include "stb/stb_image_write.h"
 namespace Image {
-	using Texel = unsigned char;
-	using Texels = vector<Texel>;
-	using Image = vector<Poly::RVec2>;
-	// Channels, Height, Width
-	inline tuple<ll, ll, ll> image_size(const Image& img) {
-		ll nchn = img.size(), h = img[0].size(), w = img[0][0].size();
-		return { nchn, h, w };
-	}
-	// Assuming 8bit sRGB space
-	inline Image from_texels(const Texel* img_data, int w, int h, int nchn) {
-		Image chns(nchn, Poly::RVec2(h, Poly::RVec(w)));
-		for (ll y = 0; y < h; ++y)
-			for (ll x = 0; x < w; ++x)
-				for (ll c = 0; c < nchn; ++c)
-					chns[c][y][x] = img_data[(y * w + x) * nchn + c];
-		return chns;
-	}
-	inline Texels to_texels(const Image& res, int& w, int& h, int& nchn) {
-		tie(nchn, h, w) = image_size(res);
-		Texels texels(w * h * nchn);
-		for (ll y = 0; y < h; ++y)
-			for (ll x = 0; x < w; ++x)
-				for (ll c = 0; c < nchn; ++c)
-					texels[(y * w + x) * nchn + c] = round(res[c][y][x]);
-		return texels;
-	}
-	inline Image from_file(const char* filename) {
-		int w, h, nchn;
-		Texel* img_data = stbi_load(filename, &w, &h, &nchn, 0);
-		assert(img_data && "cannot load image");
-		auto chns = from_texels(img_data, w, h, nchn);
-		stbi_image_free(img_data);
-		return chns;
-	}
-	void to_file(const Image& res, const char* filename) {
-		int w, h, nchn;
-		auto texels = to_texels(res, w, h, nchn);
-		int success = stbi_write_png(filename, w, h, nchn, texels.data(), w * nchn);
-		assert(success && "image data failed to save!");
-	}
+    using Texel = unsigned char;
+    using Texels = std::vector<Texel>;
+    using Image = std::vector<Poly::RVec2>;
+    using Poly::ll, Poly::lf;
+    // Channels, Height, Width
+    inline std::tuple<ll, ll, ll> image_size(const Image& img) {
+        ll nchn = img.size(), h = img[0].size(), w = img[0][0].size();
+        return { nchn, h, w };
+    }
+    // Assuming 8bit sRGB space
+    inline Image from_texels(const Texel* img_data, int w, int h, int nchn) {
+        Image chns(nchn, Poly::RVec2(h, Poly::RVec(w)));
+        for (ll y = 0; y < h; ++y)
+            for (ll x = 0; x < w; ++x)
+                for (ll c = 0; c < nchn; ++c)
+                    chns[c][y][x] = img_data[(y * w + x) * nchn + c];
+        return chns;
+    }
+    inline Texels to_texels(const Image& res, int& w, int& h, int& nchn) {
+        std::tie(nchn, h, w) = image_size(res);
+        Texels texels(w * h * nchn);
+        for (ll y = 0; y < h; ++y)
+            for (ll x = 0; x < w; ++x)
+                for (ll c = 0; c < nchn; ++c)
+                    texels[(y * w + x) * nchn + c] = std::round(res[c][y][x]);
+        return texels;
+    }
+    inline Image from_file(const char* filename) {
+        int w, h, nchn;
+        Texel* img_data = stbi_load(filename, &w, &h, &nchn, 0);
+        assert(img_data && "cannot load image");
+        auto chns = from_texels(img_data, w, h, nchn);
+        stbi_image_free(img_data);
+        return chns;
+    }
+    inline void to_file(const Image& res, const char* filename) {
+        int w, h, nchn;
+        auto texels = to_texels(res, w, h, nchn);
+        int success = stbi_write_png(filename, w, h, nchn, texels.data(), w * nchn);
+        assert(success && "image data failed to save!");
+    }
 }
 ```
 
@@ -784,6 +794,14 @@ namespace Image {
 ##### 高斯模糊
 
 ```c++
+#include "bits/stdc++.h"
+using namespace std;
+typedef long long ll; typedef double lf; typedef pair<ll, ll> II; typedef vector<ll> vec;
+const inline void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0u); cout.tie(0u); }
+const lf PI = acos(-1);
+
+#include "lib/poly.h"
+#include "lib/image.h"
 Poly::RVec2 gaussian(ll size, lf sigma) {
 	Poly::RVec2 kern(size, Poly::RVec(size));
 	lf sum = 0.0;
@@ -803,29 +821,29 @@ Poly::RVec2 gaussian(ll size, lf sigma) {
 			kern[i][j] /= sum;
 	return kern;
 }
-#include <execution> // 什么？？STL并行化就**一行**？？
+const auto __Exec = std::execution::par_unseq;
 int main() {
-	const char* input = "input.png";
-	const char* output = "output.png";
-	const int kern_size = 256;
-	const lf kern_sigma = 64.0;
-	
-	Poly::RVec2 kern = gaussian(kern_size, kern_sigma);
-	auto image = Image::from_file(input)；
+    const char* input = "input.png";
+    const char* output = "output.png";
+    const int kern_size = 25;
+    const lf kern_sigma = 7.0;
+
+    Poly::RVec2 kern = gaussian(kern_size, kern_sigma);    
+    auto image = Image::from_file(input);
     {
-		auto [w, h, nchn] = Image::image_size(image);
-		cout << "preparing image w=" << w << " h=" << h << " nchn=" << nchn << endl;
-		for_each(execution::par, image.begin(), image.end(), [&](auto& ch) {
-			cout << "channel 0x" << hex << &ch << dec << endl;
-			Poly::convolve2D(ch, kern);
-		});		
-	}
-	{
-		Image::to_file(image, output);
-		auto [w, h, nchn] = Image::image_size(image);
-		cout << "output image w=" << w << " h=" << h << " nchn=" << nchn << endl;
-	}
-	return 0;
+        auto [nchn,h,w] = Image::image_size(image);
+        cout << "preparing image w=" << w << " h=" << h << " nchn=" << nchn << endl;
+        for_each(__Exec, image.begin(), image.end(), [&](auto& ch) {
+            cout << "channel 0x" << hex << &ch << dec << endl;
+            Poly::convolve2D(ch, kern);
+        });
+    }
+    {
+        Image::to_file(image, output);
+        auto [nchn,h,w] = Image::image_size(image);
+        cout << "output image w=" << w << " h=" << h << " nchn=" << nchn << endl;
+    }
+    return 0;
 }
 ```
 
@@ -837,7 +855,7 @@ int main() {
 
 ##### Wiener 去卷积（逆包络）
 
-> 2025，cf愚人节H题见
+> 2025，Codeforces 4.1 H题见
 
 - https://en.wikipedia.org/wiki/Wiener_deconvolution
 - Wiener 去卷积可表示为
@@ -849,50 +867,77 @@ $$
 - 都在频域下，其中$F$为原图像，$G$为包络后图像，$H$为卷积核，$N$为噪声函数
 
 ```c++
-#include <execution>
+#include "bits/stdc++.h"
+using namespace std;
+typedef long long ll; typedef double lf; typedef pair<ll, ll> II; typedef vector<ll> vec;
+const inline void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0u); cout.tie(0u); }
+const lf PI = acos(-1);
+
+#include "lib/poly.h"
+#include "lib/image.h"
+Poly::RVec2 gaussian(ll size, lf sigma) {
+	Poly::RVec2 kern(size, Poly::RVec(size));
+	lf sum = 0.0;
+	ll x0y0 = size / 2;
+	lf sigma_sq = sigma * sigma;
+	lf term1 = 1.0 / (2.0 * PI * sigma_sq);
+	for (ll i = 0; i < size; ++i) {
+		for (ll j = 0; j < size; ++j) {
+			ll x = i - x0y0, y = j - x0y0;
+			lf term2 = exp(-(lf)(x * x + y * y) / (2.0 * sigma_sq));
+			kern[i][j] = term1 * term2;
+			sum += kern[i][j];
+		}
+	}
+	for (ll i = 0; i < size; ++i)
+		for (ll j = 0; j < size; ++j)
+			kern[i][j] /= sum;
+	return kern;
+}
+const auto __Exec = std::execution::par_unseq;
 int main() {
-	const char* input = "blurred.png";
-	const char* output = "deblur.png";
-	const int kern_size = 25;
-	const lf kern_sigma = 7.0;
-	
-	Poly::RVec2 kern = gaussian(kern_size, kern_sigma);
-	auto wiener = [&](Poly::RVec2& ch, Poly::RVec2 kern, lf noise = 5e-5) {
-		II og_size = { ch.size(), ch[0].size() };
-		II size = Poly::to_pow2({ ch.size(), ch[0].size() }, { kern.size(), kern[0].size() });
-		auto [N, M] = size;
-		Poly::CVec2 img_fft = Poly::as_complex(ch);
-		Poly::resize(img_fft, size);
-		Poly::DFT2(img_fft);
-		Poly::CVec2 kern_fft = Poly::as_complex(kern);		
-		Poly::resize(kern_fft, size);
-		Poly::DFT2(kern_fft);
-		for (ll i = 0; i < N; i++)
-			for (ll j = 0; j < M; j++) {
-				auto kern_fft_conj = conj(kern_fft[i][j]);
-				auto denom = kern_fft[i][j] * kern_fft_conj + noise;
-				img_fft[i][j] = (img_fft[i][j] * kern_fft_conj) / denom;
-			}
-		Poly::IDFT2(img_fft);
-		ch = Poly::as_real(img_fft);
-		Poly::resize(ch, og_size);
-	};
-	auto image = Image::from_file(input);		
-	{
-		auto [w, h, nchn] = Image::image_size(image);
-		cout << "preparing image w=" << w << " h=" << h << " nchn=" << nchn << endl;
-		for_each(execution::par, image.begin(), image.end(), [&](auto& ch) {
-			cout << "channel 0x" << hex << &ch << dec << endl;
-			// Poly::convolve2D(ch, kern);
-			wiener(ch, kern);
-		});		
-	}
-	{
-		Image::to_file(image, output);
-		auto [w, h, nchn] = Image::image_size(image);
-		cout << "output image w=" << w << " h=" << h << " nchn=" << nchn << endl;
-	}
-	return 0;
+    const char* input = "input.png";
+    const char* output = "output.png";
+    const int kern_size = 25;
+    const lf kern_sigma = 7.0;
+
+    Poly::RVec2 kern = gaussian(kern_size, kern_sigma);
+    auto wiener = [&](Poly::RVec2& ch, Poly::RVec2 kern, lf noise = 5e-5) {
+        II og_size = { ch.size(), ch[0].size() };
+        II size = Poly::utils::to_pow2({ ch.size(), ch[0].size() }, { kern.size(), kern[0].size() });
+        auto [N, M] = size;
+        Poly::CVec2 img_fft = Poly::utils::as_complex(ch);
+        Poly::utils::resize(img_fft, size);
+        Poly::fourier::DFT2(img_fft, __Exec);
+        Poly::CVec2 kern_fft = Poly::utils::as_complex(kern);
+        Poly::utils::resize(kern_fft, size);
+        Poly::fourier::DFT2(kern_fft, __Exec);
+        for (ll i = 0; i < N; i++)
+            for (ll j = 0; j < M; j++) {
+                auto kern_fft_conj = conj(kern_fft[i][j]);
+                auto denom = kern_fft[i][j] * kern_fft_conj + noise;
+                img_fft[i][j] = (img_fft[i][j] * kern_fft_conj) / denom;
+            }
+        Poly::fourier::IDFT2(img_fft, __Exec);
+        ch = Poly::utils::as_real(img_fft);
+        Poly::utils::resize(ch, og_size);
+    };
+    auto image = Image::from_file(input);
+    {
+        auto [nchn,h,w] = Image::image_size(image);
+        cout << "preparing image w=" << w << " h=" << h << " nchn=" << nchn << endl;
+        for_each(__Exec, image.begin(), image.end(), [&](auto& ch) {
+            cout << "channel 0x" << hex << &ch << dec << endl;
+            // Poly::convolve2D(ch, kern);
+            wiener(ch, kern);
+        });
+    }
+    {
+        Image::to_file(image, output);
+        auto [nchn,h,w] = Image::image_size(image);
+        cout << "output image w=" << w << " h=" << h << " nchn=" << nchn << endl;
+    }
+    return 0;
 }
 ```
 
