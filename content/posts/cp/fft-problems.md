@@ -945,4 +945,8 @@ int main() {
     return 0;
 }
 ```
+- 测试样例
 
+  | 输入                                                         | 输出                                                         |
+  | ------------------------------------------------------------ | ------------------------------------------------------------ |
+  | ![752f776e8b5aeadb2dd2d73322852475](https://github.com/user-attachments/assets/83d74fb6-db4c-4997-b612-d8aa512adc4f) | ![8bab1874a1334fe5f5f6b5e2c3be979a](https://github.com/user-attachments/assets/4b1764b2-816f-488c-b550-c04614163df6) |
