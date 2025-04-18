@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T19:24:07.233834
+lastmod: 2025-04-18T19:30:06.935257
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -426,6 +426,10 @@ void IFFT(vec& y) { NTT(y, 998244353,3, true); }
 心情好的话（link下`tbb`?还是说你用的就是`msvc`...）本实现中二维FFT可以实现并行（`execution = std::execution::par_unseq`）
 
 ```c++
+/*** POLY.H - 300LoC Single header Polynomial transform library
+ * - Supports 1D/2D (I)FFT, (I)NTT, DCT-II & DCT-III with parallelism guarantees on 2D workloads.
+ * - Battery included. Complex, Real and Integer types supported with built-in convolution helpers;
+ * ...Though in truth, use something like FFTW instead. This is for reference and educational purposes only. */
 #pragma once
 #define _POLY_H
 #include <cmath>
@@ -682,8 +686,7 @@ namespace Poly {
             ll n = utils::to_pow2(a.size(), b.size());
             utils::resize(a, n), utils::resize(b, n);
             transform(a), transform(b);
-            for (ll i = 0; i < n; i++)
-                a[i] *= b[i];
+            for (ll i = 0; i < n; i++) a[i] *= b[i];
             inv_transform(a);
             return a;
         }
@@ -695,13 +698,10 @@ namespace Poly {
             auto [N, M] = NM;
             utils::resize(a, NM), utils::resize(b, NM);
             transform(a, execution), transform(b, execution);
-            for (ll i = 0; i < N; ++i)
-                for (ll j = 0; j < M; ++j)
-                    a[i][j] *= b[i][j];
+            for (ll i = 0; i < N; ++i) for (ll j = 0; j < M; ++j) a[i][j] *= b[i][j];
             inv_transform(a, execution);
             a.resize(n + k - 1);
-            for (auto& row : a)
-                row.resize(m + l - 1);
+            for (auto& row : a) row.resize(m + l - 1);
             return a;
         }
         // Performs complex convolution with DFT
@@ -710,10 +710,7 @@ namespace Poly {
         }
         // Performs modular convolution with NTT
         IVec& convolve(IVec& a, IVec& b, ll mod=NTT_Mod, ll root=NTT_Root) {
-            return __convolve(
-                a, b,
-                [=](IVec& x){return transform::NTT(x,mod,root);},
-                [=](IVec& x){return transform::INTT(x,mod,root);});
+            return __convolve(a, b,[=](IVec& x){return transform::NTT(x,mod,root);},[=](IVec& x){return transform::INTT(x,mod,root);});
         }
         // Performs real-valued convolution with DCT
         RVec& convolve(RVec& a, RVec& b) {
