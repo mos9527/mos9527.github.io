@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T11:25:17.399903
+lastmod: 2025-04-18T12:17:23.032000+08:00
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -737,11 +737,11 @@ $$
 - 回顾上式易知当且仅当匹配到这些系数时有$c_i = \sum_{j=0}^{m-1-x} e^{\cdots} + \sum_0^x 0$
 - 显然，当$c_{m-1+i} = m - x$，带任意匹配模式的模式串$P$在$S_i$处有出现
 
-### 杂项：图像处理？？？
+## 图像处理？？？
 
 > 正常人应该用[FFTW](https://www.fftw.org/) - 但可惜你是ACM选手。
 
-#### image.h
+### image.h
 
 >  STB is All You Need.
 
@@ -802,14 +802,14 @@ namespace Image {
 }
 ```
 
-#### 二维包络
+### 二维包络
 
 > 想玩转超大kernel还想不等半年？？
 
 - 设原图像$A[N,M]$,包络核$B[K,L]$空间上进行包络有时间复杂度$O(N * M * K * L)$
 - 利用$\text{FFT}$则为$O(N * M * log(N * M))$
 
-##### 高斯模糊
+#### 高斯模糊
 
 ```c++
 #include "bits/stdc++.h"
@@ -871,7 +871,7 @@ int main() {
   | ------------------------------------------------------------ | ------------------------------------------------------------ |
   | ![input](https://github.com/user-attachments/assets/52c8860a-c118-406c-9ef1-2211b9e5ecc9) | ![output](https://github.com/user-attachments/assets/7f7bfe51-db49-4295-ab3a-76751c395c1b) |
 
-##### Wiener 去卷积（逆包络）
+#### Wiener 去卷积（逆包络）
 
 > 2025，Codeforces 4.1 H题见
 
