@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T10:04:36.147467
+lastmod: 2025-04-18T10:05:39.362383
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -420,7 +420,7 @@ void IFFT(vec& y) { NTT(y, 998244353,3, true); }
 
 ```c++
 #pragma once
-#define POLY_IMPLEMENTATION
+#define _POLY_H
 #include <cmath>
 #include <vector>
 #include <complex>
@@ -731,10 +731,10 @@ $$
 
 ```c++
 #pragma once
-#ifndef POLY_IMPLEMENTATION
+#ifndef _POLY_H
 #include "poly.h"
 #endif
-#define IMAGE_IMPLEMENTATION
+#define _IMAGE_H
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image.h"
