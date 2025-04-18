@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T10:25:14.853644
+lastmod: 2025-04-18T10:41:36.520734
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -766,8 +766,10 @@ namespace Image {
         Texels texels(w * h * nchn);
         for (ll y = 0; y < h; ++y)
             for (ll x = 0; x < w; ++x)
-                for (ll c = 0; c < nchn; ++c)
-                    texels[(y * w + x) * nchn + c] = std::round(res[c][y][x]);
+                for (ll c = 0; c < nchn; ++c) {
+                    ll t = std::round(res[c][y][x]);
+                    texels[(y * w + x) * nchn + c] = max(min(255ll, t),0ll);
+                }
         return texels;
     }
     inline Image from_file(const char* filename) {
@@ -826,8 +828,8 @@ Poly::RVec2 gaussian(ll size, lf sigma) {
 }
 const auto __Exec = std::execution::par_unseq;
 int main() {
-    const char* input = "input.png";
-    const char* output = "output.png";
+    const char* input = "data/input.png";
+    const char* output = "data/output.png";
     const int kern_size = 25;
     const lf kern_sigma = 7.0;
 
@@ -899,8 +901,8 @@ Poly::RVec2 gaussian(ll size, lf sigma) {
 }
 const auto __Exec = std::execution::par_unseq;
 int main() {
-    const char* input = "input.png";
-    const char* output = "output.png";
+    const char* input = "data/blurred.png";
+    const char* output = "data/deblur.png";
     const int kern_size = 25;
     const lf kern_sigma = 7.0;
 
@@ -931,7 +933,7 @@ int main() {
         cout << "preparing image w=" << w << " h=" << h << " nchn=" << nchn << endl;
         for_each(__Exec, image.begin(), image.end(), [&](auto& ch) {
             cout << "channel 0x" << hex << &ch << dec << endl;
-            // Poly::convolve2D(ch, kern);
+            // Poly::conv::convolve2D(ch, kern, __Exec);
             wiener(ch, kern);
         });
     }
