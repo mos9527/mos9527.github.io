@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T19:23:23.014846
+lastmod: 2025-04-18T19:24:07.233834
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1044,9 +1044,7 @@ int main() {
         cout << "preparing image w=" << w << " h=" << h << " nchn=" << nchn << endl;
         for_each(exec, image.begin(), image.end(), [&](auto& ch) {
             cout << "channel 0x" << hex << &ch << dec << endl;
-            auto c_ch = Poly::utils::as_complex(ch), k_ch = Poly::utils::as_complex(kern);
             wiener(ch, kern);
-            ch = Poly::utils::as_real(c_ch);
         });
     }
     {
