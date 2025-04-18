@@ -949,4 +949,4 @@ int main() {
 
   | 输入                                                         | 输出                                                         |
   | ------------------------------------------------------------ | ------------------------------------------------------------ |
-  | ![752f776e8b5aeadb2dd2d73322852475](https://github.com/user-attachments/assets/83d74fb6-db4c-4997-b612-d8aa512adc4f) | ![8bab1874a1334fe5f5f6b5e2c3be979a](https://github.com/user-attachments/assets/4b1764b2-816f-488c-b550-c04614163df6) |
+  | ![output](https://github.com/user-attachments/assets/13695e56-aa4e-4352-a90d-07ca14620479) | ![deblur](https://github.com/user-attachments/assets/38ad63d7-a12a-4032-8d08-3fd7e872d752) |
