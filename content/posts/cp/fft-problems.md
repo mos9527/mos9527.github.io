@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T19:30:06.935257
+lastmod: 2025-04-18T20:57:23.383605
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -415,7 +415,23 @@ void IFFT(vec& y) { NTT(y, 998244353,3, true); }
 
 ## 余弦变换（DCT）
 
-咱略；见下文实现
+见下文实现；采用了以下$\text{DCT-II, DCT-III}$形式：
+
+- DCT-2 及其正则化系数
+
+$$
+y_k = 2f \sum_{n=0}^{N-1} x_n \cos\left(\frac{\pi k(2n+1)}{2N} \right) \newline
+\begin{split}f = \begin{cases}
+\sqrt{\frac{1}{4N}} & \text{if }k=0, \\
+\sqrt{\frac{1}{2N}} & \text{otherwise} \end{cases}\end{split}
+$$
+
+- DCT-3
+  $$
+  y_k = \frac{x_0}{\sqrt{N}} + \sqrt{\frac{2}{N}} \sum_{n=1}^{N-1} x_n
+  \cos\left(\frac{\pi(2k+1)n}{2N}\right)
+  $$
+  
 
 ## Reference
 
@@ -636,7 +652,7 @@ namespace Poly {
                 transform(a[row]);
             });
             for_each(execution, mn.begin(), mn.begin() + m, [&](ll col){
-                CVec c(n);
+                typename T::value_type c(n);
                 for (ll row = 0; row < n; row++)
                     c[row] = a[row][col];
                 transform(c);
