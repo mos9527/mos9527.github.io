@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-20T12:14:45.243000+08:00
+lastmod: 2025-04-20T21:10:16.479000+08:00
 title: Arithmetic Competition Notes - FFT/Polynomial/Number Theory Topics
 tags: ["ACM","Competeive Programming","XCPC","(Code) Templates","Problem sets","Codeforces","C++"]
 categories: ["Problem Solutions", "Competeive Programming", "Collection/compilation"]
@@ -999,7 +999,7 @@ int main() {
 
   | importation                                                  | exports                                                      |
   | ------------------------------------------------------------ | ------------------------------------------------------------ |
-  | ![input](https://github.com/user-attachments/assets/52c8860a-c118-406c-9ef1-2211b9e5ecc9) | ![output](https://github.com/user-attachments/assets/7f7bfe51-db49-4295-ab3a-76751c395c1b) |
+  | ![input](/image-github/434868266-52c8860a-c118-406c-9ef1-2211b9e5ecc9.png) | ![output](/image-github/434868287-7f7bfe51-db49-4295-ab3a-76751c395c1b.png) |
 
 #### Wiener deconvolution (inverse envelope)
 
@@ -1093,4 +1093,4 @@ int main() {
 
   | importation                                                  | exports                                                      |
   | ------------------------------------------------------------ | ------------------------------------------------------------ |
-  | ![output](https://github.com/user-attachments/assets/13695e56-aa4e-4352-a90d-07ca14620479) | ![deblur](https://github.com/user-attachments/assets/38ad63d7-a12a-4032-8d08-3fd7e872d752) |
+  | ![output](/image-github/435036278-13695e56-aa4e-4352-a90d-07ca14620479.png) | ![deblur](/image-github/435036293-38ad63d7-a12a-4032-8d08-3fd7e872d752.png) |

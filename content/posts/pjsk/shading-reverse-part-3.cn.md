@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T19:45:14.506000+08:00
+lastmod: 2025-04-20T21:10:16.471000+08:00
 title: PSJK Blender卡通渲染管线重现【3】- SDF 面部渲染实现
 tags: ["逆向","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "逆向", "合集", "CG"]
@@ -52,7 +52,7 @@ SDF面部阴影在解决朴素法线/N dot L阈值阴影在极端光照角度表
 
 在 Photoshop 中查看阈值，很显然是上文所介绍过的类似模型
 
-  <video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/c653ee88-0d85-4724-bdad-1c62f1742d7d
+  <video autoplay style="width:100%" controls src="/image-github/404533532-c653ee88-0d85-4724-bdad-1c62f1742d7d.mov
 "/>
 
 回忆我们所需的**阈值**对应**光照角度**；接下来马上就会用到（再次敲黑板）
@@ -184,7 +184,7 @@ $$
 
 效果如下：
 
-<video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/1c159adf-81df-41a6-9274-2374ad7260d2
+<video autoplay style="width:100%" controls src="/image-github/404535703-1c159adf-81df-41a6-9274-2374ad7260d2.mov
 "/>
 
 #### 构造正交基
@@ -239,7 +239,7 @@ $$
 
 利用上文的$cos \phi, cos \theta$，实现轻而易举
 
-<video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/dd0bb533-a46b-469f-a3d8-cf945faf051d
+<video autoplay style="width:100%" controls src="/image-github/404536951-dd0bb533-a46b-469f-a3d8-cf945faf051d.mov
 "/>
 做好背光特判后即完成SDF阈值在Shader Node中的计算^^
 
@@ -265,7 +265,7 @@ Node如下
 ### 最终效果
 在动画中实践效果如下;可见阈值光照在骨骼动作上也有正确变化
 
-<video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/f4fce0cf-2611-438d-96c3-529d69210c74"/>
+<video autoplay style="width:100%" controls src="/image-github/404627637-f4fce0cf-2611-438d-96c3-529d69210c74.mp4"/>
 
 ## References
 

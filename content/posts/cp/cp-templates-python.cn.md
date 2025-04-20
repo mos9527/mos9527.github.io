@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T19:45:14.495000+08:00
+lastmod: 2025-04-20T21:07:21.280000+08:00
 title: 算竞笔记 - 题集/板子整理（Python）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","Python"]
 categories: ["题解", "算竞", "合集"]

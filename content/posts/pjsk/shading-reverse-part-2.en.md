@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T19:45:14.505000+08:00
+lastmod: 2025-04-20T21:10:17.730000+08:00
 title: PSJK Blender Cartoon Render Pipeline Reproduction【2】- Character and Stage Shader
 tags: ["Reverse Engineering","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "Reverse Engineering", "Collection", "CG"]
@@ -94,7 +94,7 @@ Going back to Metal debugging and observing the decompilation reveals a few deta
   ![image-20250116154033340](/image-shading-reverse/image-20250116154033340.png)
 
 - The effect is as follows
-  <video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/8ecb0d54-b221-4118-acb1-740bfc3635f0"/>
+  <video autoplay style="width:100%" controls src="/image-github/403745829-8ecb0d54-b221-4118-acb1-740bfc3635f0.mov"/>
 
 Ambient light impact is not considered for the time being and will be supported later.
 

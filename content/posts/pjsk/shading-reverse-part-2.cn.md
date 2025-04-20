@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T19:45:14.505000+08:00
+lastmod: 2025-04-20T21:10:16.471000+08:00
 title: PSJK Blender卡通渲染管线重现【2】- 角色及舞台 Shader
 tags: ["逆向","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "逆向", "合集", "CG"]
@@ -93,7 +93,7 @@ PV：[愛して愛して愛して](https://www.bilibili.com/video/BV1cP4y1P7TM/)
   ![image-20250116154033340](/image-shading-reverse/image-20250116154033340.png)
 
 - 效果如下
-  <video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/8ecb0d54-b221-4118-acb1-740bfc3635f0"/>
+  <video autoplay style="width:100%" controls src="/image-github/403745829-8ecb0d54-b221-4118-acb1-740bfc3635f0.mov"/>
 
 环境光影响暂不考虑，之后进行对应支持
 
