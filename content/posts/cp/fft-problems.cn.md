@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T23:07:14.730000+08:00
+lastmod: 2025-04-20T12:23:54.172000+08:00
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -916,10 +916,10 @@ namespace Image {
         auto [nchn, h, w] = image_size(image);
         auto& ch0 = image[0];
         // L = R * 299/1000 + G * 587/1000 + B * 114/1000
-        for (ll c = 0;c <= 2;c++) {
+        for (ll c = 0;c < nchn;c++) {
             for (ll i = 0;i < h;i++) {
                 for (ll j = 0;j < w;j++) {
-                    if (c == 0) ch0[i][j] *= 0.299;
+                    if (c == 0 && nchn != 1) ch0[i][j] *= 0.299;
                     if (c == 1) ch0[i][j] += image[1][i][j] * 0.587;
                     if (c == 2) ch0[i][j] += image[2][i][j] * 0.144;
                 }
@@ -1094,3 +1094,96 @@ int main() {
   | 输入                                                         | 输出                                                         |
   | ------------------------------------------------------------ | ------------------------------------------------------------ |
   | ![output](https://github.com/user-attachments/assets/13695e56-aa4e-4352-a90d-07ca14620479) | ![deblur](https://github.com/user-attachments/assets/38ad63d7-a12a-4032-8d08-3fd7e872d752) |
+
+## 图像压缩 （DCT）
+
+JPEG格式采用的即为$8\times8$ DCT块变换，丢掉高频信息（频域$u,v$大位置）后量化存储
+
+这里演示一种naive的压缩方式，和[MATLAB](https://ww2.mathworks.cn/help/images/discrete-cosine-transform.html)所述图像压缩样例一致，以下面矩阵掩盖系数：
+$$
+\text{mask} =
+\begin{bmatrix}
+1 & 1 & 1 & 1 & 0 & 0 & 0 & 0 \\
+1 & 1 & 1 & 0 & 0 & 0 & 0 & 0 \\
+1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+\end{bmatrix}
+$$
+
+```c++
+#include "bits/stdc++.h"
+using namespace std;
+typedef long long ll; typedef double lf; typedef pair<ll, ll> II; typedef vector<ll> vec;
+const inline void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0u); cout.tie(0u); }
+const lf PI = acos(-1);
+#include "lib/image.hpp"
+#include "lib/poly.hpp"
+void process_rect(auto&& block_op, Poly::RVec2& src, ll x1, ll y1, ll h, ll w) {
+    Poly::RVec2 block(h, Poly::RVec(w));
+    for (ll i = y1; i < y1 + h; i++) {
+        for (ll j = x1; j < x1 + w; j++) { 
+            block[i - y1][j - x1] = src[i][j];
+        }
+    }
+    block_op(block);
+    for (ll i = y1; i < y1 + h; i++) {
+        for (ll j = x1; j < x1 + w; j++) { 
+            src[i][j] = block[i - y1][j - x1];
+        }
+    }
+}
+void process(auto&& block_op, Poly::RVec2& src, ll h = 8, ll w = 8) {
+    ll n = src.size(), m = src[0].size();
+    vector<II> blks;
+    for (ll i = 0; i < n; i += h) {
+        for (ll j = 0; j < m; j += w) { 
+            blks.push_back({ i, j });            
+        }
+    }
+    std::for_each(
+        std::execution::par_unseq,
+        blks.begin(), blks.end(),
+        [&](II ij) { process_rect(block_op, src, ij.first, ij.second, h, w); }        
+    );
+}
+int main() {
+    /* image to dct */ 
+    auto image = Image::from_file("data/cameraman.png");
+    auto &ch0 = Image::to_grayscale(image);
+    auto [nchn, h, w] = Image::image_size(image);
+    Poly::utils::resize(ch0, {Poly::utils::to_pow2(h), Poly::utils::to_pow2(w)});
+    cout << "Processing..." << w << "x" << h << endl;
+    process([](Poly::RVec2& rect) { Poly::transform::DCT2(rect, execution::seq); }, ch0);
+    cout << "Saving." << endl;
+    Image::to_file(Image::Image{ch0}, "data/dct.png");    
+    /* dct to image */
+    cout << "Dropping coefficents." << endl;
+    process(
+        [](Poly::RVec2& src) { 
+            ll n = src.size(), m = src[0].size();
+            for (ll i = 0; i < n; i++) {
+                for (ll j = 0; j < m; j++) { 
+                    if (i >= 4 || j >= (n/2-i)) src[i][j] = 0;
+                }
+            }
+    }, ch0);
+    Image::to_file(Image::Image{ ch0 }, "data/dct_dropped.png");   
+    cout << "Restoring." << endl;        
+    process([](Poly::RVec2& rect) { Poly::transform::IDCT2(rect, execution::seq); }, ch0);
+    cout << "Saving." << endl;
+    Image::to_file(Image::Image{ ch0 }, "data/idct.png");    
+    return 0;
+}
+
+```
+
+
+
+| 输入                                                         | DCT                                                          | 丢掉三角阵的DCT                                              | IDCT                                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| ![cameraman](https://github.com/user-attachments/assets/40514c3d-3866-4a68-b47e-d8ac54b0f2ad) | ![dct](https://github.com/user-attachments/assets/920e7453-3831-401a-aeb9-3c380cea524f) | ![dct_dropped](https://github.com/user-attachments/assets/4c715305-258e-4a9b-9066-307963f54375) | ![idct](https://github.com/user-attachments/assets/5d2619c4-b919-46d5-8822-a775d9b54779) |
+
