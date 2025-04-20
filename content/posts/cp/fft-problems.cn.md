@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-20T12:29:34.467000+08:00
+lastmod: 2025-04-20T21:10:16.479000+08:00
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -999,7 +999,7 @@ int main() {
 
   | 输入                                                         | 输出                                                         |
   | ------------------------------------------------------------ | ------------------------------------------------------------ |
-  | ![input](https://github.com/user-attachments/assets/52c8860a-c118-406c-9ef1-2211b9e5ecc9) | ![output](https://github.com/user-attachments/assets/7f7bfe51-db49-4295-ab3a-76751c395c1b) |
+  | ![input](/image-github/434868266-52c8860a-c118-406c-9ef1-2211b9e5ecc9.png) | ![output](/image-github/434868287-7f7bfe51-db49-4295-ab3a-76751c395c1b.png) |
 
 #### Wiener 去卷积（逆包络）
 
@@ -1093,7 +1093,7 @@ int main() {
 
   | 输入                                                         | 输出                                                         |
   | ------------------------------------------------------------ | ------------------------------------------------------------ |
-  | ![output](https://github.com/user-attachments/assets/13695e56-aa4e-4352-a90d-07ca14620479) | ![deblur](https://github.com/user-attachments/assets/38ad63d7-a12a-4032-8d08-3fd7e872d752) |
+  | ![output](/image-github/435036278-13695e56-aa4e-4352-a90d-07ca14620479.png) | ![deblur](/image-github/435036293-38ad63d7-a12a-4032-8d08-3fd7e872d752.png) |
 
 ## 图像压缩 （DCT）
 
@@ -1185,5 +1185,5 @@ int main() {
 
 | 输入                                                         | DCT                                                          | 丢掉三角阵的DCT                                              | IDCT                                                         |
 | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| ![cameraman](https://github.com/user-attachments/assets/40514c3d-3866-4a68-b47e-d8ac54b0f2ad) | ![dct](https://github.com/user-attachments/assets/920e7453-3831-401a-aeb9-3c380cea524f) | ![dct_dropped](https://github.com/user-attachments/assets/4c715305-258e-4a9b-9066-307963f54375) | ![idct](https://github.com/user-attachments/assets/5d2619c4-b919-46d5-8822-a775d9b54779) |
+| ![cameraman](/image-github/435438684-40514c3d-3866-4a68-b47e-d8ac54b0f2ad.png) | ![dct](/image-github/435438689-920e7453-3831-401a-aeb9-3c380cea524f.png) | ![dct_dropped](/image-github/435438694-4c715305-258e-4a9b-9066-307963f54375.png) | ![idct](/image-github/435438681-5d2619c4-b919-46d5-8822-a775d9b54779.png) |
 

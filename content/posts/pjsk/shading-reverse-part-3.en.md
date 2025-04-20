@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-18T19:45:14.506000+08:00
+lastmod: 2025-04-20T21:10:16.471000+08:00
 title: PSJK Blender Cartoon Render Pipeline Revisited【3】- SDF face rendering implementation
 tags: ["Reverse Engineering","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "Reverse Engineering", "Collection/compilation", "CG"]
@@ -52,7 +52,7 @@ The SDF mapping used for the extraction game is as follows
 
 Viewing the threshold in Photoshop, it's clear that it's a similar model to the one described above
 
-  <video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/c653ee88-0d85-4724-bdad-1c62f1742d7d
+  <video autoplay style="width:100%" controls src="/image-github/404533532-c653ee88-0d85-4724-bdad-1c62f1742d7d.mov
 "/>
 
 Recall that the **threshold** we need **corresponds to the **light angle**; which will be used right away next (again, knock on wood)
@@ -184,7 +184,7 @@ Similar to the previous idea of taking edge highlights, the Euler XYZ of **World
 
 The effect is as follows：
 
-<video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/1c159adf-81df-41a6-9274-2374ad7260d2
+<video autoplay style="width:100%" controls src="/image-github/404535703-1c159adf-81df-41a6-9274-2374ad7260d2.mov
 "/>
 
 #### Tectonic orthogonal basis (math.)
@@ -239,7 +239,7 @@ The following code blocks are taken from the referenced paper [Building an Ortho
 
 Using $cos \phi, cos \theta$ from above, it's a snap to realize that
 
-<video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/dd0bb533-a46b-469f-a3d8-cf945faf051d
+<video autoplay style="width:100%" controls src="/image-github/404536951-dd0bb533-a46b-469f-a3d8-cf945faf051d.mov
 "/>
 做好背光特判后即完成SDF阈值在Shader Node中的计算^^
 
@@ -265,7 +265,7 @@ The inversion is simply $u = 1 - u$
 ### Final result
 The effect is practiced in the animation as follows; you can see that the threshold lighting also changes correctly in the bone movements.
 
-<video autoplay style="width:100%" controls src="https://github.com/user-attachments/assets/f4fce0cf-2611-438d-96c3-529d69210c74"/>
+<video autoplay style="width:100%" controls src="/image-github/404627637-f4fce0cf-2611-438d-96c3-529d69210c74.mp4"/>
 
 ## References
 
