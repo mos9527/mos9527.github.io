@@ -1,0 +1,52 @@
+<!-- https://github.com/alex-shpak/hugo-book/issues/616 -->
+<style>
+    .copy-button {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        padding: 5px 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        background-color: #6c757d;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 0.875rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        transition: background-color 0.3s, box-shadow 0.3s;
+    }
+
+    .copy-button:hover {
+        background-color: #5a6268;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+    }
+
+    pre {
+        position: relative;
+        background-color: #f8f9fa;
+        border: 1px solid #e1e1e1;
+        padding: 16px;
+        border-radius: 4px;
+        overflow: auto;
+    }
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', (event) => {
+      document.querySelectorAll('pre code').forEach((block) => {
+        const button = document.createElement('button');
+        button.className = 'copy-button';
+        button.textContent = 'Copy';
+        button.addEventListener('click', () => {
+          const range = document.createRange();
+          range.selectNodeContents(block);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          document.execCommand('copy');
+          button.textContent = 'Copied!';
+          setTimeout(() => { button.textContent = 'Copy'; }, 2000);
+        });
+        block.parentNode.insertBefore(button, block);
+      });
+    });
+</script>
