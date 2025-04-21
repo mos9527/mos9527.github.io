@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-21T15:50:10.928669
+lastmod: 2025-04-19T17:45:19.086158
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1953,94 +1953,126 @@ a | b == (a ^ b) + (a & b);
 (a - b) == (((a | b) ^ b) - (b ^ (a & b)));
 ```
 
+## 线段树
 
-## MSVC也要用万能头!!
-
-- `bits/stdc++.h`
 ```c++
-#ifndef _GLIBCXX_NO_ASSERT
-#include <cassert>
-#endif
-#include <cctype>
-#include <cerrno>
-#include <cfloat>
-#include <ciso646>
-#include <climits>
-#include <clocale>
-#include <cmath>
-#include <csetjmp>
-#include <csignal>
-#include <cstdarg>
-#include <cstddef>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-
-#if __cplusplus >= 201103L
-#include <ccomplex>
-#include <cfenv>
-#include <cinttypes>
-#include <cstdbool>
-#include <cstdint>
-#include <ctgmath>
-#include <cwchar>
-#include <cwctype>
-#endif
-
-// C++
-#include <algorithm>
-#include <bitset>
-#include <complex>
-#include <deque>
-#include <exception>
-#include <fstream>
-#include <functional>
-#include <iomanip>
-#include <ios>
-#include <iosfwd>
-#include <iostream>
-#include <istream>
-#include <iterator>
-#include <limits>
-#include <list>
-#include <locale>
-#include <map>
-#include <memory>
-#include <new>
-#include <numeric>
-#include <ostream>
-#include <queue>
-#include <set>
-#include <sstream>
-#include <stack>
-#include <stdexcept>
-#include <streambuf>
-#include <string>
-#include <typeinfo>
-#include <utility>
-#include <valarray>
-#include <vector>
-
-#if __cplusplus >= 201103L
-#include <array>
-#include <atomic>
-#include <chrono>
-#include <condition_variable>
-#include <forward_list>
-#include <future>
-#include <initializer_list>
-#include <mutex>
-#include <random>
-#include <ratio>
-#include <regex>
-#include <scoped_allocator>
-#include <system_error>
-#include <thread>
-#include <tuple>
-#include <typeindex>
-#include <type_traits>
-#include <unordered_map>
-#include <unordered_set>
-#endif
+template<typename T> struct segment_tree {
+    struct node {
+        ll l, r; // 区间[l,r]
+        T sum_v;
+        T max_v;
+        // lazy值
+        T lazy_add;
+        optional<T> lazy_set;
+        ll length() const { return r - l + 1; }
+        ll mid() const { return (l + r) / 2; }
+    };
+    vector<node> tree;
+private:
+    ll begin = 1, end = 1;
+    void push_up(ll o) {
+        // 向上传递
+        ll lc = o * 2, rc = o * 2 + 1;
+        tree[o].sum_v = tree[lc].sum_v + tree[rc].sum_v;
+        tree[o].max_v = max(tree[lc].max_v, tree[rc].max_v);
+    }
+    void push_down(ll o) {
+        // 向下传递
+        ll lc = o * 2, rc = o * 2 + 1;
+        if (tree[o].lazy_set.has_value()) {
+            tree[lc].lazy_add = tree[rc].lazy_add = 0;
+            tree[lc].lazy_set = tree[rc].lazy_set = tree[o].lazy_set;
+            // 可差分操作
+            tree[lc].max_v = tree[o].lazy_set.value();
+            tree[rc].max_v = tree[o].lazy_set.value();
+            // 求和贡献与长度有关
+            tree[lc].sum_v = tree[o].lazy_set.value() * tree[lc].length();
+            tree[rc].sum_v = tree[o].lazy_set.value() * tree[rc].length();
+            tree[o].lazy_set.reset();
+        }
+        if (tree[o].lazy_add) {
+            tree[lc].lazy_add += tree[o].lazy_add, tree[rc].lazy_add += tree[o].lazy_add;
+            // 同上
+            tree[lc].max_v += tree[o].lazy_add;
+            tree[rc].max_v += tree[o].lazy_add;
+            tree[lc].sum_v += tree[o].lazy_add * tree[lc].length();
+            tree[rc].sum_v += tree[o].lazy_add * tree[rc].length();
+            tree[o].lazy_add = {};
+        }
+    }
+    void update(ll o, ll l, ll r, optional<T> const& set_v = {}, T const& add_v = 0) {
+        ll lc = o * 2, rc = o * 2 + 1;
+        if (tree[o].l == l && tree[o].r == r) { // 定位到所在区间 - 同下
+            if (set_v.has_value()) {
+                // set
+                tree[o].max_v = set_v.value();
+                tree[o].sum_v = set_v.value() * tree[o].length();
+                tree[o].lazy_set = set_v; tree[o].lazy_add = {};
+            }
+            else {
+                // add
+                tree[o].max_v += add_v;
+                tree[o].sum_v += add_v * tree[o].length();
+                tree[o].lazy_add += add_v;
+            }
+            return;
+        }
+        push_down(o);
+        ll mid = tree[o].mid();
+        if (r <= mid) update(lc, l, r, set_v, add_v);
+        else if (mid < l) update(rc, l, r, set_v, add_v);
+        else {
+            update(lc, l, mid, set_v, add_v);
+            update(rc, mid + 1, r, set_v, add_v);
+        }
+        push_up(o);
+    }
+    node query(ll o, ll l, ll r) {
+        ll lc = o * 2, rc = o * 2 + 1;
+        if (tree[o].l == l && tree[o].r == r) return tree[o];
+        push_down(o);
+        ll mid = tree[o].mid();
+        if (r <= mid) return query(lc, l, r);
+        else if (mid < l) return query(rc, l, r);
+        else {
+            node p = query(lc, l, mid);
+            node q = query(rc, mid + 1, r);
+            return {
+                l, r,
+                p.sum_v + q.sum_v,
+                max(p.max_v, q.max_v),
+            };
+        }
+    }
+    void build(ll o, ll l, ll r, const T* src = nullptr) {
+        ll lc = o * 2, rc = o * 2 + 1;
+        tree[o] = {};
+        tree[o].l = l, tree[o].r = r;
+        if (l == r) {
+            if (src) tree[o].sum_v = tree[o].max_v = src[l];
+            return;
+        }
+        ll mid = (l + r) / 2;
+        build(lc, l, mid, src);
+        build(rc, mid + 1, r, src);
+        push_up(o);
+    }
+    void build(const T* src = nullptr) { build(begin, begin, end, src); }
+public:
+    void range_add(ll l, ll r, T const& v) { update(begin, l, r, {}, v); }
+    void range_set(ll l, ll r, T const& v) { update(begin, l, r, v, 0); }
+    node range_query(ll l, ll r) { return query(begin, l, r); }
+    T range_sum(ll l, ll r) { return range_query(l, r).sum_v; }
+    T range_max(ll l, ll r) { return range_query(l, r).max_v; }
+    void reserve(const ll n) { tree.reserve(n); }
+    void reset(const ll n) { end = n; tree.resize(end << 2); build(); }
+    // 注意：src[0]会被省略
+    void reset(const vector<T>& src) {
+        end = src.size() - 1; tree.resize(end << 2);
+        build(src.data());
+    }
+    explicit segment_tree() {};
+    explicit segment_tree(const ll n) : begin(1), end(n) { reset(n); }
+};
 ```
+
