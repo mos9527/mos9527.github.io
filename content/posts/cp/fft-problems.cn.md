@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-21T17:19:32.852856
+lastmod: 2025-04-21T17:21:34.171962
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1168,65 +1168,34 @@ $$
 ```c++
 #include "bits/stdc++.h"
 using namespace std;
-typedef long long ll; typedef double lf; typedef pair<ll, ll> II; typedef vector<ll> vec;
-const inline void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0u); cout.tie(0u); }
+typedef long long ll;typedef double lf;typedef pair<ll, ll> II; typedef vector<ll> vec;
 const lf PI = acos(-1);
 #include "lib/image.hpp"
 #include "lib/poly.hpp"
-void process_rect(auto&& block_op, Poly::RVec2& src, ll x1, ll y1, ll h, ll w) {
-    Poly::RVec2 block(h, Poly::RVec(w));
-    for (ll i = y1; i < y1 + h; i++) {
-        for (ll j = x1; j < x1 + w; j++) { 
-            block[i - y1][j - x1] = src[i][j];
-        }
-    }
-    block_op(block);
-    for (ll i = y1; i < y1 + h; i++) {
-        for (ll j = x1; j < x1 + w; j++) { 
-            src[i][j] = block[i - y1][j - x1];
-        }
-    }
-}
-void process(auto&& block_op, Poly::RVec2& src, ll h = 8, ll w = 8) {
-    ll n = src.size(), m = src[0].size();
-    vector<II> blks;
-    for (ll i = 0; i < n; i += h) {
-        for (ll j = 0; j < m; j += w) { 
-            blks.push_back({ i, j });            
-        }
-    }
-    std::for_each(
-        std::execution::par_unseq,
-        blks.begin(), blks.end(),
-        [&](II ij) { process_rect(block_op, src, ij.first, ij.second, h, w); }        
-    );
-}
+auto block8x8 = [](auto&& op, auto& src) { return Poly::block::block2D(op, src, 8, 8, std::execution::par_unseq); };
 int main() {
-    /* image to dct */ 
+    /* image to dct */
     auto image = Image::from_file("data/cameraman.png");
-    auto &ch0 = Image::to_grayscale(image);
+    auto& source = Image::to_grayscale(image);
     auto [nchn, h, w] = Image::image_size(image);
-    Poly::utils::resize(ch0, {Poly::utils::to_pow2(h), Poly::utils::to_pow2(w)});
+    Poly::utils::resize(source, { Poly::utils::to_pow2(h), Poly::utils::to_pow2(w) });
     cout << "Processing..." << w << "x" << h << endl;
-    process([](Poly::RVec2& rect) { Poly::transform::DCT2(rect, execution::seq); }, ch0);
+    block8x8([](Poly::RVec2& rect) { Poly::transform::DCT2(rect, execution::seq); }, source);
     cout << "Saving." << endl;
-    Image::to_file(Image::Image{ch0}, "data/dct.png");    
-    /* dct to image */
+    Image::to_file(Image::Image{ source }, "data/dct.png");
     cout << "Dropping coefficents." << endl;
-    process(
-        [](Poly::RVec2& src) { 
-            ll n = src.size(), m = src[0].size();
-            for (ll i = 0; i < n; i++) {
-                for (ll j = 0; j < m; j++) { 
-                    if (i >= 4 || j >= (n/2-i)) src[i][j] = 0;
-                }
-            }
-    }, ch0);
-    Image::to_file(Image::Image{ ch0 }, "data/dct_dropped.png");   
-    cout << "Restoring." << endl;        
-    process([](Poly::RVec2& rect) { Poly::transform::IDCT2(rect, execution::seq); }, ch0);
+    block8x8(
+        [](Poly::RVec2& rect) {
+            auto [n, m] = Poly::utils::size_of(rect);
+            for (ll i = 0; i < n; i++) for (ll j = 0; j < m; j++)
+                if (i >= 4 || j >= (n / 2 - i)) rect[i][j] = 0;
+        },
+        source);
+    Image::to_file(Image::Image{ source }, "data/dct_dropped.png");
+    cout << "Restoring." << endl;
+    block8x8([](Poly::RVec2& rect) { Poly::transform::IDCT2(rect, execution::seq); }, source);
     cout << "Saving." << endl;
-    Image::to_file(Image::Image{ ch0 }, "data/idct.png");    
+    Image::to_file(Image::Image{ source }, "data/idct.png");
     return 0;
 }
 
