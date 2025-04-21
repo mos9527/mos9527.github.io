@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-21T09:22:28.223000+08:00
+lastmod: 2025-04-21T09:35:40.780000+08:00
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -514,16 +514,22 @@ inline ll to_pow2(ll a, ll b) {
 inline II to_pow2(II const& a, II const& b) {
     return { to_pow2(a.first + b.first), to_pow2(a.second + b.second) };
 }
-template <typename T> inline void resize(T& a, ll n) {
+template <Vec1D T> inline ll size_of(T const& a) {
+    return a.size();
+}
+template <Vec2D T> inline II size_of(T const& a) {
+    return { a.size(), a.size() ? a[0].size() : 0 };
+}
+template <Vec1D T> inline void resize(T& a, ll n) {
     a.resize(n);
 }
-template <typename T> inline void resize(T& a, II nm) {
+template <Vec2D T> inline void resize(T& a, II nm) {
     a.resize(nm.first);
     for (auto& row : a) row.resize(nm.second);
 }
-template <typename T, typename Ty> inline void resize(T& a, II nm, Ty fill) {
+template <Vec2D T, typename Ty> inline void resize(T& a, II nm, Ty fill) {
     auto [N, M] = nm;
-    ll n = a.size(), m = a.size() ? a[0].size() : 0;
+    auto [n, m] = size_of(a);
     resize(a, nm);
     if (M > m) {
         for (ll i = 0; i < n; ++i)
@@ -554,7 +560,7 @@ inline ll bit_reverse_perm(ll n, ll x) {
 }
 // Cooley-Tukey FFT
 inline CVec& FFT(CVec& a, bool invert) {
-    const ll n = a.size();
+    const ll n = utils::size_of(a);
     assert(utils::is_pow2(n));
     for (ll i = 0, r; i < n; i++)
         if (i < (r = bit_reverse_perm(n, i))) swap(a[i], a[r]);
@@ -578,7 +584,7 @@ inline CVec& FFT(CVec& a, bool invert) {
 }
 // Cooley-Tukey FFT in modular arithmetic / Number Theoretic Transform
 inline IVec& NTT(IVec& a, ll p, ll g, bool invert) {
-    const ll n = a.size();
+    const ll n = utils::size_of(a);
     assert(utils::is_pow2(n));
     for (ll i = 0, r; i < n; i++)
         if (i < (r = bit_reverse_perm(n, i))) swap(a[i], a[r]);
@@ -606,7 +612,7 @@ inline IVec& NTT(IVec& a, ll p, ll g, bool invert) {
 inline RVec& DCT2(RVec& a) {
     // https://docs.scipy.org/doc/scipy/reference/generated/scipy.fftpack.dct.html
     // https://zh.wikipedia.org/wiki/离散余弦变换#方法一[8]
-    const ll n = a.size(), N = 2 * n;
+    const ll n = utils::size_of(a), N = 2 * n;
     const lf k2N = std::sqrt(N), k4N = std::sqrt(2.0 * N);
     assert(utils::is_pow2(n));
     CVec a_n2 = utils::as_complex(a);
@@ -626,7 +632,7 @@ inline RVec& DCT2(RVec& a) {
 inline RVec& DCT3(RVec& a) {
     // https://dsp.stackexchange.com/questions/51311/computation-of-the-inverse-dct-idct-using-dct-or-ifft
     // https://docs.scipy.org/doc/scipy/reference/generated/scipy.fftpack.dct.html
-    const ll n = a.size(), N = 2 * n;
+    const ll n = utils::size_of(a), N = 2 * n;
     const lf k2N = std::sqrt(N);
     assert(utils::is_pow2(n));
     CVec a_n = utils::as_complex(a);
@@ -645,7 +651,7 @@ inline RVec& DCT3(RVec& a) {
 namespace transform {
 template <Vec2D T, ExecutionPolicy Execution, class Transform>
 T& __transform2D(T& a, Transform const& transform, Execution const& execution) {
-    const ll n = a.size(), m = a[0].size();
+    auto [n, m] = utils::size_of(a);
     IVec mn(max(m, n));
     iota(mn.begin(), mn.end(), 0);
     for_each(execution, mn.begin(), mn.begin() + n, [&](ll row) { transform(a[row]); });
@@ -700,8 +706,8 @@ T& __convolve(T& a, T& b, Transform const& transform, InvTransform const& inv_tr
 }
 template <Vec2D T, class Transform, class InvTransform, ExecutionPolicy Exec>
 T& __convolve2D(T& a, T& b, Transform const& transform, InvTransform const& inv_transform, Exec const& execution) {
-    ll n = a.size(), m = a[0].size();
-    ll k = b.size(), l = b[0].size();
+    auto [n, m] = utils::size_of(a);
+    auto [k, l] = utils::size_of(b);
     II NM = utils::to_pow2({ n, m }, { k, l });
     auto [N, M] = NM;
     utils::resize(a, NM), utils::resize(b, NM);
@@ -741,7 +747,7 @@ template <ExecutionPolicy Exec> RVec2& convolve2D(RVec2& a, RVec2& b, Exec const
 namespace block {
 template <class Op, Vec2D T, ExecutionPolicy Exec>
 void block2D(Op&& block_op, T& src, ll h, ll w, Exec const& execution) {
-    ll n = src.size(), m = src[0].size();
+    auto [n, m] = utils::size_of(src);
     assert(n % h == 0 && n % w == 0);
     auto for_each = [&](II ij) {
         auto [y1, x1] = ij;
@@ -887,8 +893,9 @@ using Image = std::vector<Poly::RVec2>;
 using Poly::ll, Poly::lf;
 // Channels, Height, Width
 inline std::tuple<ll, ll, ll> image_size(const Image& img) {
-    ll nchn = img.size(), h = img[0].size(), w = img[0][0].size();
-    return { nchn, h, w };
+    if (!img.size()) return { 0, 0, 0 };    
+    auto [h, w] = Poly::utils::size_of(img[0]);    
+    return { img.size(), h, w };
 }
 // Assuming 8bit sRGB space
 template <typename Texel> Image from_texels(const Texel* img_data, int w, int h, int nchn) {
