@@ -441,12 +441,10 @@ $$
 /* Poly.hpp - Single header, minimal Polynomial (FFT/DFT/NTT/DCT) library */
 #pragma once
 #define _POLY_HPP
+#include <span>
 #include <cassert>
 #include <cmath>
-#include <vector>
 #include <complex>
-#include <numeric>
-#include <span>
 namespace Poly {
 using ll = long long;
 using lf = double;
