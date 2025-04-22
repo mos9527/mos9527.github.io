@@ -476,7 +476,7 @@ namespace Poly {
 /// Complex domain Cooley-Tukey FFT transform in O(NlogN) time and O(1) space
 /// </summary>
 /// <param name="a">Input span of complex values</param>
-/// <param name="invert">Perform forward (false) or backward (true) FFT</param>
+/// <param name="invert">Perform forward (false) or backward (true) FFT, where FFT(FFT(a, false),true) = a</param>
 inline void FFT(std::span<Complex>&& a, bool invert) {
     const ll n = a.size();
     assert(__is_pow2(n));
@@ -505,7 +505,7 @@ inline void FFT(std::span<Complex>&& a, bool invert) {
 /// <param name="a">Input span of integers (ll)</param>
 /// <param name="p">Modulus p where p - 1 = pow(2,k) * c</param>
 /// <param name="g">Any primitive root g of p</param>
-/// <param name="invert">Perform forward (false) or backward (true) FFT</param>
+/// <param name="invert">Perform forward (false) or backward (true) FFT, where NTT(NTT(a, false),true) = a</param>
 inline void NTT(std::span<ll>&& a, ll p, ll g, bool invert) {
     const ll n = a.size();
     assert(__is_pow2(n));
