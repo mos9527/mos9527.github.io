@@ -438,6 +438,7 @@ $$
 本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，开箱即用。(Clang/GCC需要oneTBB,Apple Clang还需要oneDPL)
 
 ```c++
+/* Poly.hpp - Single header, minimal Polynomial (FFT/DFT/NTT/DCT) library */
 #pragma once
 #define _POLY_HPP
 #include <cassert>
@@ -465,10 +466,12 @@ inline ll __bit_reversal(ll max_n, ll x) {
     return res;
 }
 inline const ll __binpow_mod(ll a, ll b, ll m, ll res = 1) {
-    for (a %= m; b; b >>= 1) 
-        res = (b & 1) ? (res * a % m) : res, a = a * a % m;
+    for (a %= m; b; b >>= 1) res = (b & 1) ? (res * a % m) : res, a = a * a % m;
     return res;
 };
+} // namespace Poly
+
+namespace Poly {
 /// <summary>
 /// Complex domain Cooley-Tukey FFT transform in O(NlogN) time and O(1) space
 /// </summary>
@@ -481,7 +484,7 @@ inline void FFT(std::span<Complex>&& a, bool invert) {
         if (i < (r = __bit_reversal(n, i))) swap(a[i], a[r]);
     for (ll n_i = 2; n_i <= n; n_i <<= 1) {
         lf w_ang = -2 * PI / n_i;
-        Complex w_n = exp(Complex{ 0, w_ang });        
+        Complex w_n = exp(Complex{ 0, w_ang });
         if (invert) w_n = conj(w_n);
         for (ll i = 0; i < n; i += n_i) {
             Complex w_k = Complex{ 1, 0 };
@@ -540,13 +543,12 @@ inline void DCT2(std::span<lf>&& a, std::span<Complex>&& work_area) {
     const ll n = a.size(), N = 2 * n;
     assert(__is_pow2(n));
     assert(work_area.size() >= 2 * n);
-    for (ll i = 0; i < n; i++) 
-        work_area[i] = work_area[N - i - 1] = a[i];
+    for (ll i = 0; i < n; i++) work_area[i] = work_area[N - i - 1] = a[i];
     FFT(std::span<Complex>{ work_area.begin(), work_area.end() }, false);
     const lf k2N = std::sqrt(N), k4N = std::sqrt(2.0 * N);
     for (ll m = 0; m < n; m++) {
         lf w_ang = -PI * m / N;
-        Complex w_n = exp(Complex{ 0, w_ang });    
+        Complex w_n = exp(Complex{ 0, w_ang });
         a[m] = (work_area[m] * w_n).real(); // imag = 0
         a[m] /= (m == 0 ? k4N : k2N);
     }
@@ -564,13 +566,12 @@ inline void DCT3(std::span<lf>&& a, std::span<Complex>&& work_area) {
     const ll n = a.size(), N = 2 * n;
     assert(__is_pow2(n));
     assert(work_area.size() >= n);
-    for (ll i = 0; i < n; i++) 
-        work_area[i] = a[i];
+    for (ll i = 0; i < n; i++) work_area[i] = a[i];
     a[0] /= std::sqrt(2.0);
     const lf k2N = std::sqrt(N);
     for (ll m = 0; m < n; m++) {
         lf w_ang = PI * m / N;
-        Complex w_n = exp(Complex{ 0, w_ang });            
+        Complex w_n = exp(Complex{ 0, w_ang });
         work_area[m] = a[m] * k2N * w_n;
     }
     FFT(std::span<Complex>{ work_area.begin(), work_area.end() }, true);
