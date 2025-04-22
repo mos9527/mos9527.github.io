@@ -433,13 +433,9 @@ $$
   $$
   
 
-## Reference
+## Reference (lib/poly.hpp)
 
-#### lib/poly.hpp
-
-本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，开箱即用。
-
-心情好的话（link下`tbb`?还是说你用的就是`msvc`...）本实现中二维FFT可以实现并行（`execution = std::execution::par_unseq`）
+本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，开箱即用。(Clang/GCC需要oneTBB,Apple Clang还需要oneDPL)
 
 ```c++
 /***
