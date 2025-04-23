@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-22T13:10:57.454000+08:00
+lastmod: 2025-04-23T16:29:59.485383
 title: PSJK Blender卡通渲染管线重现【3】- SDF 面部渲染实现
 tags: ["逆向","Unity","PJSK","Project SEKAI","Blender","CG","3D","NPR","Python"]
 categories: ["PJSK", "逆向", "合集", "CG"]

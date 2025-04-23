@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-22T22:30:25.477000+08:00
+lastmod: 2025-04-23T16:29:59.482183
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
