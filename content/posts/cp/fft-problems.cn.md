@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-23T16:29:59.482183
+lastmod: 2025-04-24T15:54:57.667000+08:00
 title: 算竞笔记 - FFT/多项式/数论专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -435,22 +435,23 @@ $$
 
 ## Reference (lib/poly.hpp)
 
-本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，开箱即用。(Clang/GCC需要oneTBB,Apple Clang还需要oneDPL)
+本文所提及的$\text{DFT/FFT/(F)NTT}$魔术总结如下，开箱即用。
 
 ```c++
-/* Poly.hpp - Single header, minimal Polynomial (FFT/DFT/NTT/DCT) library */
+/* Poly.hpp - Single header, minimal 1-D Radix-2 FFT/DFT/NTT/DCT transform library */
 #pragma once
 #define POLY_HPP
-#include <cassert>
+#include <span>
 #include <cmath>
+#include <vector>
 #include <complex>
 #include <numbers>
 namespace Poly {
-const double PI = std::numbers::pi;
-inline const bool is_pow2(size_t x) {
+constexpr double PI = std::numbers::pi;
+inline bool is_pow2(const size_t x) {
     return (x & (x - 1)) == 0;
 }
-template <typename T> const T binpow_mod(T a, T b, T m, T res = 1) {
+inline long long binpow_mod(long long a, long long b, long long m, long long res = 1) {
     for (a %= m; b; b >>= 1) res = (b & 1) ? (res * a % m) : res, a = a * a % m;
     return res;
 };
@@ -458,214 +459,276 @@ enum class transform_result {
     SUCCESS = 0,
     INVALID_SIZE = 1,
     INVALID_INPUT = 2,
+    INVALID_COEFFICIENT = 3,
 };
-template <typename T> void generate_bit_reversal(T& a) {
-    size_t size = a.size();
-    for (size_t i = 0; i < size; i++) {
-        a[i] = a[i >> 1] >> 1;
-        if (i & 1) a[i] |= (size >> 1);
+template <typename T = size_t> struct bit_reversal {
+    std::vector<T> bit;
+    explicit bit_reversal(const size_t n) : bit(n) {
+        for (size_t i = 0; i < n; i++) {
+            bit[i] = bit[i >> 1] >> 1;
+            if (i & 1) bit[i] |= (n >> 1);
+        }
     }
-}
-template <typename _Complex = std::complex<double>> struct FFT {
-    using work_area_t = std::span<size_t>;
-    using value_t = _Complex;    
+    size_t operator[](size_t i) const { return bit[i]; }
+};
+
+template <typename Complex = std::complex<double>, bool Invert = false> struct FFT {
+    using value_t = Complex;
     using span_t = std::span<value_t>;
-    const size_t size;
+    class twiddle_factor {
+        std::vector<Complex> omega;
 
-private:
-    work_area_t _bit_reversal;
-
-public:
-    /// <summary>
-    /// Initialize FFT with size and work area
-    /// </summary>
-    /// <param name="work_area_view">Work area source. Subsequent inputs MUST be of this size and this size MUST be of
-    /// power of 2.</param>
-    FFT(work_area_t work_area_view) : size(work_area_view.size()), _bit_reversal(work_area_view) {        
-        generate_bit_reversal(_bit_reversal);
-    }
-    /// <summary>
-    /// Complex domain Cooley-Tukey FFT transform in O(NlogN) time and O(1) space
-    /// </summary>
-    /// <param name="a">Input span of complex values</param>
-    /// <param name="invert">Perform forward (false) or backward (true) FFT, where FFT(FFT(a, false),true) = a</param>
-    /// <returns>Result of this transform.</returns>
-    transform_result operator()(span_t a, bool invert) const {
-        const size_t n = a.size();
-        if (!is_pow2(n) || size != n) return transform_result::INVALID_SIZE;
-        for (size_t i = 0, r; i < n; i++)
-            if (i < (r = _bit_reversal[i])) std::swap(a[i], a[r]);
-        for (size_t n_i = 2; n_i <= n; n_i <<= 1) {            
-            _Complex w_n = exp(_Complex { 0, -2 * PI / n_i });
-            if (invert) w_n = conj(w_n);
-            for (size_t i = 0; i < n; i += n_i) {
-                _Complex w_k = _Complex { 1, 0 };
-                for (size_t j = 0; j < n_i / 2; j++) {
-                    _Complex u = a[i + j], v = a[i + j + n_i / 2] * w_k;
-                    a[i + j] = u + v;
-                    a[i + j + n_i / 2] = u - v;
-                    if (invert) a[i + j] /= 2, a[i + j + n_i / 2] /= 2;
+    public:
+        explicit twiddle_factor(const size_t n) : omega(n) {
+            // \sum_{i=1}^{\log_2 n} 2^{i - 1} = 2^{\log_2 n} - 1 = n - 1
+            for (size_t n_i = 2, i = 1; n_i <= n; n_i <<= 1) {
+                Complex w_n = std::exp(Complex{ 0, -2 * PI / n_i });
+                if constexpr (Invert) w_n = std::conj(w_n);
+                Complex w_k = Complex{ 1, 0 };
+                for (size_t k_i = 0; k_i < n_i / 2; k_i++) {
+                    omega[i++] = w_k;
                     w_k *= w_n;
                 }
             }
         }
-        return transform_result::SUCCESS;
-    }
-};
-
-template <typename _Integer = int> struct NTT {
-    using work_area_t = std::span<size_t>;
-    using value_t = _Integer;
-    using span_t = std::span<value_t>;
-    const size_t size;
+        Complex get(const size_t n_i, const size_t k_i) const { return omega[n_i / 2 + k_i]; }
+        const size_t size() const { return omega.size(); }
+    };
 
 private:
-    work_area_t _bit_reversal;
+    const twiddle_factor omega;
+    const bit_reversal<> rev;
 
 public:
+    const size_t size;
     /// <summary>
-    /// Initialize NTT with size and work area
+    /// Initialize FFT with size and work area (factors)
     /// </summary>
-    /// <param name="work_area_view">Work area source. Subsequent inputs MUST be of this size and this size MUST be of
-    /// power of 2.</param>
-    NTT(work_area_t work_area_view) : size(work_area_view.size()), _bit_reversal(work_area_view) {
-        generate_bit_reversal(_bit_reversal);
-    }
+    /// <param name="n">Size of this FFT transform. MUST be a power of 2.</param>
+    FFT(const size_t n) : omega(n), rev(n), size(n) {};
     /// <summary>
-    /// Modulus domain Cooley-Tukey FFT transform in O(NlogN) time and O(1) space
-    /// Also known as Number Theoretic Transform
+    /// Complex domain Cooley-Tukey FFT transform in O(NlogN) time and O(1) space
     /// </summary>
-    /// <param name="a">Input span of integers</param>
-    /// <param name="p">Modulus p where p - 1 = pow(2,k) * c</param>
-    /// <param name="g">Any primitive root g of p</param>
-    /// <param name="invert">Perform forward (false) or backward (true) FFT, where NTT(NTT(a, false),true) = a</param>
-    /// /// <returns>Result of this transform.</returns>
-    transform_result operator()(span_t a, _Integer p, _Integer g, bool invert) const {
+    /// <param name="a">Input span of complex values</param>
+    /// <returns>Result of this transform.</returns>
+    transform_result operator()(span_t a) const {
         const size_t n = a.size();
         if (!is_pow2(n) || size != n) return transform_result::INVALID_SIZE;
         for (size_t i = 0, r; i < n; i++)
-            if (i < (r = _bit_reversal[i])) std::swap(a[i], a[r]);
-        const _Integer inv_2 = binpow_mod(2, p - 2, p);
+            if (i < (r = rev[i])) std::swap(a[i], a[r]);
         for (size_t n_i = 2; n_i <= n; n_i <<= 1) {
-            _Integer w_n = binpow_mod(g, (p - 1) / n_i, p);
-            if (invert) w_n = binpow_mod(w_n, p - 2, p);
             for (size_t i = 0; i < n; i += n_i) {
-                _Integer w_k = 1;
                 for (size_t j = 0; j < n_i / 2; j++) {
-                    _Integer u = a[i + j], v = a[i + j + n_i / 2] * w_k;
-                    a[i + j] = (u + v + p) % p;
-                    a[i + j + n_i / 2] = (u - v + p) % p;
-                    if (invert) {
-                        a[i + j] = (a[i + j] * inv_2 % p + p) % p;
-                        a[i + j + n_i / 2] = (a[i + j + n_i / 2] * inv_2 % p + p) % p;
-                    }
-                    w_k = w_k * w_n % p;
+                    Complex u = a[i + j], v = a[i + j + n_i / 2] * omega.get(n_i, j);
+                    a[i + j] = u + v;
+                    a[i + j + n_i / 2] = u - v;
+                    if constexpr (Invert) a[i + j] /= 2, a[i + j + n_i / 2] /= 2;
                 }
             }
         }
         return transform_result::SUCCESS;
     }
 };
+template <typename Complex = std::complex<double>> using IFFT = FFT<Complex, true>;
 
-template <typename _Real = double, typename _FFT = FFT<>> struct DCT2 {
-    using value_t = _Real;
+template <typename Integer = long long, bool Invert = false> struct NTT {
+    using value_t = Integer;
     using span_t = std::span<value_t>;
-    using work_area_t = std::span<typename _FFT::value_t>;
-    using complex = typename _FFT::value_t;
-    const size_t size;
+    class twiddle_factor {
+        std::vector<Integer> omega;
+
+    public:
+        explicit twiddle_factor(const size_t n, const Integer p, const Integer g) : omega(n) {
+            // \sum_{i=1}^{\log_2 n} 2^{i - 1} = 2^{\log_2 n} - 1 = n - 1
+            for (size_t n_i = 2, i = 1; n_i <= n; n_i <<= 1) {
+                Integer w_n = binpow_mod(g, (p - 1) / n_i, p);
+                if constexpr (Invert) w_n = binpow_mod(w_n, p - 2, p);
+                Integer w_k = 1;
+                for (size_t k_i = 0; k_i < n_i / 2; k_i++) {
+                    omega[i++] = w_k;
+                    w_k = w_n * w_k % p;
+                }
+            }
+        }
+        Integer get(const size_t n_i, const size_t k_i) const { return omega[n_i / 2 + k_i]; }
+        const size_t size() const { return omega.size(); }
+    };
 
 private:
-    const _FFT const& fft;
-    work_area_t _fft_area;
+    const twiddle_factor omega;
+    const bit_reversal<> rev;
 
 public:
+    const Integer p, g, inv2;
+    const size_t size;
+    /// <summary>
+    /// Initialize NTT with size and work area (factors)
+    /// </summary>
+    /// <param name="n">Size of this NTT transform. MUST be a power of 2.</param>
+    /// <param name="p">Modulus p where p - 1 = pow(2,k) * c</param>
+    /// <param name="g">Any primitive root g of p</param>
+    NTT(const size_t n, const Integer p, const Integer g)
+        : omega(n, p, g), rev(n), size(n), p(p), g(g), inv2(binpow_mod(2, p - 2, p)) {};
+    /// <summary>
+    /// Complex domain Cooley-Tukey FFT transform in O(NlogN) time and O(1) space
+    /// </summary>
+    /// <param name="a">Input span of complex values</param>
+    /// <returns>Result of this transform.</returns>
+    transform_result operator()(span_t a) const {
+        const size_t n = a.size();
+        if (!is_pow2(n) || size != n) return transform_result::INVALID_SIZE;
+        for (size_t i = 0, r; i < n; i++)
+            if (i < (r = rev[i])) std::swap(a[i], a[r]);
+        for (size_t n_i = 2; n_i <= n; n_i <<= 1) {
+            for (size_t i = 0; i < n; i += n_i) {
+                Integer w_k = 1;
+                for (size_t j = 0; j < n_i / 2; j++) {
+                    Integer u = a[i + j], v = a[i + j + n_i / 2] * omega.get(n_i, j);
+                    a[i + j] = (u + v + p) % p;
+                    a[i + j + n_i / 2] = (u - v + p) % p;
+                    if constexpr (Invert) {
+                        a[i + j] = (a[i + j] * inv2 % p + p) % p;
+                        a[i + j + n_i / 2] = (a[i + j + n_i / 2] * inv2 % p + p) % p;
+                    }
+                }
+            }
+        }
+        return transform_result::SUCCESS;
+    }
+};
+template <typename Integer = long long> using INTT = NTT<Integer, true>;
+
+template <typename Real = double, typename DFT = FFT<>> struct DCT2 {
+    using value_t = Real;
+    using span_t = std::span<value_t>;
+    using complex = typename DFT::value_t;
+    using work_area_span_t = std::span<complex>;
+
+private:
+    DFT dft;
+    std::vector<complex> work_area;
+    std::vector<complex> omega;
+
+public:
+    const size_t size;
+
     /// <summary>
     /// Initialize DCT2 with size and work area
     /// </summary>
-    /// <param name="work_area_view">Work area source. Subsequent inputs MUST be HALF of this size and this size
-    /// MUST be of power of 2.</param>
-    /// <param name="fft">FFT transform. Subsequent inputs MUST be HALF of its size and this size
-    /// MUST be of power of 2 </param>
-    DCT2(work_area_t work_area_view, _FFT const& fft) : _fft_area(work_area_view), fft(fft), size(_fft_area.size()) {
-        assert(is_pow2(size) && size == fft.size());
-    }
+    /// </summary>
+    /// <param name="n">Size of this DCT2 transform. MUST be a power of 2. NOTE: Due to the chosen algo, AT LEAST 2n
+    /// memory will be allocated. </param>
+    /// <param name="create_work_area"> Create a work area automatically which will be used. If not - and work area is
+    /// not set, subsequent calls to operator() will result in transform_result::INVALID_SIZE</param>
+    DCT2(const size_t n, bool create_work_area = true) : dft(n * 2), omega(n), size(n) {
+        for (size_t m = 0, N = 2 * n; m < n; m++) {
+            Real w_ang = -PI * m / N;
+            omega[m] = std::exp(complex{ 0, w_ang });
+        }
+        if (create_work_area) work_area.resize(n * 2);
+    };
     /// <summary>
-    /// Real domain Discrete Cosine Transform (DCT-II) in O(NlogN) time and O(N) space. aka DCT,
+    /// Real domain Discrete Cosine Transform (DCT-II) in O(NlogN) time. aka DCT,
     /// with 'Ortho' normalization as in https://docs.scipy.org/doc/scipy/reference/generated/scipy.fftpack.dct.html
     /// **This is the inverse function of "DCT3", where DCT2(DCT3(x)) = x
     /// </summary>
-    /// <param name="a">Input span of real values. MUST be HALF of the work area size.</param>
+    /// <param name="a">Input span of real values</param>
+    /// <param name="work_area">Work area. MUST be TWICE the of size of this DCT</param>
     /// <returns>Result of this transform.</returns>
-    transform_result operator()(span_t a) {
+    transform_result operator()(span_t a, work_area_span_t work_area) const {
         // https://docs.scipy.org/doc/scipy/reference/generated/scipy.fftpack.dct.html
         // https://zh.wikipedia.org/wiki/离散余弦变换#方法一[8]
         const size_t n = a.size(), N = 2 * n;
-        if (!is_pow2(n) || size != 2 * n) return transform_result::INVALID_SIZE;
-        for (int i = 0; i < n; i++) _fft_area[i] = _fft_area[N - i - 1] = a[i];
-        fft({ _fft_area.begin(), _fft_area.begin() + N }, false);
-        const _Real k2N = std::sqrt(N), k4N = std::sqrt(2.0 * N);
-        for (int m = 0; m < n; m++) {
-            _Real w_ang = -PI * m / N;
-            complex w_n = exp(complex{ 0, w_ang });
-            a[m] = (_fft_area[m] * w_n).real(); // imag = 0
+        if (!is_pow2(n) || size != n || work_area.size() != N) return transform_result::INVALID_SIZE;
+        for (size_t i = 0; i < n; i++) work_area[i] = work_area[N - i - 1] = a[i];
+        dft(work_area);
+        const Real k2N = std::sqrt(N), k4N = std::sqrt(2.0 * N);
+        for (size_t m = 0; m < n; m++) {
+            complex w_n = omega[m];
+            a[m] = (work_area[m] * w_n).real(); // imag = 0
             a[m] /= (m == 0 ? k4N : k2N);
         }
         return transform_result::SUCCESS;
     }
+    /// <summary>
+    /// Real domain Discrete Cosine Transform (DCT-II) in O(NlogN) time. aka DCT,
+    /// with 'Ortho' normalization as in https://docs.scipy.org/doc/scipy/reference/generated/scipy.fftpack.dct.html
+    /// **This is the inverse function of "DCT3", where DCT2(DCT3(x)) = x
+    /// **This version uses the transform's owning work area and is therefore NOT thread-safe.
+    /// </summary>
+    /// <param name="a">Input span of real values</param>
+    /// <param name="work_area">Work area. MUST be TWICE the of size of this DCT</param>
+    /// <returns>Result of this transform.</returns>
+    transform_result operator()(span_t a) { return operator()(a, work_area); }
 };
-
-template <typename _Real = double, typename _FFT = FFT<>> struct DCT3 {
-    using value_t = _Real;
+template <typename Real = double, typename IDFT = IFFT<>> struct DCT3 {
+    using value_t = Real;
     using span_t = std::span<value_t>;
-    using work_area_t = std::span<typename _FFT::value_t>;
-    using complex = typename _FFT::value_t;
-    const size_t size;
+    using complex = typename IDFT::value_t;
+    using work_area_span_t = std::span<complex>;
 
 private:
-    const _FFT const& fft;
-    work_area_t _fft_area;
+    IDFT idft;
+    std::vector<complex> work_area;
+    std::vector<complex> omega;
 
 public:
+    const size_t size;
+
     /// <summary>
     /// Initialize DCT3 with size and work area
     /// </summary>
-    /// <param name="work_area_view">Work area source. Subsequent inputs MUST be of this size and this size
-    /// MUST be of power of 2.</param>
-    /// <param name="fft">FFT transform. Subsequent inputs MUST be of its size and this size
-    /// MUST be of power of 2 </param>
-    DCT3(work_area_t work_area_view, _FFT const& fft) : _fft_area(work_area_view), fft(fft), size(_fft_area.size()) {
-        assert(is_pow2(size) && size == fft.size());
-    }
-    /// <summary>
-    /// Real domain Discrete Cosine Transform (DCT-III) in O(NlogN) time and O(N) space. aka IDCT,
-    /// With 'Ortho' normalization as in https://docs.scipy.org/doc/scipy/reference/generated/scipy.fftpack.dct.html
-    /// **This is the inverse function of "DCT2", where DCT3(DCT2(x)) = x
     /// </summary>
-    /// <param name="a">Input span of real values.</param>
+    /// <param name="n">Size of this DCT3 transform. </param>
+    /// <param name="create_work_area"> Create a work area automatically which will be used. If not - and work area is
+    /// not set,
+    /// subsequent calls to operator() will result in transform_result::INVALID_SIZE</param>
+    DCT3(const size_t n, bool create_work_area = true) : idft(n), size(n), omega(n) {
+        for (size_t m = 0, N = 2 * n; m < n; m++) {
+            Real w_ang = PI * m / N;
+            omega[m] = std::exp(complex{ 0, w_ang });
+        }
+        if (create_work_area) work_area.resize(n);
+    };
+    /// <summary>
+    /// Real domain Discrete Cosine Transform (DCT-III) in O(NlogN) time. aka IDCT,
+    /// with 'Ortho' normalization as in https://docs.scipy.org/doc/scipy/reference/generated/scipy.fftpack.dct.html
+    /// **This is the inverse function of "DCT2", where DCT3(DCT2(x)) = x
+    /// **This version uses the transform's owning work area and is therefore NOT thread-safe.
+    /// </summary>
+    /// <param name="a">Input span of real values</param>
+    /// <param name="work_area">Work area. MUST be the same of size of this DCT</param>
     /// <returns>Result of this transform.</returns>
-    transform_result operator()(span_t a) {
+    transform_result operator()(span_t a, work_area_span_t work_area) const {
         // https://dsp.stackexchange.com/questions/51311/computation-of-the-inverse-dct-idct-using-dct-or-ifft
         // https://docs.scipy.org/doc/scipy/reference/generated/scipy.fftpack.dct.html
         const size_t n = a.size(), N = 2 * n;
-        if (!is_pow2(n) || size != n) return transform_result::INVALID_SIZE;
-        for (size_t i = 0; i < n; i++) _fft_area[i] = a[i];
+        if (!is_pow2(n) || size != n || work_area.size() != n) return transform_result::INVALID_SIZE;
+        for (size_t i = 0; i < n; i++) work_area[i] = a[i];
         a[0] /= std::sqrt(2.0);
-        const _Real k2N = std::sqrt(N);
+        const Real k2N = std::sqrt(N);
         for (size_t m = 0; m < n; m++) {
-            _Real w_ang = PI * m / N;
-            complex w_n = exp(complex{ 0, w_ang });
-            _fft_area[m] = a[m] * k2N * w_n;
+            complex w_n = omega[m];
+            work_area[m] = a[m] * k2N * w_n;
         }
-        fft({ _fft_area.begin(), _fft_area.end() }, true);
+        idft(work_area);
         for (size_t m = 0; m < n / 2; m++) {
-            a[m * 2] = _fft_area[m].real();
-            a[m * 2 + 1] = _fft_area[n - m - 1].real();
+            a[m * 2] = work_area[m].real();
+            a[m * 2 + 1] = work_area[n - m - 1].real();
         }
         return transform_result::SUCCESS;
     }
+    /// <summary>
+    /// Real domain Discrete Cosine Transform (DCT-III) in O(NlogN) time. aka IDCT,
+    /// with 'Ortho' normalization as in https://docs.scipy.org/doc/scipy/reference/generated/scipy.fftpack.dct.html
+    /// **This is the inverse function of "DCT2", where DCT3(DCT2(x)) = x
+    /// **This version uses the transform's owning work area and is therefore NOT thread-safe.
+    /// </summary>
+    /// <param name="a">Input span of real values</param>
+    transform_result operator()(span_t a) { return operator()(a, work_area); }
 };
-} // namespace Poly
 
+} // namespace Poly
 ```
 
 ## Problems
