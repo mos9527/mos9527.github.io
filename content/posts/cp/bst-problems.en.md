@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-24T15:53:28.703000+08:00
+lastmod: 2025-05-09T19:37:44.543031
 title: Competitive Programming - Balanced Trees Related Topics
 tags: ["ACM","Competitive Programming","XCPC","Templates","Problem set","Codeforces","C++","GCD","Mathematics","DS","data structures"]
 categories: ["Problem Solutions", "Competitive Programming", "Collection/compilation"]

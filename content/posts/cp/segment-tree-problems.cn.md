@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-24T15:53:28.712000+08:00
+lastmod: 2025-05-09T21:42:43.873335
 title: 算竞笔记 - 线段树专题
 tags: ["线段树",ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -739,3 +739,108 @@ public:
 
 - https://codeforces.com/contest/2014/submission/282795544 （D，区间改+单点查询和）
 - https://codeforces.com/contest/339/submission/282875335 （D，单点改+区间查询）
+
+## 可持久化线段树（主席树）
+
+- https://zhuanlan.zhihu.com/p/762284607
+- https://ac.nowcoder.com/acm/contest/91177/F
+
+```c++
+template <typename T> struct segment_tree {
+    constexpr static ll root = 1; // 根节点编号
+    ll node_id = 1; // 当前最新节点编号
+public:
+    struct node {
+        ll lc, rc; // 左右子节点**编号**；非区间
+        ll l, r; // 区间
+        T sum{};
+    };
+    vector<node> tree;
+    // 向上传递
+    void push_up(ll o) {
+        tree[o].sum = tree[tree[o].lc].sum + tree[tree[o].rc].sum;
+    }
+    // 初始版本
+    void build(ll o, ll l, ll r) {
+        if (l == r) return;
+        ll mid = (l + r) / 2;
+        ll lc = tree[o].lc = ++node_id, rc = tree[o].rc = ++node_id;
+        tree[o].l = l, tree[o].r = r;
+        build(lc, l, mid);
+        build(rc, mid + 1, r);
+        push_up(o);
+    }
+    void update(ll pos, ll l, ll r, ll prev /*旧版本复制源点*/, ll curr /*新版本新建点*/, T v) {
+        ll mid = (l + r) / 2;
+        if (l == r) {
+            // 到达叶子点
+            // 修改只在新点及剪出来的枝上体现
+            tree[curr].sum = tree[prev].sum + v;
+        } else {
+            // 到叶子点路上；默认复用
+            tree[curr] = tree[prev];
+            if (pos <= mid) {
+                // 新点会在左子树开，途径有必要持久化（复制）
+                // 每个点都要开新点
+                tree[curr].lc = ++node_id;
+                update(pos, l, mid, tree[prev].lc, tree[curr].lc, v);
+            } else {
+                // 右子树 - 同上，交换左右
+                tree[curr].rc = ++node_id;
+                update(pos, mid + 1, r, tree[prev].rc, tree[curr].rc, v);
+            }
+            push_up(curr);
+        }
+    }
+    explicit segment_tree(ll n) : tree(n) {};
+};
+segment_tree<ll> seg(DIM);
+// 树上二分找[l,r]区间第k小
+int query_kth(ll l, ll r, ll prev /*旧版本同位置点*/, ll curr /*新版本同位置点*/, ll kth_small) {
+    if (l == r) return l;
+    ll mid = (l + r) / 2;
+    // 我们的每一个版本（根节点上点）线段树存的为*权值*（或直方图的高度，即数字的数目）
+    // 找第k小即为找*离散化后*数x对应 \sum_{i=1}^{x} tree[i].sum < kth_small 的上限
+    // 在[l,r]区间内找，可以看成是*两个*版本树的差分
+    // 区间内的数目即为：
+    ll d = seg.tree[seg.tree[curr].lc].sum - seg.tree[seg.tree[prev].lc].sum;
+    // 树上二分
+    if (d < kth_small) {
+        // x更大在右子树
+        // 在右边找；注意左区间数*不能*统计
+        return query_kth(mid + 1, r, seg.tree[prev].rc, seg.tree[curr].rc, kth_small - d);
+    } else {
+        // x更小在左子树
+        return query_kth(1, mid, seg.tree[prev].lc, seg.tree[curr].lc, kth_small);
+    }
+}
+int main() {
+    fast_io();
+    /* El Psy Kongroo */
+    ll n, q; cin >> n >> q;
+    vec a(n + 1), mp;
+    for (ll i = 1; i<=n;i++)
+        cin >> a[i], mp.push_back(a[i]);
+    sort(mp.begin(), mp.end());
+    mp.erase(unique(mp.begin(), mp.end()), mp.end());
+
+    ll m = mp.size(); // 离散化后位置i对应数字
+    seg.build(seg.root, 1, m);
+    vec roots(n+1, seg.root);
+    for (ll i = 1; i<=n;i++) {
+        // 新版本
+        roots[i] = ++seg.node_id;
+        // 从上一个版本转移；这里在mp[i]上多一个数
+        ll pos = lower_bound(mp.begin(), mp.end(), a[i]) - mp.begin() + 1;
+        seg.update(pos, 1, m, roots[i - 1], roots[i], 1);
+    }
+    while (q--) {
+        ll l,r; cin >> l >> r;
+        ll mid = (r - l + 2) / 2; // \ceil
+        // 注意我们求的是*上限*
+        ll pos = query_kth(1, m, roots[l - 1], roots[r], mid);
+        cout << mp[pos - 1] << endl;
+    }
+    return 0;
+}
+```
