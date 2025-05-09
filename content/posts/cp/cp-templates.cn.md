@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-04-24T15:53:28.705000+08:00
+lastmod: 2025-05-09T09:01:24.813000+08:00
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1098,6 +1098,72 @@ struct graph {
 	}
 };
 ```
+
+- https://codeforces.com/contest/2107/problem/D
+
+  限时$5s$，就题目数据量可以偷懒...
+
+  需要$(d,u,v)$序列字典序最大很显然需要$d$最大；图中最长简单路径即树的直径
+
+  额外限制即为$u，v$选择唯一（字典序！）故DFS时选终点，同长度选点编号更大者（才知道`std::pair`能做`max`）
+
+  选一个直径之后‘删掉’这些点，重复至没有点为止。
+
+  ```c++
+  int main() {
+      fast_io();
+      /* El Psy Kongroo */
+      ll t; cin >> t;
+      while (t--) {
+  		ll n; cin >> n;
+  		vector<vec> G(n + 1);
+          for (ll i = 1; i < n; i++) {
+              ll u, v; cin >> u >> v;
+              G[u].push_back(v);
+              G[v].push_back(u);
+          }
+          unordered_set<ll> res;
+          vector<tuple<ll, ll, ll>> ans;
+          while (res.size() != n) {
+              vec fa(n + 1, -1), vis(n + 1), dis(n + 1);
+              auto dfs = [&](ll u, ll pa, auto&& dfs) -> II {
+                  fa[u] = pa;
+                  vis[u] = 1;				
+                  II end{ 1, u };
+                  for (ll v : G[u]) {
+                      if (v == pa || res.contains(v)) continue;
+                      auto nxt = dfs(v, u, dfs);
+                      nxt.first += 1;
+                      end = max(end, nxt);
+                  }
+                  return end;
+              };
+              for (ll i = 1; i <= n; i++) {                
+                  if (!vis[i] && !res.contains(i)) {
+                      // 树的直径
+                      auto end = dfs(i, -1, dfs);
+  					ll u = end.second;
+                      end = dfs(u, -1, dfs);
+                      ll v = end.second;
+                      ll d = end.first;                    
+                      // (d,u,v)
+                      ans.push_back({ d,max(u,v),min(u,v)});
+                      while (v != -1) {
+                          res.insert(v);
+                          v = fa[v];
+                      }
+                  }
+              }
+          }
+          sort(ans.begin(), ans.end());
+          reverse(ans.begin(), ans.end());
+          for (auto [d, u, v] : ans)
+              cout << d << " " << u << " " << v << " ";
+          cout << endl;
+      }
+      return 0;
+  }
+  ```
 
 ## Dinic 最大流
 
