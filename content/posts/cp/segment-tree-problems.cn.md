@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-09T21:42:43.873335
+lastmod: 2025-05-09T21:56:56.194691
 title: 算竞笔记 - 线段树专题
 tags: ["线段树",ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -10,6 +10,239 @@ typora-root-url: ..\..\static
 ---
 
 **注:** `segment_tree` 均采用 `1-Index` 访问； `segment_tree::reset(vector&)` 中`vector`为`0-Index`
+## 区间延迟（Lazy）修改模版
+
+- C++ 风格实现
+
+```c++
+template<typename T> struct segment_tree {
+    struct node {
+        ll l, r; // 区间[l,r]
+        T sum_v;
+        T max_v;
+        // lazy值
+        T lazy_add;
+        optional<T> lazy_set;
+        ll length() const { return r - l + 1; }
+        ll mid() const { return (l + r) / 2; }
+    };
+    vector<node> tree;
+private:
+    ll begin = 1, end = 1;
+    void push_up(ll o) {
+        // 向上传递
+        ll lc = o * 2, rc = o * 2 + 1;
+        tree[o].sum_v = tree[lc].sum_v + tree[rc].sum_v;
+        tree[o].max_v = max(tree[lc].max_v, tree[rc].max_v);
+    }
+    void push_down(ll o) {
+        // 向下传递
+        ll lc = o * 2, rc = o * 2 + 1;
+        if (tree[o].lazy_set.has_value()) {
+            tree[lc].lazy_add = tree[rc].lazy_add = 0;
+            tree[lc].lazy_set = tree[rc].lazy_set = tree[o].lazy_set;
+            // 可差分操作
+            tree[lc].max_v = tree[o].lazy_set.value();
+            tree[rc].max_v = tree[o].lazy_set.value();
+            // 求和贡献与长度有关
+            tree[lc].sum_v = tree[o].lazy_set.value() * tree[lc].length();
+            tree[rc].sum_v = tree[o].lazy_set.value() * tree[rc].length();
+            tree[o].lazy_set.reset();
+        }
+        if (tree[o].lazy_add) {
+            tree[lc].lazy_add += tree[o].lazy_add, tree[rc].lazy_add += tree[o].lazy_add;
+            // 同上
+            tree[lc].max_v += tree[o].lazy_add;
+            tree[rc].max_v += tree[o].lazy_add;
+            tree[lc].sum_v += tree[o].lazy_add * tree[lc].length();
+            tree[rc].sum_v += tree[o].lazy_add * tree[rc].length();
+            tree[o].lazy_add = {};
+        }
+    }
+    void update(ll o, ll l, ll r, optional<T> const& set_v = {}, T const& add_v = 0) {
+        ll lc = o * 2, rc = o * 2 + 1;
+        if (tree[o].l == l && tree[o].r == r) { // 定位到所在区间 - 同下
+            if (set_v.has_value()) {
+                // set
+                tree[o].max_v = set_v.value();
+                tree[o].sum_v = set_v.value() * tree[o].length();
+                tree[o].lazy_set = set_v; tree[o].lazy_add = {};
+            }
+            else {
+                // add
+                tree[o].max_v += add_v;
+                tree[o].sum_v += add_v * tree[o].length();
+                tree[o].lazy_add += add_v;
+            }
+            return;
+        }
+        push_down(o);
+        ll mid = tree[o].mid();
+        if (r <= mid) update(lc, l, r, set_v, add_v);
+        else if (mid < l) update(rc, l, r, set_v, add_v);
+        else {
+            update(lc, l, mid, set_v, add_v);
+            update(rc, mid + 1, r, set_v, add_v);
+        }
+        push_up(o);
+    }
+    node query(ll o, ll l, ll r) {
+        ll lc = o * 2, rc = o * 2 + 1;
+        if (tree[o].l == l && tree[o].r == r) return tree[o];
+        push_down(o);
+        ll mid = tree[o].mid();
+        if (r <= mid) return query(lc, l, r);
+        else if (mid < l) return query(rc, l, r);
+        else {
+            node p = query(lc, l, mid);
+            node q = query(rc, mid + 1, r);
+            return {
+                l, r,
+                p.sum_v + q.sum_v,
+                max(p.max_v, q.max_v),
+            };
+        }
+    }
+    void build(ll o, ll l, ll r, const T* src = nullptr) {
+        ll lc = o * 2, rc = o * 2 + 1;
+        tree[o] = {};
+        tree[o].l = l, tree[o].r = r;
+        if (l == r) {
+            if (src) tree[o].sum_v = tree[o].max_v = src[l];
+            return;
+        }
+        ll mid = (l + r) / 2;
+        build(lc, l, mid, src);
+        build(rc, mid + 1, r, src);
+        push_up(o);
+    }
+    void build(const T* src = nullptr) { build(begin, begin, end, src); }
+public:
+    void range_add(ll l, ll r, T const& v) { update(begin, l, r, {}, v); }
+    void range_set(ll l, ll r, T const& v) { update(begin, l, r, v, 0); }
+    node range_query(ll l, ll r) { return query(begin, l, r); }
+    T range_sum(ll l, ll r) { return range_query(l, r).sum_v; }
+    T range_max(ll l, ll r) { return range_query(l, r).max_v; }
+    void reserve(const ll n) { tree.reserve(n); }
+    void reset(const ll n) { end = n; tree.resize(end << 2); build(); }
+    // 注意：src[0]会被省略
+    void reset(const vector<T>& src) {
+        end = src.size() - 1; tree.resize(end << 2);
+        build(src.data());
+    }
+    explicit segment_tree() {};
+    explicit segment_tree(const ll n) : begin(1), end(n) { reset(n); }
+};
+```
+
+- https://codeforces.com/contest/2014/submission/282795544 （D，区间改+单点查询和）
+- https://codeforces.com/contest/339/submission/282875335 （D，单点改+区间查询）
+
+## 可持久化线段树（主席树）
+
+- https://zhuanlan.zhihu.com/p/762284607
+- https://ac.nowcoder.com/acm/contest/91177/F （找第$k$小）
+- https://www.luogu.com.cn/problem/P3834
+
+```c++
+template <typename T> struct segment_tree {
+    constexpr static ll root = 1; // 根节点编号
+    ll node_id = 1; // 当前最新节点编号
+public:
+    struct node {
+        ll lc, rc; // 左右子节点**编号**；非区间
+        ll l, r; // 区间
+        T sum{};
+    };
+    vector<node> tree;
+    // 向上传递
+    void push_up(ll o) {
+        tree[o].sum = tree[tree[o].lc].sum + tree[tree[o].rc].sum;
+    }
+    // 初始版本
+    void build(ll o, ll l, ll r) {
+        if (l == r) return;
+        ll mid = (l + r) / 2;
+        ll lc = tree[o].lc = ++node_id, rc = tree[o].rc = ++node_id;
+        tree[o].l = l, tree[o].r = r;
+        build(lc, l, mid);
+        build(rc, mid + 1, r);
+        push_up(o);
+    }
+    void update(ll pos, ll l, ll r, ll prev /*旧版本复制源点*/, ll curr /*新版本新建点*/, T v) {
+        ll mid = (l + r) / 2;
+        if (l == r) {
+            // 到达叶子点
+            // 修改只在新点及剪出来的枝上体现
+            tree[curr].sum = tree[prev].sum + v;
+        } else {
+            // 到叶子点路上；默认复用
+            tree[curr] = tree[prev];
+            if (pos <= mid) {
+                // 新点会在左子树开，途径有必要持久化（复制）
+                // 每个点都要开新点
+                tree[curr].lc = ++node_id;
+                update(pos, l, mid, tree[prev].lc, tree[curr].lc, v);
+            } else {
+                // 右子树 - 同上，交换左右
+                tree[curr].rc = ++node_id;
+                update(pos, mid + 1, r, tree[prev].rc, tree[curr].rc, v);
+            }
+            push_up(curr);
+        }
+    }
+    explicit segment_tree(ll n) : tree(n) {};
+};
+segment_tree<ll> seg(DIM);
+// 树上二分找[l,r]区间第k小
+int query_kth(ll l, ll r, ll prev /*旧版本同位置点*/, ll curr /*新版本同位置点*/, ll kth_small) {
+    if (l == r) return l;
+    ll mid = (l + r) / 2;
+    // 我们的每一个版本（根节点上点）线段树存的为*权值*（或直方图的高度，即数字的数目）
+    // 找第k小即为找*离散化后*数x对应 \sum_{i=1}^{x} tree[i].sum < kth_small 的上限
+    // 在[l,r]区间内找，可以看成是*两个*版本树的差分
+    // 区间内的数目即为：
+    ll d = seg.tree[seg.tree[curr].lc].sum - seg.tree[seg.tree[prev].lc].sum;
+    // 树上二分
+    if (d < kth_small) {
+        // x更大在右子树
+        // 在右边找；注意左区间数*不能*统计
+        return query_kth(mid + 1, r, seg.tree[prev].rc, seg.tree[curr].rc, kth_small - d);
+    } else {
+        // x更小在左子树
+        return query_kth(l, mid, seg.tree[prev].lc, seg.tree[curr].lc, kth_small);
+    }
+}
+int main() {
+    fast_io();
+    /* El Psy Kongroo */
+    ll n, q; cin >> n >> q;
+    vec a(n + 1), mp;
+    for (ll i = 1; i<=n;i++)
+        cin >> a[i], mp.push_back(a[i]);
+    sort(mp.begin(), mp.end());
+    mp.erase(unique(mp.begin(), mp.end()), mp.end());
+
+    ll m = mp.size(); // 离散化后位置i对应数字
+    seg.build(seg.root, 1, m);
+    vec roots(n+1, seg.root);
+    for (ll i = 1; i<=n;i++) {
+        // 新版本
+        roots[i] = ++seg.node_id;
+        // 从上一个版本转移；这里在mp[i]上多一个数
+        ll pos = lower_bound(mp.begin(), mp.end(), a[i]) - mp.begin() + 1;
+        seg.update(pos, 1, m, roots[i - 1], roots[i], 1);
+    }
+    while (q--) {
+        ll l,r; cin >> l >> r;
+        ll mid = (r - l + 2) / 2; // \ceil
+        // 注意我们求的是*上限*
+        ll pos = query_kth(1, m, roots[l - 1], roots[r], mid);
+        cout << mp[pos - 1] << endl;
+    }
+    return 0;
+}
+```
 
 ## 242E. XOR on Segment
 
@@ -417,77 +650,6 @@ int main() {
 }
 ```
 
-## P6492. STEP
-
-> 给定一个长度为 $n$ 的字符序列 $a$，初始时序列中全部都是字符 `L`。
-> 有 $q$ 次修改，每次给定一个 $x$，若 $a_x$ 为 `L`，则将 $a_x$ 修改成 `R`，否则将 $a_x$ 修改成 `L`。
-> 对于一个只含字符 `L`，`R` 的字符串 $s$，若其中不存在连续的 `L` 和 `R`，则称 $s$ 满足要求。
-> 每次修改后，请输出当前序列 $a$ 中最长的满足要求的连续子串的长度。
-
-```C++
-int len[4*N],L[4*N],R[4*N],S[4*N],H[4*N],ans[4*N];
-// 原数组，节点长度，左端点，右端点，符合条件的前缀，符合条件的后缀，符合条件的最大长度
-
-void work(int o,int k){//更新第o个节点 
-	S[o]=H[o]=ans[o]=1;
-	L[o]=R[o]=k;
-}
-
-void maintain(int o){
-	int lc=o<<1,rc=o<<1|1;
-	if(L[rc]^R[lc]==0){
-		ans[o]=max(ans[lc],ans[rc]);
-	}
-	else{
-		ans[o]=max(H[lc]+S[rc],max(ans[lc],ans[rc]));
-	}
-	L[o]=L[lc],R[o]=R[rc];
-	if(S[lc]==len[lc]&&L[rc]^R[lc])S[o]=S[lc]+S[rc];
-	else S[o]=S[lc];
-	if(H[rc]==len[rc]&&L[rc]^R[lc])H[o]=H[rc]+H[lc];
-	else H[o]=H[rc];
-} 
-
-void build(int o,int l,int r){
-	len[o]=r-l+1;
-	if(l==r){
-		work(o,0);
-		return;
-	}
-	int lc=o*2,rc=o*2+1,mid=l+r>>1;
-	build(lc,l,mid);
-	build(rc,mid+1,r);
-	maintain(o);
-}
-
-void change(int o,int l,int r,int x)
-{
-	if(l==r)                                
-	{
-		work(o,!L[o]);                //0变成1,1变成0
-		return;
-	}
-	int lc=o*2,rc=o*2+1,mid=l+r>>1;
-	if(x<=mid) change(lc,l,mid,x);
-	else change(rc,mid+1,r,x);
-	maintain(o);
-}
-
-int main(){
-	int n,q;
-	cin>>n>>q;
-	build(1,1,n);
-	while(q--){
-		int x;cin>>x;
-		change(1,1,n,x);
-		cout<<ans[1]<<endl;
-	}
-	return 0;
-}
-
-
-```
-
 ## P11373 「CZOI-R2」天平
 - 正解转 https://mos9527.com/posts/cp/gcd-problems/#p11373-czoi-r2%E5%A4%A9%E5%B9%B3，此处为Subtask 3解法
 - TL；DR 区间维护$gcd$；同时将**区间改**操作化为**单点改**操作省去`push_down`
@@ -610,237 +772,3 @@ int main() {
 
   
 
-## Reference
-
-- C++ 风格实现
-
-```c++
-template<typename T> struct segment_tree {
-    struct node {
-        ll l, r; // 区间[l,r]
-        T sum_v;
-        T max_v;
-        // lazy值
-        T lazy_add;
-        optional<T> lazy_set;
-        ll length() const { return r - l + 1; }
-        ll mid() const { return (l + r) / 2; }
-    };
-    vector<node> tree;
-private:
-    ll begin = 1, end = 1;
-    void push_up(ll o) {
-        // 向上传递
-        ll lc = o * 2, rc = o * 2 + 1;
-        tree[o].sum_v = tree[lc].sum_v + tree[rc].sum_v;
-        tree[o].max_v = max(tree[lc].max_v, tree[rc].max_v);
-    }
-    void push_down(ll o) {
-        // 向下传递
-        ll lc = o * 2, rc = o * 2 + 1;
-        if (tree[o].lazy_set.has_value()) {
-            tree[lc].lazy_add = tree[rc].lazy_add = 0;
-            tree[lc].lazy_set = tree[rc].lazy_set = tree[o].lazy_set;
-            // 可差分操作
-            tree[lc].max_v = tree[o].lazy_set.value();
-            tree[rc].max_v = tree[o].lazy_set.value();
-            // 求和贡献与长度有关
-            tree[lc].sum_v = tree[o].lazy_set.value() * tree[lc].length();
-            tree[rc].sum_v = tree[o].lazy_set.value() * tree[rc].length();
-            tree[o].lazy_set.reset();
-        }
-        if (tree[o].lazy_add) {
-            tree[lc].lazy_add += tree[o].lazy_add, tree[rc].lazy_add += tree[o].lazy_add;
-            // 同上
-            tree[lc].max_v += tree[o].lazy_add;
-            tree[rc].max_v += tree[o].lazy_add;
-            tree[lc].sum_v += tree[o].lazy_add * tree[lc].length();
-            tree[rc].sum_v += tree[o].lazy_add * tree[rc].length();
-            tree[o].lazy_add = {};
-        }
-    }
-    void update(ll o, ll l, ll r, optional<T> const& set_v = {}, T const& add_v = 0) {
-        ll lc = o * 2, rc = o * 2 + 1;
-        if (tree[o].l == l && tree[o].r == r) { // 定位到所在区间 - 同下
-            if (set_v.has_value()) {
-                // set
-                tree[o].max_v = set_v.value();
-                tree[o].sum_v = set_v.value() * tree[o].length();
-                tree[o].lazy_set = set_v; tree[o].lazy_add = {};
-            }
-            else {
-                // add
-                tree[o].max_v += add_v;
-                tree[o].sum_v += add_v * tree[o].length();
-                tree[o].lazy_add += add_v;
-            }
-            return;
-        }
-        push_down(o);
-        ll mid = tree[o].mid();
-        if (r <= mid) update(lc, l, r, set_v, add_v);
-        else if (mid < l) update(rc, l, r, set_v, add_v);
-        else {
-            update(lc, l, mid, set_v, add_v);
-            update(rc, mid + 1, r, set_v, add_v);
-        }
-        push_up(o);
-    }
-    node query(ll o, ll l, ll r) {
-        ll lc = o * 2, rc = o * 2 + 1;
-        if (tree[o].l == l && tree[o].r == r) return tree[o];
-        push_down(o);
-        ll mid = tree[o].mid();
-        if (r <= mid) return query(lc, l, r);
-        else if (mid < l) return query(rc, l, r);
-        else {
-            node p = query(lc, l, mid);
-            node q = query(rc, mid + 1, r);
-            return {
-                l, r,
-                p.sum_v + q.sum_v,
-                max(p.max_v, q.max_v),
-            };
-        }
-    }
-    void build(ll o, ll l, ll r, const T* src = nullptr) {
-        ll lc = o * 2, rc = o * 2 + 1;
-        tree[o] = {};
-        tree[o].l = l, tree[o].r = r;
-        if (l == r) {
-            if (src) tree[o].sum_v = tree[o].max_v = src[l];
-            return;
-        }
-        ll mid = (l + r) / 2;
-        build(lc, l, mid, src);
-        build(rc, mid + 1, r, src);
-        push_up(o);
-    }
-    void build(const T* src = nullptr) { build(begin, begin, end, src); }
-public:
-    void range_add(ll l, ll r, T const& v) { update(begin, l, r, {}, v); }
-    void range_set(ll l, ll r, T const& v) { update(begin, l, r, v, 0); }
-    node range_query(ll l, ll r) { return query(begin, l, r); }
-    T range_sum(ll l, ll r) { return range_query(l, r).sum_v; }
-    T range_max(ll l, ll r) { return range_query(l, r).max_v; }
-    void reserve(const ll n) { tree.reserve(n); }
-    void reset(const ll n) { end = n; tree.resize(end << 2); build(); }
-    // 注意：src[0]会被省略
-    void reset(const vector<T>& src) {
-        end = src.size() - 1; tree.resize(end << 2);
-        build(src.data());
-    }
-    explicit segment_tree() {};
-    explicit segment_tree(const ll n) : begin(1), end(n) { reset(n); }
-};
-```
-
-## RMQ 通解
-
-- https://codeforces.com/contest/2014/submission/282795544 （D，区间改+单点查询和）
-- https://codeforces.com/contest/339/submission/282875335 （D，单点改+区间查询）
-
-## 可持久化线段树（主席树）
-
-- https://zhuanlan.zhihu.com/p/762284607
-- https://ac.nowcoder.com/acm/contest/91177/F
-
-```c++
-template <typename T> struct segment_tree {
-    constexpr static ll root = 1; // 根节点编号
-    ll node_id = 1; // 当前最新节点编号
-public:
-    struct node {
-        ll lc, rc; // 左右子节点**编号**；非区间
-        ll l, r; // 区间
-        T sum{};
-    };
-    vector<node> tree;
-    // 向上传递
-    void push_up(ll o) {
-        tree[o].sum = tree[tree[o].lc].sum + tree[tree[o].rc].sum;
-    }
-    // 初始版本
-    void build(ll o, ll l, ll r) {
-        if (l == r) return;
-        ll mid = (l + r) / 2;
-        ll lc = tree[o].lc = ++node_id, rc = tree[o].rc = ++node_id;
-        tree[o].l = l, tree[o].r = r;
-        build(lc, l, mid);
-        build(rc, mid + 1, r);
-        push_up(o);
-    }
-    void update(ll pos, ll l, ll r, ll prev /*旧版本复制源点*/, ll curr /*新版本新建点*/, T v) {
-        ll mid = (l + r) / 2;
-        if (l == r) {
-            // 到达叶子点
-            // 修改只在新点及剪出来的枝上体现
-            tree[curr].sum = tree[prev].sum + v;
-        } else {
-            // 到叶子点路上；默认复用
-            tree[curr] = tree[prev];
-            if (pos <= mid) {
-                // 新点会在左子树开，途径有必要持久化（复制）
-                // 每个点都要开新点
-                tree[curr].lc = ++node_id;
-                update(pos, l, mid, tree[prev].lc, tree[curr].lc, v);
-            } else {
-                // 右子树 - 同上，交换左右
-                tree[curr].rc = ++node_id;
-                update(pos, mid + 1, r, tree[prev].rc, tree[curr].rc, v);
-            }
-            push_up(curr);
-        }
-    }
-    explicit segment_tree(ll n) : tree(n) {};
-};
-segment_tree<ll> seg(DIM);
-// 树上二分找[l,r]区间第k小
-int query_kth(ll l, ll r, ll prev /*旧版本同位置点*/, ll curr /*新版本同位置点*/, ll kth_small) {
-    if (l == r) return l;
-    ll mid = (l + r) / 2;
-    // 我们的每一个版本（根节点上点）线段树存的为*权值*（或直方图的高度，即数字的数目）
-    // 找第k小即为找*离散化后*数x对应 \sum_{i=1}^{x} tree[i].sum < kth_small 的上限
-    // 在[l,r]区间内找，可以看成是*两个*版本树的差分
-    // 区间内的数目即为：
-    ll d = seg.tree[seg.tree[curr].lc].sum - seg.tree[seg.tree[prev].lc].sum;
-    // 树上二分
-    if (d < kth_small) {
-        // x更大在右子树
-        // 在右边找；注意左区间数*不能*统计
-        return query_kth(mid + 1, r, seg.tree[prev].rc, seg.tree[curr].rc, kth_small - d);
-    } else {
-        // x更小在左子树
-        return query_kth(1, mid, seg.tree[prev].lc, seg.tree[curr].lc, kth_small);
-    }
-}
-int main() {
-    fast_io();
-    /* El Psy Kongroo */
-    ll n, q; cin >> n >> q;
-    vec a(n + 1), mp;
-    for (ll i = 1; i<=n;i++)
-        cin >> a[i], mp.push_back(a[i]);
-    sort(mp.begin(), mp.end());
-    mp.erase(unique(mp.begin(), mp.end()), mp.end());
-
-    ll m = mp.size(); // 离散化后位置i对应数字
-    seg.build(seg.root, 1, m);
-    vec roots(n+1, seg.root);
-    for (ll i = 1; i<=n;i++) {
-        // 新版本
-        roots[i] = ++seg.node_id;
-        // 从上一个版本转移；这里在mp[i]上多一个数
-        ll pos = lower_bound(mp.begin(), mp.end(), a[i]) - mp.begin() + 1;
-        seg.update(pos, 1, m, roots[i - 1], roots[i], 1);
-    }
-    while (q--) {
-        ll l,r; cin >> l >> r;
-        ll mid = (r - l + 2) / 2; // \ceil
-        // 注意我们求的是*上限*
-        ll pos = query_kth(1, m, roots[l - 1], roots[r], mid);
-        cout << mp[pos - 1] << endl;
-    }
-    return 0;
-}
-```
