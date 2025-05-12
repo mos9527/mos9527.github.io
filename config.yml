@@ -64,6 +64,8 @@ params:
         cn: "简体中文"
 
   socialIcons:
+    - name: Codeforces
+      url: "https://codeforces.com/profile/mos9527"
     - name: Github
       url: "https://github.com/mos9527"
     - name: Bilibili
@@ -87,3 +89,6 @@ menu:
       name: github
       url: https://github.com/mos9527/mos9527.github.io/
       weight: 30
+    - identifier: disco-viewer
+      name: "disco-viewer"
+      url: "https://disco.mos9527.com/"

@@ -1489,6 +1489,7 @@ template<typename Container> struct sparse_table {
 
 ### 树状数组
 ```c++
+const ll lowbit(ll x) { return x & (-x); }
 struct fenwick : public vec {
     using vec::vec;
     void init(vec const& a) {
