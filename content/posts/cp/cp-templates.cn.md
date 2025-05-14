@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-09T19:37:44.543488
+lastmod: 2025-05-14T10:42:06.247000+08:00
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1355,6 +1355,132 @@ struct HLD {
 };
 ```
 
+## 树上并查集 / DSU On Tree
+
+- https://zhuanlan.zhihu.com/p/658598885?theme=dark
+- https://www.bilibili.com/video/BV1ujo6YCEjt
+
+```c++
+struct DSU {
+	ll n, dfn_cnt = 0;
+	vec sizes, depth, top /*所在重链顶部*/, parent, dfn /*DFS序*/, dfn_out /* 链尾DFS序 */, inv_dfn, heavy /*重儿子*/;
+	vector<vec> G;
+	DSU(ll n) : n(n), G(n), sizes(n), depth(n), top(n), parent(n), dfn(n), dfn_out(n), inv_dfn(n), heavy(n) {};
+	void add_edge(ll u, ll v) {
+		G[u].push_back(v);
+		G[v].push_back(u);
+	}
+	// 注：唯一的重儿子即为最大子树根
+	void dfs1(ll u) {
+		heavy[u] = -1;
+		sizes[u] = 1;
+		dfn[u] = ++dfn_cnt;
+		inv_dfn[dfn_cnt] = u;
+		for (ll& v : G[u]) {
+			if (depth[v]) continue;
+			depth[v] = depth[u] + 1;
+			parent[v] = u;
+			dfs1(v);
+			sizes[u] += sizes[v];
+			// 选最大子树为重儿子
+			if (heavy[u] == -1 || sizes[v] > sizes[heavy[u]]) heavy[u] = v;
+		}
+		dfn_out[u] = dfn_cnt;
+	}
+	// 树上集合合并；考虑小集合入大集合
+	// 考虑分成轻重链以后作为启发合并
+	// 先处理完轻儿子后合并到重儿子上
+	// 轻儿子大小<=重儿子；合并后大小>=2N，等效于倍增；
+	void dfs2(ll u, ll pa, bool keep) {
+		// 轻贡献
+		for (ll& v : G[u]) {
+			if (v == pa || heavy[u] == v) continue;
+			dfs2(v, u, false); // 不保留 - 方便其他轻子树传递
+		}
+		// 重贡献
+		if (heavy[u])
+			dfs2(heavy[u], u, true); // 保留 - 合并到此子树上
+		// 合并所有*轻*子树贡献
+		insert(u);
+		for (ll& v : G[u]) {
+			if (v == pa || heavy[u] == v) continue;
+			for (ll w = dfn[v]; w <= dfn_out[v]; w++)
+				insert(inv_dfn[w]);
+		}
+		save(u);
+		// 不保留情况
+		if (!keep) {
+			for (ll w = dfn[u]; w <= dfn_out[u]; w++)
+				remove(inv_dfn[w]);
+		}
+	}
+	// 预处理(!!)
+	void prep(ll root) {
+		dfs1(root);
+		dfs2(root, 0, false);
+	}
+	// u点状态维护完毕    
+	void save(ll u) {
+
+	}
+	// 在该子树构成集合+点    
+	void insert(ll u) {
+
+	}
+	// 撤销该子树对当前集合贡献
+	void remove(ll u) {
+
+	}
+};
+```
+
+- https://www.luogu.com.cn/problem/U41492
+
+```c++
+...
+struct DSU {
+	// u点状态维护完毕    
+	void save(ll u) {
+		ans[u] = unique_cols;
+	}
+	// 在该子树构成集合+点    
+	void insert(ll u) {
+		ll col = c[u];
+		if (cols[col] == 0) unique_cols++;
+		cols[col]++;
+	}
+	// 撤销该子树对当前集合贡献
+	void remove(ll u) {
+		ll col = c[u];
+		cols[col]--;
+		if (cols[col] == 0) unique_cols--;
+		unique_cols = max(unique_cols, 0LL);
+	}
+};
+int main() {
+	fast_io();
+	/* El Psy Kongroo */
+	ll n; cin >> n;
+	DSU dsu(n + 1);
+	for (ll i = 0; i < n - 1; i++) {
+		ll x, y; cin >> x >> y;
+		dsu.add_edge(x, y);		
+	}
+	c.resize(n + 1), ans.resize(n + 1), cols.resize(n + 1),	unique_cols = 0;
+	for (ll i = 1; i <= n; i++) cin >> c[i];
+	dsu.prep(1);
+	ll m; cin >> m;
+	while (m--) {
+		ll u; cin >> u;
+		cerr << "##";
+		cout << ans[u] << endl;
+	}
+	return 0;
+}
+```
+
+
+
  ## 强连通分量 / SCC
 
 ### Tarjan
@@ -1489,7 +1615,6 @@ template<typename Container> struct sparse_table {
 
 ### 树状数组
 ```c++
-const ll lowbit(ll x) { return x & (-x); }
 struct fenwick : public vec {
     using vec::vec;
     void init(vec const& a) {

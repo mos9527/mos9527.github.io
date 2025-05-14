@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-09T19:37:44.543273
+lastmod: 2025-05-14T10:08:15.024000+08:00
 title: Competitive Programming - Algorithm Templates And Problem Sets (Python)
 tags: ["ACM","Competeive Programming","XCPC","(Code) Templates","Problem Solutions","Codeforces","Python"]
 categories: ["Problem Solutions", "Competeive Programming", "Collection/compilation"]
