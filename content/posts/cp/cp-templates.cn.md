@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-14T10:44:51.254000+08:00
+lastmod: 2025-05-14T10:57:31.826000+08:00
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1434,11 +1434,11 @@ struct DSU {
 };
 ```
 
-- https://www.luogu.com.cn/problem/U41492
+- https://www.luogu.com.cn/problem/U41492 (U41492 树上数颜色)
 
 ```c++
-...
-struct DSU {
+ vec c, ans, cols; ll unique_cols = 0;
+	...
 	// u点状态维护完毕    
 	void save(ll u) {
 		ans[u] = unique_cols;
@@ -1479,7 +1479,62 @@ int main() {
 }
 ```
 
+- https://codeforces.com/contest/600/problem/E (E. Lomsat gelral)
 
+```c++
+vec c, ans, cols; ll cur_mx = 0, cur_sum = 0;
+...
+		// 不保留情况
+		if (!keep) {			
+			cur_mx = cur_sum = 0; // 额外有脏状态需要清掉
+			for (ll w = dfn[u]; w <= dfn_out[u]; w++)
+				remove(inv_dfn[w]);
+		}
+	}
+	// 预处理(!!)
+	void prep(ll root = 1) {
+		dfs1(root);
+		dfs2(root, 0, false);
+	}	
+	// u点状态维护完毕    
+	void save(ll u) {
+		ans[u] = cur_sum;
+	}
+	// 在该子树构成集合+点    
+	void insert(ll u) {
+		ll col = c[u];		
+		cols[col]++;
+		// new dominating color
+		// count from here onwards
+		if (cols[col] > cur_mx)
+			cur_mx = cols[col], cur_sum = 0;
+		if (cols[col] == cur_mx)
+			cur_sum += col;
+	}
+	// 撤销该子树对当前集合贡献
+	void remove(ll u) {
+		ll col = c[u];
+		cols[col]--;		
+	}
+};
+int main() {
+	fast_io();
+	/* El Psy Kongroo */
+	ll n; cin >> n;
+	DSU dsu(n + 1);
+	c.resize(n + 1), ans.resize(n + 1), cols.resize(n + 1);
+	for (ll i = 1; i <= n; i++) cin >> c[i];
+	for (ll i = 0; i < n - 1; i++) {
+		ll x, y; cin >> x >> y;
+		dsu.add_edge(x, y);		
+	}
+	dsu.prep(1);
+	for (ll i = 1; i <= n; i++) {
+		cout << ans[i] << " ";
+	}
+	return 0;
+}
+```
 
  ## 强连通分量 / SCC
 
