@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-14T10:42:06.247000+08:00
+lastmod: 2025-05-14T10:44:51.254000+08:00
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1355,7 +1355,7 @@ struct HLD {
 };
 ```
 
-## 树上并查集 / DSU On Tree
+### 树上并查集 / DSU On Tree
 
 - https://zhuanlan.zhihu.com/p/658598885?theme=dark
 - https://www.bilibili.com/video/BV1ujo6YCEjt
@@ -1365,15 +1365,15 @@ struct DSU {
 	ll n, dfn_cnt = 0;
 	vec sizes, depth, top /*所在重链顶部*/, parent, dfn /*DFS序*/, dfn_out /* 链尾DFS序 */, inv_dfn, heavy /*重儿子*/;
 	vector<vec> G;
-	DSU(ll n) : n(n), G(n), sizes(n), depth(n), top(n), parent(n), dfn(n), dfn_out(n), inv_dfn(n), heavy(n) {};
+	DSU(ll n) : n(n), G(n), sizes(n), depth(n), top(n), parent(n), dfn(n), dfn_out(n), inv_dfn(n + 1), heavy(n) {};
 	void add_edge(ll u, ll v) {
 		G[u].push_back(v);
 		G[v].push_back(u);
 	}
 	// 注：唯一的重儿子即为最大子树根
-	void dfs1(ll u) {
-		heavy[u] = -1;
+	void dfs1(ll u) {		
 		sizes[u] = 1;
+		depth[u] = 1;
 		dfn[u] = ++dfn_cnt;
 		inv_dfn[dfn_cnt] = u;
 		for (ll& v : G[u]) {
@@ -1383,7 +1383,7 @@ struct DSU {
 			dfs1(v);
 			sizes[u] += sizes[v];
 			// 选最大子树为重儿子
-			if (heavy[u] == -1 || sizes[v] > sizes[heavy[u]]) heavy[u] = v;
+			if (!heavy[u] || sizes[v] > sizes[heavy[u]]) heavy[u] = v;
 		}
 		dfn_out[u] = dfn_cnt;
 	}
