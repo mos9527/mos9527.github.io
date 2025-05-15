@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-14T10:57:31.826000+08:00
+lastmod: 2025-05-15T17:07:55.723000+08:00
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1361,7 +1361,6 @@ struct HLD {
 - https://www.bilibili.com/video/BV1ujo6YCEjt
 
 ```c++
-struct DSU {
 	ll n, dfn_cnt = 0;
 	vec sizes, depth, top /*所在重链顶部*/, parent, dfn /*DFS序*/, dfn_out /* 链尾DFS序 */, inv_dfn, heavy /*重儿子*/;
 	vector<vec> G;
@@ -1371,9 +1370,8 @@ struct DSU {
 		G[v].push_back(u);
 	}
 	// 注：唯一的重儿子即为最大子树根
-	void dfs1(ll u) {		
-		sizes[u] = 1;
-		depth[u] = 1;
+	void dfs1(ll u) {
+		sizes[u] = 1;		
 		dfn[u] = ++dfn_cnt;
 		inv_dfn[dfn_cnt] = u;
 		for (ll& v : G[u]) {
@@ -1414,11 +1412,12 @@ struct DSU {
 				remove(inv_dfn[w]);
 		}
 	}
-	// 预处理(!!)
-	void prep(ll root) {
-		dfs1(root);
-		dfs2(root, 0, false);
-	}
+    // 预处理(!!)
+    void prep(ll root = 1) {
+        depth[root] = 1;
+        dfs1(root);
+        dfs2(root, 0, false);
+    }
 	// u点状态维护完毕    
 	void save(ll u) {
 
@@ -1535,6 +1534,67 @@ int main() {
 	return 0;
 }
 ```
+
+- https://codeforces.com/contest/570/problem/D (D. Tree Requests)
+
+```c++
+array<array<ll, DIM>, 26> cnt; // char,depth -> count
+array<vector<II>, DIM> queries; // subtree->depth,index
+vec ans; vector<char> c;
+...
+	// u点状态维护完毕    
+	void save(ll u) {
+		for (auto [dep, o] : queries[u]) {
+			ll sum = 0, odd = 0;
+			for (ll i = 0; i < 26; i++) {
+				ll cur = cnt[i][dep];
+				if (cur & 1) odd++;
+				sum += cur;
+			}
+			if ((odd == 1 && sum & 1) || (odd == 0 && sum % 2 == 0)) ans[o] = true;
+			else ans[o] = false;
+		}
+	}
+	// 在该子树构成集合+点    
+	void insert(ll u) {	
+		cnt[c[u]][depth[u]]++;
+	}
+	// 撤销该子树对当前集合贡献
+	void remove(ll u) {
+		cnt[c[u]][depth[u]]--;
+	}
+};
+int main() {
+	fast_io();
+	/* El Psy Kongroo */
+	ll n, m; cin >> n >> m;
+	DSU dsu(n + 1);
+	c.resize(n + 1), ans.resize(m + 1), c.resize(n + 1);
+	for (ll i = 2; i <= n; i++) {
+		ll pa; cin >> pa;
+		dsu.add_edge(i, pa);
+	}
+	for (ll i = 1; i <= n; i++) cin >> c[i], c[i] -= 'a';
+	for (ll i = 1; i <= m; i++) {
+		ll v, h; cin >> v >> h;
+		queries[v].push_back({ h,i });
+	}
+	dsu.prep(1);
+	for (ll i = 1; i <= m; i++) {
+		cout << (ans[i] ? "Yes" : "No") << endl;
+	}
+	return 0;
+		queries[v].push_back({ h,i });
+	}
+	dsu.prep(1);
+	for (ll i = 1; i <= m; i++) {
+		cout << (ans[i] ? "Yes" : "No") << endl;
+	}
+	return 0;
+}
+```
+
+
 
  ## 强连通分量 / SCC
 
