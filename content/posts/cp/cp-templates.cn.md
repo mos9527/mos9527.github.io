@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-15T17:07:55.723000+08:00
+lastmod: 2025-05-15T20:56:52.972000+08:00
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1600,18 +1600,19 @@ int main() {
 
 ### Tarjan
 ```c++
-struct SCC {
+struct SCC {    
     ll n, dfn_cnt;
     vec dfn, low, vis, sta, dis;
     vec in_loop;
+    vec inv_scc;
     stack<ll> stk;
     vector<vector<II>> G;
-    SCC(ll n) : n(n), sta(n), dfn(n), low(n), G(n), dis(n), dfn_cnt(0), in_loop(n) {};
+    SCC(ll n) : n(n), sta(n), dfn(n) /* DFS序 */, low(n) /* 所在SCC首个（dfn最低）点 */, G(n), dis(n) /* 到根距离 */, dfn_cnt(0), in_loop(n) /* 点所在SCC是个环 */, inv_scc(n) /* 点所在SCC的根点 */ {};
 
-    void add_edge(ll u, ll v, ll w) { G[u].push_back({v, w}); }
+    void add_edge(ll u, ll v, ll w = 1) { G[u].push_back({ v, w }); }
 
     map<ll, vec> scc;
-    void tarjan(ll u) {
+    void tarjan(ll u = 1) {
         if (dfn[u]) return;
         dfn[u] = low[u] = ++dfn_cnt, stk.push(u), sta[u] = 1;
         for (auto const& [v, w] : G[u]) {
@@ -1619,17 +1620,16 @@ struct SCC {
                 dis[v] = dis[u] + w, tarjan(v), low[u] = min(low[u], low[v]);
             else if (sta[v]) {
                 low[u] = min(low[u], dfn[v]);
-                // coming from another node. we have a loop in v's component
-				// note that components of only one node / zero weight are not considered here
-				if (dis[v] != dis[u] + w) in_loop[v] = 1;
+                if (dis[v] != dis[u] + w) in_loop[v] = 1;
             }
-			in_loop[u] |= in_loop[v];
+            in_loop[u] |= in_loop[v];
         }
-        if (dfn[u] == low[u]) {            
+        if (dfn[u] == low[u]) {
             ll v; do {
                 v = stk.top(), stk.pop();
                 sta[v] = 0;
                 scc[u].push_back(v);
+                inv_scc[v] = u;
                 in_loop[v] |= in_loop[u];
             } while (u != v);
         }
@@ -1664,6 +1664,54 @@ struct SCC {
       return 0;
   }
   ```
+
+- https://www.luogu.com.cn/problem/P3387 缩点版题
+
+```c++
+int main() {
+    fast_io();
+    /* El Psy Kongroo */
+    ll n, m; cin >> n >> m;
+    SCC scc(n + 1);
+    vec w(n + 1);
+    for (ll i = 1; i <= n; i++) cin >> w[i];
+	for (ll i = 0; i < m; i++) {
+		ll u, v; cin >> u >> v;
+		scc.add_edge(u, v);
+	}
+    for (ll i = 1; i <= n; i++) scc.tarjan(i);
+    // 强连通分量可当成一点
+    // 缩点后构成的新图*一定*是树/DAG
+    vector<vec> G(n + 1);
+    vec a(n + 1), in(n + 1);
+    for (ll u = 1; u <= n; u++)
+        a[scc.inv_scc[u]] += w[u];
+    for (ll u = 1; u <= n; u++) {
+		for (auto [v, e] : scc.G[u]) {
+            ll scc_u = scc.inv_scc[u], scc_v = scc.inv_scc[v];			            
+            if (scc_u != scc_v) 
+                G[scc_u].push_back(scc_v), in[scc_v]++;
+        }
+    }
+    // 现在即树上找最长路径 
+    // 考虑拓扑序；dp[v]->v结尾最大值，从上到下传递有(u->v), dp[v] = max(dp[v], dp[u] + a[v])    
+    queue<ll> S;
+    vec dp = a;
+    for (ll i = 1; i <= n; i++) if (in[i] == 0 && G[i].size()) S.push(i);
+    while (!S.empty()) {
+        ll u = S.front(); S.pop();        
+        for (ll& v : G[u]) {
+            dp[v] = max(dp[v], dp[u] + a[v]);
+            if (--in[v] == 0)
+                S.push(v);
+        }
+    }    
+	cout << *max_element(dp.begin(), dp.end()) << endl;
+    return 0;
+}
+```
+
+
 
 # 动态规划 / DP
 
