@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-19T20:34:56.283991
+lastmod: 2025-05-19T20:38:25.790386
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -524,7 +524,7 @@ namespace comb {
 
 ## CRT / 中国剩余定理
 
-## 定义
+### 定义
 
 - https://oi.wiki/math/number-theory/crt/
 
@@ -532,14 +532,14 @@ namespace comb {
 
 $$
 \begin{cases}
-x &\equiv a_1 \pmod {n_1} \\
-x &\equiv a_2 \pmod {n_2} \\
-  &\vdots \\
-x &\equiv a_k \pmod {n_k} \\
+x &\equiv a_1 \pmod {n_1} \newline
+x &\equiv a_2 \pmod {n_2} \newline
+  &\vdots \newline
+x &\equiv a_k \pmod {n_k} \newline
 \end{cases}
 $$
 
-## 过程
+### 过程
 
 1.  计算所有模数的积 $n$；
 2.  对于第 $i$ 个方程：
