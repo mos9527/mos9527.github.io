@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-15T20:56:52.972000+08:00
+lastmod: 2025-05-19T20:34:56.283991
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -521,6 +521,32 @@ namespace comb {
 - $p = \frac{x}{x+y}\ mod\ p$ 即为 `p = x * binpow_mod(x + y, m - 2, m)`
   - $1 - p$ 可以为 $1 - \frac{x}{x+y} = \frac{y}{x+y}$ 即为 `inv_p = y * binpow_mod(x+u, m - 2, m)`
   - 也可以为$1 - p\ mod\ m = m + 1 - p\ mod\ m$ 即为 `inv_p = binpow_mod(MOD + 1 - p, m - 2, m)`
+
+## CRT / 中国剩余定理
+
+## 定义
+
+- https://oi.wiki/math/number-theory/crt/
+
+中国剩余定理 (Chinese Remainder Theorem, CRT) 可求解如下形式的一元线性同余方程组（其中 $n_1, n_2, \cdots, n_k$ 两两互质）：
+
+$$
+\begin{cases}
+x &\equiv a_1 \pmod {n_1} \\
+x &\equiv a_2 \pmod {n_2} \\
+  &\vdots \\
+x &\equiv a_k \pmod {n_k} \\
+\end{cases}
+$$
+
+## 过程
+
+1.  计算所有模数的积 $n$；
+2.  对于第 $i$ 个方程：
+    1.  计算 $m_i=\frac{n}{n_i}$；
+    2.  计算 $m_i$ 在模 $n_i$ 意义下的 [逆元](./inverse.md)  $m_i^{-1}$；
+    3.  计算 $c_i=m_im_i^{-1}$（**不要对 $n_i$ 取模**）。
+3.  方程组在模 $n$ 意义下的唯一解为：$x=\sum_{i=1}^k a_ic_i \pmod n$。
 
 ### Eratosthenes 筛
 

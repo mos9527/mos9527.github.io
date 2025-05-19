@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-14T10:08:15.028000+08:00
+lastmod: 2025-05-19T20:32:37.762351
 title: Arithmetic Competition Notes - FFT/Polynomial/Number Theory Topics
 tags: ["ACM","Competeive Programming","XCPC","(Code) Templates","Problem sets","Codeforces","C++"]
 categories: ["Problem Solutions", "Competeive Programming", "Collection/compilation"]
