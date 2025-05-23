@@ -32,10 +32,6 @@ int main() {
     return 0;
 }
 ```
-# Misc
-
-- 开启GCC debug容器: `add_compile_definitions(-D_GLIBCXX_DEBUG)`
-
 # 数学
 
 ## 快速幂
@@ -522,9 +518,9 @@ namespace comb {
   - $1 - p$ 可以为 $1 - \frac{x}{x+y} = \frac{y}{x+y}$ 即为 `inv_p = y * binpow_mod(x+u, m - 2, m)`
   - 也可以为$1 - p\ mod\ m = m + 1 - p\ mod\ m$ 即为 `inv_p = binpow_mod(MOD + 1 - p, m - 2, m)`
 
-## CRT / 中国剩余定理
+### CRT / 中国剩余定理
 
-### 定义
+#### 定义
 
 - https://oi.wiki/math/number-theory/crt/
 
@@ -539,7 +535,7 @@ x &\equiv a_k \pmod {n_k} \newline
 \end{cases}
 $$
 
-### 过程
+#### 过程
 
 1.  计算所有模数的积 $n$；
 2.  对于第 $i$ 个方程：
@@ -2147,6 +2143,20 @@ while (l < r) {
 cout << l - 1 << endl;
 ```
 
+## 常见贪心
+
+- 线段最大交集
+
+```c++
+sort(p.begin(),p.end());
+priority_queue<ll, vec, greater<>> pq;
+for (auto [l,r] : p) {
+    while (!pq.empty() && pq.top() < l) pq.pop();
+    pq.push(r);
+    res = max(res, (ll)pq.size());
+}
+```
+
 ## 置换环
 
 - https://www.cnblogs.com/TTS-TTS/p/17047104.html
@@ -2163,7 +2173,7 @@ cout << l - 1 << endl;
 - 不同于一般排序题，这里排列不需要完全一致；$p_i = i, p_i = p_{{i}_{i}}$皆可
 - 意味着，最后要的环大小也可以是$2$，此时显然大小更优；更改$k$的计算为$k = \sum_{1}^{m}{\frac{s - 1}{2}}$即可
 
-## 离散化杂谈
+## 离散化
 
 适用于大$a_i$但小$n$情形
 
@@ -2293,9 +2303,8 @@ a | b == (a ^ b) + (a & b);
 ```
 
 
-## MSVC也要用万能头!!
+## bits/stdc++.h
 
-- `bits/stdc++.h`
 ```c++
 #ifndef _GLIBCXX_NO_ASSERT
 #include <cassert>

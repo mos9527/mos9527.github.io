@@ -139,3 +139,14 @@ int main() {
       return 0;
   }
   ```
+### 南昌 2025 邀请赛 - G Exploration
+递推式很简单；记$dp_{i,j}$为从点$i$走$j$步可达最大边权积；实现上由于原图有（自）环DFS/BFS处理这个dp不好写
+
+```c++
+vector<vec> dp(n + 1, vec(33, 1));
+for (ll i = 1;i <= 32;i++)
+    for (ll u = 1; u <= n;u++)
+        for (auto [v,d] : G[u])
+            dp[u][i] = max(dp[u][i], dp[v][i-1] * d);
+```
+
