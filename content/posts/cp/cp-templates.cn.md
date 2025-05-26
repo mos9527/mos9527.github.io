@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-26T11:57:27.644623
+lastmod: 2025-05-26T12:25:49.528328
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1190,15 +1190,6 @@ struct graph {
 ## Dinic 最大(最小费用)流
 
 ```c++
-#include "bits/stdc++.h"
-using namespace std;
-typedef long long ll; typedef double lf; typedef pair<ll, ll> II; typedef vector<ll> vec;
-const inline void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0u); cout.tie(0u); }
-const lf PI = acos(-1);
-const lf EPS = 1e-8;
-const ll INF = 1e18;
-const ll MOD = 1e9 + 7;
-const ll DIM = 1e5;
 struct dinic_flow {
     ll n, cnt = 0;
     vec nxt, head;
@@ -1327,50 +1318,6 @@ public:
         return {ans, cost_mcmf};
     }
 };
-int main() {
-    fast_io();
-    /* El Psy Kongroo */
-    ll t; cin >> t;
-    while (t--)
-    {
-        ll n,m; cin >> n >> m;
-        vec b(n+1);
-        for (ll i = 1; i <= n; i++) cin >> b[i];
-        vector<vector<II>> G(n+1);
-        while (m--)
-        {
-            ll u,v,w; cin >> u >> v >> w;
-            G[u].push_back({v,w});
-        }
-        auto check = [&](ll k) -> bool
-        {
-            vec dp(n + 1, -INF);
-            dp[0] = dp[1] = 0;
-            for (ll u = 1; u <= n; u++)
-            {
-                for (auto [v, w] : G[u])
-                {
-                    // 电池量单增；成立则每一次量<=k
-                    // 松弛出边
-                    if (min(dp[u] + b[u],k) >= w)
-                    {
-                        dp[v] = max(dp[v], min(dp[u] + b[u], k));
-                    }
-                }
-            }
-            return dp[n] != -INF;
-        };
-        ll l = 0, r = INF;
-        while (l < r) {
-            ll m = (l + r) >> 1;
-            if (check(m)) r = m;
-            else l = m + 1;
-        }
-        if (l == INF) l = -1;
-        cout << l << endl;
-    }
-    return 0;
-}
 ```
 
 - https://www.cnblogs.com/SYCstudio/p/7260613.html
