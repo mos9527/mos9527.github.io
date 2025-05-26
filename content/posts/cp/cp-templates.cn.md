@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-19T20:38:25.790386
+lastmod: 2025-05-26T11:57:27.644623
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1187,61 +1187,190 @@ struct graph {
   }
   ```
 
-## Dinic 最大流
+## Dinic 最大(最小费用)流
 
 ```c++
-struct graph {
+#include "bits/stdc++.h"
+using namespace std;
+typedef long long ll; typedef double lf; typedef pair<ll, ll> II; typedef vector<ll> vec;
+const inline void fast_io() { ios_base::sync_with_stdio(false); cin.tie(0u); cout.tie(0u); }
+const lf PI = acos(-1);
+const lf EPS = 1e-8;
+const ll INF = 1e18;
+const ll MOD = 1e9 + 7;
+const ll DIM = 1e5;
+struct dinic_flow {
     ll n, cnt = 0;
-    vec V, W, Next, Head;
-    graph(ll n, ll e = DIM) : V(e), W(e), Next(e, -1), Head(e, -1), n(n) {}
-    void add_edge(ll u, ll v, ll w) {
-        Next[cnt] = Head[u];
-        V[cnt] = v, W[cnt] = w;
-        Head[u] = cnt;
+    vec nxt, head;
+    struct edge { ll v, capacity, cost; };
+    vector<edge> e;
+    dinic_flow(ll verts, ll edges = DIM) : e(edges), nxt(edges, -1), head(edges, -1), n(verts), dis(n + 1), cur(n + 1), vis(n + 1) {}
+    void add_edge(ll u, ll v, ll capacity, ll cost) {
+        nxt[cnt] = head[u];
+        e[cnt] = {v, capacity, cost};
+        head[u] = cnt;
         cnt++;
     }
-    void dinic_add_edge(ll u, ll v, ll w) {
-        add_edge(u, v, w); // W[i]
-        add_edge(v, u, 0); // W[i^1]
+    void dinic_add_edge(ll u, ll v, ll capacity, ll cost) {
+        add_edge(u, v, capacity, cost); // W[i]
+        add_edge(v, u, 0, -cost); // W[i^1]
     }
 private:
-    vec dinic_depth, dinic_cur;
-    bool dinic_bfs(ll s, ll t) /* 源点，汇点 */ {
+    vec dis, cur; // 最短路, 当前弧
+    vector<bool> vis;
+    // 最大流
+    // 分层图
+    bool dinic_bfs(ll s, ll t) {
+        // 分层
         queue<ll> Q;
-        dinic_depth.assign(n + 1, 0);        
-        dinic_depth[s] = 1; Q.push(s);
+        dis.assign(n + 1, 0);
+        dis[s] = 1; Q.push(s);
+        // O(mn)
         while (!Q.empty()){
             ll u = Q.front(); Q.pop();
-            for (ll i = Head[u]; i != -1; i = Next[i]) {
-                if (W[i] && dinic_depth[V[i]] == 0) {                    
-                    dinic_depth[V[i]] = dinic_depth[u] + 1;
-                    Q.push(V[i]);
+            for (ll i = head[u]; i != -1; i = nxt[i]) {
+                auto [v, capacity, cost] = e[i];
+                // 还有容量即可传递
+                if (capacity > 0 && dis[v] == 0) {
+                    dis[v] = dis[u] + 1;
+                    Q.push(v);
                 }
             }
         }
-        return dinic_depth[t];
+        return dis[t] > 0;
     }
-    ll dinic_dfs(ll u, ll t, ll flow = INF) {
-        if (u == t) return flow;
-        for (ll& i = dinic_cur[u] /* 维护掉已经走过的弧 */; i != -1; i = Next[i]) {
-            if (W[i] && dinic_depth[V[i]] == dinic_depth[u] + 1) {
-                ll d = dinic_dfs(V[i], t, min(flow, W[i]));
-                W[i] -= d, W[i^1] += d; // i^1 是 i 的反向边; 原边i%2==0, 反边在之后；故反边^1->原边 反之亦然
-                if (d) return d;
+    // 最小费用最大流 Min-cost-max-flow
+    // 每次找费用最少的分层图
+    bool dinic_bfs_mcmf(ll s, ll t) {
+        vis.assign(n + 1, 0);
+        dis.assign(n + 1, 0);
+        queue<ll> Q;
+        dis[s] = 0, vis[s] = 1, Q.push(s);
+        while (!Q.empty()){
+            const ll u = Q.front(); Q.pop(), vis[u] = false;
+            for (ll i = head[u]; i != -1; i = nxt[i]) {
+                auto [v, capacity, cost] = e[i];
+                // 找到最低cost路径传递,松弛出边
+                // 存在负边故采用SPFA,O(mn)
+                if (capacity > 0 && dis[v] > dis[u] + cost) {
+                    dis[v] = dis[u] + cost;
+                    if (!vis[v]) Q.push(v), vis[v] = true;
+                }
             }
         }
-        return 0;
+        return dis[t] != 0;
+    }
+    // 最大流
+    // 增广路
+    ll dinic_dfs(ll u, ll t, ll flow = INF) {
+        if (u == t) return flow;
+        for (ll& i = cur[u] /* 维护掉已经走过的弧 */; i != -1; i = nxt[i]) {
+            auto& [v, capacity, cost] = e[i];
+            auto& [v_inv, capacity_inv, _] = e[i^1];
+            if (capacity > 0 && dis[v] == dis[u] + 1) {
+                ll d = dinic_dfs(v, t, min(flow, capacity));
+                // 往下传递到未走边
+                if (d > 0)
+                {
+                    capacity -= d, capacity_inv += d; // 传递反向边
+                    return d; // 向上传递
+                }
+            }
+        }
+        return 0; // 没有增广路
+    }
+    // 最小费用最大流 Min-cost-max-flow
+    // 增广路
+    ll cost_mcmf = 0;
+    ll dinic_dfs_mcmf(ll u, ll t, ll flow = INF) {
+        // 找增广路
+        if (u == t) return flow;
+        vis[u] = true;
+        ll cur_flow = 0;
+        for (ll& i = cur[u] /* 维护掉已经走过的弧 */; i != -1 && cur_flow < flow; i = nxt[i]) {
+            auto& [v, capacity, cost] = e[i];
+            auto& [v_inv, capacity_inv, _] = e[i^1];
+            if (capacity > 0 && dis[v] == dis[u] + 1) {
+                ll d = dinic_dfs_mcmf(v, t, min(flow - cur_flow, capacity));
+                // 往下传递到未走边
+                if (d > 0)
+                {
+                    capacity -= d, capacity_inv += d; // 传递反向边
+                    cur_flow += d, cost_mcmf += d * cost;
+                    // return d
+                    // 继续遍历,最大流f此时一定
+                    // 需要找到最小费用即需要该复杂度,最终O(mnf)
+                }
+            }
+        }
+        vis[u] = false;
+        return cur_flow; // 没有增广路时仍为0
     }
 public:
+    // 最大流 O(mn)
     ll dinic(ll s, ll t) {
         ll ans = 0;
         while (dinic_bfs(s, t)) {
-            dinic_cur = Head;
+            cur = head;
             while (ll d = dinic_dfs(s, t)) ans += d;
         }
         return ans;
     }
+    // 最小费用最大流 O(mnf), f为最大流 -> [最大流, 最小费用]
+    II dinic_mcmf(ll s, ll t) {
+        ll ans = 0;
+        cost_mcmf = 0;
+        while (dinic_bfs_mcmf(s, t)) {
+            cur = head;
+            while (ll d = dinic_dfs_mcmf(s, t)) ans += d;
+        }
+        return {ans, cost_mcmf};
+    }
 };
+int main() {
+    fast_io();
+    /* El Psy Kongroo */
+    ll t; cin >> t;
+    while (t--)
+    {
+        ll n,m; cin >> n >> m;
+        vec b(n+1);
+        for (ll i = 1; i <= n; i++) cin >> b[i];
+        vector<vector<II>> G(n+1);
+        while (m--)
+        {
+            ll u,v,w; cin >> u >> v >> w;
+            G[u].push_back({v,w});
+        }
+        auto check = [&](ll k) -> bool
+        {
+            vec dp(n + 1, -INF);
+            dp[0] = dp[1] = 0;
+            for (ll u = 1; u <= n; u++)
+            {
+                for (auto [v, w] : G[u])
+                {
+                    // 电池量单增；成立则每一次量<=k
+                    // 松弛出边
+                    if (min(dp[u] + b[u],k) >= w)
+                    {
+                        dp[v] = max(dp[v], min(dp[u] + b[u], k));
+                    }
+                }
+            }
+            return dp[n] != -INF;
+        };
+        ll l = 0, r = INF;
+        while (l < r) {
+            ll m = (l + r) >> 1;
+            if (check(m)) r = m;
+            else l = m + 1;
+        }
+        if (l == INF) l = -1;
+        cout << l << endl;
+    }
+    return 0;
+}
 ```
 
 - https://www.cnblogs.com/SYCstudio/p/7260613.html
