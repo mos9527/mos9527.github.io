@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-27T21:13:11.745813
+lastmod: 2025-05-28T14:53:29.693561
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1198,6 +1198,8 @@ struct graph {
 
 ## Dinic 最大(最小费用)流
 
+- https://www.cnblogs.com/SYCstudio/p/7260613.html
+
 ```c++
 struct dinic_flow {
     ll n, cnt = 0;
@@ -1205,17 +1207,13 @@ struct dinic_flow {
     struct edge { ll v, capacity, cost; };
     vector<edge> e;
     dinic_flow(ll verts, ll edges = DIM) : e(edges), nxt(edges, -1), head(edges, -1), n(verts), dis(n + 1), cur(n + 1), vis(n + 1) {}
+private:
     void add_edge(ll u, ll v, ll capacity, ll cost) {
         nxt[cnt] = head[u];
         e[cnt] = {v, capacity, cost};
         head[u] = cnt;
         cnt++;
     }
-    void dinic_add_edge(ll u, ll v, ll capacity, ll cost) {
-        add_edge(u, v, capacity, cost); // W[i]
-        add_edge(v, u, 0, -cost); // W[i^1]
-    }
-private:
     vec dis, cur; // 最短路, 当前弧
     vector<bool> vis;
     // 最大流
@@ -1243,22 +1241,21 @@ private:
     // 每次找费用最少的分层图
     bool dinic_bfs_mcmf(ll s, ll t) {
         vis.assign(n + 1, 0);
-        dis.assign(n + 1, 0);
+        dis.assign(n + 1, INF);
         queue<ll> Q;
         dis[s] = 0, vis[s] = 1, Q.push(s);
         while (!Q.empty()){
             const ll u = Q.front(); Q.pop(), vis[u] = false;
             for (ll i = head[u]; i != -1; i = nxt[i]) {
                 auto [v, capacity, cost] = e[i];
-                // 找到最低cost路径传递,松弛出边
-                // 存在负边故采用SPFA,O(mn)
+                // SPFA 找到最低cost路径传递,松弛出边
                 if (capacity > 0 && dis[v] > dis[u] + cost) {
                     dis[v] = dis[u] + cost;
                     if (!vis[v]) Q.push(v), vis[v] = true;
                 }
             }
         }
-        return dis[t] != 0;
+        return dis[t] != INF;
     }
     // 最大流
     // 增广路
@@ -1290,7 +1287,7 @@ private:
         for (ll& i = cur[u] /* 维护掉已经走过的弧 */; i != -1 && cur_flow < flow; i = nxt[i]) {
             auto& [v, capacity, cost] = e[i];
             auto& [v_inv, capacity_inv, _] = e[i^1];
-            if (capacity > 0 && dis[v] == dis[u] + 1) {
+            if (!vis[v] && capacity > 0 && dis[v] == dis[u] + cost) {
                 ll d = dinic_dfs_mcmf(v, t, min(flow - cur_flow, capacity));
                 // 往下传递到未走边
                 if (d > 0)
@@ -1307,29 +1304,37 @@ private:
         return cur_flow; // 没有增广路时仍为0
     }
 public:
+    void dinic_add_edge(ll u, ll v, ll capacity, ll cost = 0) {
+        add_edge(u, v, capacity, cost); // W[i]
+        add_edge(v, u, 0, -cost); // W[i^1]
+    }
     // 最大流 O(mn)
+    // 可复用
     ll dinic(ll s, ll t) {
         ll ans = 0;
+        auto e_pre = e;
         while (dinic_bfs(s, t)) {
             cur = head;
             while (ll d = dinic_dfs(s, t)) ans += d;
         }
+        e = e_pre;
         return ans;
     }
     // 最小费用最大流 O(mnf), f为最大流 -> [最大流, 最小费用]
+    // 可复用
     II dinic_mcmf(ll s, ll t) {
         ll ans = 0;
         cost_mcmf = 0;
+        auto e_pre = e;
         while (dinic_bfs_mcmf(s, t)) {
             cur = head;
             while (ll d = dinic_dfs_mcmf(s, t)) ans += d;
         }
+        e = e_pre;
         return {ans, cost_mcmf};
     }
 };
 ```
-
-- https://www.cnblogs.com/SYCstudio/p/7260613.html
 
 - https://codeforces.com/gym/105336/submission/280592598 (G. 疯狂星期六)
 
@@ -1341,13 +1346,13 @@ public:
       ll t = n + m + 1;
       vec A(n + 1), V(n + 1);
       for (ll i = 1; i <= n; i++) cin >> A[i] >> V[i];
-      graph G(n + m + 1);
+      dinic_flow G(n + m + 1);
       ll cost_yyq = V[1], cost_all = 0;
       for (ll i = 1; i <= m; i++) {
           ll x, y, W; cin >> x >> y >> W;
           if (x == 1 || y == 1) cost_yyq += W;
           cost_all += W;
-          // 源点-菜，菜-两个人 
+          // 源点-菜，菜-两个人
           // 规定人点m开始
           G.dinic_add_edge(0, i, W);
           G.dinic_add_edge(i, x + m, W);
@@ -1367,6 +1372,58 @@ public:
       return 0;
   }
   ```
+
+- https://www.luogu.com.cn/problem/P4015 运输问题
+
+  ```c++
+  /*
+  2 3
+  220 280
+  170 120 210
+  77 39 105
+  150 186 122
+   */
+  int main() {
+      fast_io();
+      /* El Psy Kongroo */
+      ll m,n; cin >> m >> n;
+      vec a(m + 1), b(n + 1);
+      vector<vec> c(m + 1, vec(n + 1));
+      for (ll i = 1; i <= m; i++) cin >> a[i];
+      for (ll i = 1; i <= n; i++) cin >> b[i];
+      for (ll i = 1; i <= m; i++)
+          for (ll j = 1; j <= n; j++)
+              cin >> c[i][j];
+      ll sz = m + n + 20;
+      dinic_flow G(sz + 20);
+      ll s = sz + 1, t = sz + 2; // 虚拟源点和汇点
+      for (ll i = 1; i <= m; i++) {
+          // 虚拟源点到每一个供货点
+          G.dinic_add_edge(s, i, a[i],0);
+      }
+      for (ll i = 1; i <= n; i++) {
+          // 需求点到虚拟汇点
+          G.dinic_add_edge(m + i, t, b[i], 0);
+      }
+      for (ll i = 1; i <= m; i++) {
+          for (ll j = 1; j <= n; j++) {
+              // 每个供货点到需求点
+              G.dinic_add_edge(i, m + j, INF, c[i][j]);
+          }
+      }
+      auto [max_flow, min_cost] = G.dinic_mcmf(s, t);
+      // cost取反再求mincost即可求maxcost
+      for (auto& e : G.e)
+          e.cost *= -1;
+      auto [_, max_cost] = G.dinic_mcmf(s, t);
+      max_cost = -max_cost;
+      cout << min_cost << endl;
+      cout << max_cost << endl;
+      return 0;
+  }
+  ```
+
+
 
 ## 树链剖分 / HLD
 

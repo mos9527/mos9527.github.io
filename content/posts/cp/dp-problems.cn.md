@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-26T10:48:19.468831
+lastmod: 2025-05-28T14:20:06.332926
 title: 算竞笔记 - 动态规划专题
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
