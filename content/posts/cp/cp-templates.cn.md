@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-26T12:25:49.528328
+lastmod: 2025-05-27T21:13:11.745813
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -705,6 +705,15 @@ namespace euler_sieve {
 ```
 
 - https://ac.nowcoder.com/acm/contest/81603/E
+
+### 离线分解因数
+
+```c++
+vec coeff[DIM];
+for (ll i = 2; i < DIM;i++)
+    for (ll j = i; j < DIM; j += i)
+        coeff[j].push_back(i);
+```
 
 # 图论
 
