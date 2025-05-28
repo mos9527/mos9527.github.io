@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-28T14:53:29.693561
+lastmod: 2025-05-28T17:03:51.254799
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -875,47 +875,109 @@ int main() {
 
 ## 欧拉回路
 
+在图论中，**欧拉路径（Eulerian path）**是经过图中每条边恰好一次的路径，**欧拉回路（Eulerian circuit）**是经过图中每条边恰好一次的回路。 如果一个图中存在欧拉回路，则这个图被称为**欧拉图（Eulerian graph）**
+
 ### Hierholzer
 
 ```c++
-struct edge { ll to, weight; };
-struct vert { ll vtx, dis; };
-template<size_t Size> struct graph {
-	bool G[Size][Size]{};
-	ll in[Size]{};
-
-	ll n;
-	graph(const size_t verts) : n(verts) {};
-	void add_edge(ll u, ll v) {
-		G[u][v] = G[v][u] = true;
-		in[v]++;
-		in[u]++;
-	}
-
-	v euler_road_ans;
-	v& euler_road(ll pa) {
-		euler_road_ans.clear();
-		ll odds = 0;
-		for (ll i = 1; i <= n; i++) {
-			if (in[i] % 2 != 0) 
-				odds++;
-		}
-		if (odds != 0 && odds != 2) return euler_road_ans;
-		const auto hierholzer = [&](ll x, auto& func) -> void {
-			for (ll i = 1; i <= n; i++) {
-				if (G[x][i]) {
-					G[x][i] = G[i][x] = 0;
-					func(i, func);
-				}
-			}
-			euler_road_ans.push_back(x);
-		};
-		hierholzer(pa, hierholzer);
-        reverse(euler_road_ans.begin(),euler_road_ans.end()
-		return euler_road_ans;
-	}
+struct eulerian_path {
+    map<ll, set<ll>> G;
+    map<ll,ll> in;
+    void add_edge(ll u, ll v) {
+        G[u].insert(v);
+        G[v].insert(u);
+        in[u]++; in[v]++;
+    }
+    vec hierholzer(ll s) {
+        ll odds = 0;
+        for (auto [v,i] : in) odds += i & 1;
+        if (odds != 0 /* 欧拉回路 */ && odds != 2 /* 欧拉路 */) return {};
+        vec res;
+        auto dfs = [&](ll u, auto&& dfs) -> void {
+            while (!G[u].empty()) {
+                ll v = *G[u].begin();
+                G[u].erase(v);
+                G[v].erase(u);
+                dfs(v, dfs);
+            }
+            res.push_back(u);
+        };
+        dfs(s,dfs);
+        reverse(res.begin(), res.end());
+        return move(res);
+    }
 };
 ```
+
+- https://www.luogu.com.cn/problem/P1341 - 无序字母对
+
+```c++
+int main() {
+    fast_io();
+    /* El Psy Kongroo */
+    const string ascii = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    ll n, mn = INF; cin >> n;
+    eulerian_path p;
+    while (n--) {
+        string s; cin >> s;
+        ll u = s[0], v = s[1];
+        p.add_edge(u, v); // 构造二分图
+        mn = min({mn,u,v});
+    }
+    for (char c : ascii)
+        if (p.in[c] & 1) { mn = c; break; } // 欧拉路情况；找最小点切入
+    auto res = p.hierholzer(mn);
+    if (!res.size()) cout << "No Solution" << endl;
+    else {
+        for (auto& x : res)
+            cout << (char)x;
+        cout << endl;
+    }
+    return 0;
+}
+```
+
+- https://codeforces.com/contest/2110/problem/E - Melody
+
+```c++
+int main() {
+    fast_io();
+    /* El Psy Kongroo */
+    ll t; cin >> t;
+    while (t--) {
+        ll n; cin >> n;
+        eulerian_path euler;
+        map<II, ll> inv;
+        ll root = 0;
+        for (ll i = 1; i <= n; i++) {
+            ll v, p; cin >> v >> p;
+            euler.add_edge(v, -p); // 构造二分图
+            inv[{v,p}] = i;
+            root = v;
+        }
+        for (auto [v, i] : euler.in)
+            if (i & 1) { root = v; } // 欧拉路情况起点必然是单入度
+        auto res = euler.hierholzer(root);
+        if (res.size() != n + 1) {
+            cout << "NO" << endl;
+        }else {
+            cout << "YES" << endl;
+            if (n == 1) cout << 1;
+            else {
+                for (ll i = 0; i < n; i++) {
+                    ll u = res[i], v = res[i + 1];
+                    if (u < 0) swap(u,v);
+                    cout << inv[{u,-v}] << ' ';
+                }
+            }
+            cout << endl;
+        }
+    }
+    return 0;
+}
+```
+
+
 
 ## LCA
 
