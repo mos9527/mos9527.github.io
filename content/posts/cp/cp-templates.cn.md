@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-28T17:03:51.254799
+lastmod: 2025-05-30T08:53:39.516170
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -355,94 +355,102 @@ struct linear_base : array<ll, 64> {
 ### 二维几何
 
 ```c++
-template<typename T> struct vec2 {
-    T x, y;
-    ///
-    inline T length_sq() const { return x * x + y * y; }
-    inline T length() const { return sqrt(length_sq()); }
-    inline vec2& operator+=(vec2 const& other) { x += other.x, y += other.y; return *this; }
-    inline vec2& operator-=(vec2 const& other) { x -= other.x, y -= other.y; return *this; }
-    inline vec2& operator*=(T const& other) { x *= other, y *= other; return *this; }
-    inline vec2& operator/=(T const& other) { x /= other, y /= other; return *this; }
-    inline vec2 operator+(vec2 const& other) const { vec2 v = *this; v += other; return v; }
-    inline vec2 operator-(vec2 const& other) const { vec2 v = *this; v -= other; return v; }
-    inline vec2 operator*(T const& other) const { vec2 v = *this; v *= other; return v; }
-    inline vec2 operator/(T const& other) const { vec2 v = *this; v /= other; return v; }
-    ///
-    inline static T dist_sq(vec2 const& a, vec2 const& b) {
-        return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-    }
-    inline static T dist(vec2 const& a, vec2 const& b) {
-        return sqrt(vec2::dist_sq(a, b));
-    }
-    inline static T cross(vec2 const& a, vec2 const& b) {
-        return a.x * b.y - a.y * b.x;
-    }
-    inline static T dot(vec2 const& a, vec2 const& b) {
-        return a.x * b.x + a.y * b.y;
-    }
-    ///
-    inline friend bool operator< (vec2 const& a, vec2 const& b) {
-        if (a.x - b.x < EPS) return true;
-        if (a.x - b.x > EPS) return false;
-        if (a.y - b.y < EPS) return true;
-        return false;
-    }
-    inline friend ostream& operator<< (ostream& s, const vec2& v) {
-        s << '(' << v.x << ',' << v.y << ')'; return s;
-    }
-    inline friend istream& operator>> (istream& s, vec2& v) {
-        s >> v.x >> v.y; return s;
-    }
+template <typename T> struct vec2 {
+  T x, y;
+  ///
+  inline T length_sq() const { return x * x + y * y; }
+  inline T length() const { return sqrt(length_sq()); }
+  inline vec2 &operator+=(vec2 const &other) {
+    x += other.x, y += other.y;
+    return *this;
+  }
+  inline vec2 &operator-=(vec2 const &other) {
+    x -= other.x, y -= other.y;
+    return *this;
+  }
+  inline vec2 &operator*=(T const &other) {
+    x *= other, y *= other;
+    return *this;
+  }
+  inline vec2 &operator/=(T const &other) {
+    x /= other, y /= other;
+    return *this;
+  }
+  inline vec2 operator+(vec2 const &other) const {
+    vec2 v = *this;
+    v += other;
+    return v;
+  }
+  inline vec2 operator-(vec2 const &other) const {
+    vec2 v = *this;
+    v -= other;
+    return v;
+  }
+  inline vec2 operator*(T const &other) const {
+    vec2 v = *this;
+    v *= other;
+    return v;
+  }
+  inline vec2 operator/(T const &other) const {
+    vec2 v = *this;
+    v /= other;
+    return v;
+  }
+  ///
+  inline static T dist_sq(vec2 const &a, vec2 const &b) {
+    return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+  }
+  inline static T dist(vec2 const &a, vec2 const &b) {
+    return sqrt(vec2::dist_sq(a, b));
+  }
+  inline static T cross(vec2 const &a, vec2 const &b) {
+    return a.x * b.y - a.y * b.x;
+  }
+  inline static T dot(vec2 const &a, vec2 const &b) {
+    return a.x * b.x + a.y * b.y;
+  }
+  ///
+  inline friend bool operator<(vec2 const &a, vec2 const &b) {
+    if (a.x != b.x)
+      return a.x < b.x;
+    return a.y < b.y;
+  }
+  inline friend bool operator==(vec2 const &a, vec2 const &b) {
+    return a.x == b.x && a.y == b.y;
+  }
 };
 typedef vec2<lf> point;
-typedef vec2<ll> Ipoint;
 ```
 
 #### 二维凸包
 
+- https://www.cnblogs.com/WIDA/p/17633758.html#%E9%9D%99%E6%80%81%E5%87%B8%E5%8C%85with-point%E6%96%B0%E7%89%88
+
 ```c++
-struct convex_hull : vector<point> {
-    bool is_inside(point const& p) {
-        for (ll i = 0; i < size() - 1; i++) {
-            point a = (*this)[i], b = (*this)[i + 1];
-            point e = b - a, v = p - a;
-            // 全在边同一侧
-            if (point::cross(e, v) < EPS) return false;
-        }
-        return true;
-    }
-    lf min_dis(point const& p) {
-        lf dis = 1e100;
-        for (ll i = 0; i < size() - 1; i++) {
-            point a = (*this)[i], b = (*this)[i + 1];
-            point e = b - a, v = p - a;
-            // 垂点在边上
-            if (point::dot(p - a, b - a) >= 0 && point::dot(p - b, a - b) >= 0)
-                dis = min(dis, abs(point::cross(e, v) / e.length()));
-            // 垂点在边外 - 退化到到顶点距离min
-            else
-                dis = min(dis, min((p - a).length(), (p - b).length()));
-        }
-        return dis;
-    }
-    void build(vector<point>& p) { // Andrew p368
-        sort(p.begin(), p.end());
-        resize(p.size());
-        ll m = 0;
-        for (ll i = 0; i < p.size(); i++) {
-            while (m > 1 && point::cross((*this)[m - 1] - (*this)[m - 2], p[i] - (*this)[m - 2]) < EPS) m--;
-            (*this)[m++] = p[i];
-        }
-        ll k = m;
-        for (ll i = p.size() - 2; i >= 0; i--) {
-            while (m > k && point::cross((*this)[m - 1] - (*this)[m - 2], p[i] - (*this)[m - 2]) < EPS) m--;
-            (*this)[m++] = p[i];
-        }
-        if (p.size() > 1) m--;
-        resize(m);
-    }
-};
+vector<point> convex_hull(vector<point> &p) { // 逆时针
+  vector<point> hi, lo;
+  sort(p.begin(), p.end());
+  p.erase(unique(p.begin(), p.end()), p.end());
+  ll n = p.size();
+  if (n <= 1)
+    return p;
+  for (auto a : p) {
+    while (hi.size() > 1 &&
+           point::cross(a - hi.back(), a - hi[hi.size() - 2]) <= 0)
+      hi.pop_back();
+    while (lo.size() > 1 &&
+           point::cross(a - lo.back(), a - lo[lo.size() - 2]) >= 0)
+      lo.pop_back();
+    lo.push_back(a);
+    hi.push_back(a);
+  }
+
+  lo.pop_back();
+  reverse(hi.begin(), hi.end());
+  hi.pop_back();
+  lo.insert(lo.end(), hi.begin(), hi.end());
+  return lo;
+}
 ```
 
 - https://codeforces.com/gym/104639/submission/281132024
@@ -476,6 +484,36 @@ int main() {
     return 0;
 }
 ```
+
+#### 旋转卡壳
+
+```c++
+lf caliper(vector<point> const &p) { // p为处理好的凸包
+  ll j = 2, n = p.size();
+  lf mx_dis = 0;
+  // 每条边,查j+1 和边 (i,i+1) 的距离是不是比 j 更大，如果是就将 j
+  // 加一，否则说明 j 是此边的最优点
+  // 检查可以通过叉积比较面积比较距离(垂点)
+  for (ll i = 0; i < n; i++) {
+    auto e1 = p[i % n], e2 = p[(i + 1) % n];
+    while (j < n + i) {
+      auto p1 = p[j % n], p2 = p[(j + 1) % n];
+      lf a1 = abs(point::cross(e2 - e1, p1 - e1));
+      lf a2 = abs(point::cross(e2 - e1, p2 - e1));
+      if (a1 <= a2)
+        j++;
+      else
+        break;
+    }
+    // 此时j点一定为该边上距离最远
+    mx_dis = max(
+        {mx_dis, point::dist_sq(e1, p[j % n]), point::dist_sq(e2, p[j % n])});
+  }
+  return mx_dis;
+}
+```
+
+
 
 ## 组合数
 
