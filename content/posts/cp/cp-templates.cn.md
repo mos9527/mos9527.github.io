@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-30T08:53:39.516170
+lastmod: 2025-05-31T14:40:18.226155
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -1864,40 +1864,40 @@ int main() {
 
 ### Tarjan
 ```c++
-struct SCC {    
-    ll n, dfn_cnt;
-    vec dfn, low, vis, sta, dis;
-    vec in_loop;
-    vec inv_scc;
-    stack<ll> stk;
-    vector<vector<II>> G;
-    SCC(ll n) : n(n), sta(n), dfn(n) /* DFS序 */, low(n) /* 所在SCC首个（dfn最低）点 */, G(n), dis(n) /* 到根距离 */, dfn_cnt(0), in_loop(n) /* 点所在SCC是个环 */, inv_scc(n) /* 点所在SCC的根点 */ {};
+struct SCC {
+  ll n, dfn_cnt;
+  vec dfn, low, sta, dis;
+  vec inv_scc;
+  stack<ll> stk;
+  vector<vector<II>> G;
+  SCC(ll n)
+      : n(n), sta(n), dfn(n) /* DFS序 */, low(n) /* 所在SCC首个（dfn最低）点 */,
+        G(n), dis(n) /* 到根距离 */, dfn_cnt(0),
+        inv_scc(n) /* 点所在SCC的根点 */ {};
 
-    void add_edge(ll u, ll v, ll w = 1) { G[u].push_back({ v, w }); }
+  void add_edge(ll u, ll v, ll w = 1) { G[u].push_back({v, w}); }
 
-    map<ll, vec> scc;
-    void tarjan(ll u = 1) {
-        if (dfn[u]) return;
-        dfn[u] = low[u] = ++dfn_cnt, stk.push(u), sta[u] = 1;
-        for (auto const& [v, w] : G[u]) {
-            if (!dfn[v])
-                dis[v] = dis[u] + w, tarjan(v), low[u] = min(low[u], low[v]);
-            else if (sta[v]) {
-                low[u] = min(low[u], dfn[v]);
-                if (dis[v] != dis[u] + w) in_loop[v] = 1;
-            }
-            in_loop[u] |= in_loop[v];
-        }
-        if (dfn[u] == low[u]) {
-            ll v; do {
-                v = stk.top(), stk.pop();
-                sta[v] = 0;
-                scc[u].push_back(v);
-                inv_scc[v] = u;
-                in_loop[v] |= in_loop[u];
-            } while (u != v);
-        }
+  map<ll, vec> scc;
+  void tarjan(ll u = 1) {
+    if (dfn[u])
+      return;
+    dfn[u] = low[u] = ++dfn_cnt, stk.push(u), sta[u] = 1;
+    for (auto const &[v, w] : G[u]) {
+      if (!dfn[v])
+        dis[v] = dis[u] + w, tarjan(v), low[u] = min(low[u], low[v]);
+      else if (sta[v])
+        low[u] = min(low[u], dfn[v]);
     }
+    if (dfn[u] == low[u]) {
+      ll v;
+      do {
+        v = stk.top(), stk.pop();
+        sta[v] = 0;
+        scc[u].push_back(v);
+        inv_scc[v] = u;
+      } while (u != v);
+    }
+  }
 };
 ```
 
@@ -1972,6 +1972,69 @@ int main() {
     }    
 	cout << *max_element(dp.begin(), dp.end()) << endl;
     return 0;
+}
+```
+
+- https://codeforces.com/gym/101170 - Birtish Food (最长路)
+
+```c++
+int main() {
+  fast_io();
+  /* El Psy Kongroo */
+  ll n, m;
+  cin >> n >> m;
+  SCC scc(n + 1);
+  for (ll i = 0; i < m; i++) {
+    ll u, v;
+    cin >> u >> v;
+    scc.add_edge(u, v);
+  }
+  for (ll i = 1; i <= n; i++)
+    scc.tarjan(i);
+  vec dp(n + 1, 1);
+  vec in(n + 1, 0);
+  for (ll u = 1; u <= n; u++) {
+    for (auto const &[v, w] : scc.G[u])
+      if (scc.inv_scc[u] != scc.inv_scc[v])
+        in[scc.inv_scc[v]]++;
+  }
+  queue<ll> Q;
+  for (ll i = 1; i <= n; i++)
+    if (in[i] == 0)
+      Q.push(i);
+  vec dp2(n + 1, 0);
+  vec vis(n + 1, 0);
+  auto dfs = [&](ll u, ll d, auto &&dfs) -> void { // O(n!)
+    vis[u] = 1;
+    dp2[u] = max(dp2[u], d);
+    for (auto [v, w] : scc.G[u])
+      if (scc.inv_scc[u] == scc.inv_scc[v] && !vis[v])
+        dfs(v, d + 1, dfs);
+    vis[u] = 0;
+  };
+  // 现在即树上找最长路径 
+  // 考虑拓扑序；dp[v]->v结尾最大值，从上到下传递有(u->v), dp[v] = max(dp[v], dp[u] + a[v])    
+  while (!Q.empty()) {
+    ll u = Q.front();
+    Q.pop();
+    // 跑完scc上所有可能的最长路组合
+    // 每个点都会跑一边跑整张(子)图,O(n!)
+    for (ll v : scc.scc[u])
+      dfs(v, dp[v], dfs);
+    for (ll v : scc.scc[u]) {
+      for (auto [e, w] : scc.G[v]) {
+        if (scc.inv_scc[e] != scc.inv_scc[v]) {
+          in[scc.inv_scc[e]]--;
+          if (!in[scc.inv_scc[e]])
+            Q.push(scc.inv_scc[e]);
+          dp[e] = max(dp[e], dp2[v] + 1);
+        }
+      }
+    }
+  }
+  ll ans = *max_element(dp2.begin(), dp2.end());
+  cout << ans << endl;
+  return 0;
 }
 ```
 
