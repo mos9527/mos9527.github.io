@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-05-31T14:40:18.226155
+lastmod: 2025-06-02T19:41:45.160520
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -841,39 +841,25 @@ int main() {
 ### Dijkstra
 
 ```c++
-#define INF 1e10
-struct edge { ll to, weight; };
-struct vert { ll vtx, dis; };
-struct graph {
-	vector<vector<edge>> edges;
-	vector<bool> vis;
-	vector<ll> dis;
-	graph(const size_t verts) : edges(verts + 1), vis(verts + 1), dis(verts + 1) {};
-	void add_edge(ll u, ll v, ll w = 1) {
-		edges[u].emplace_back(edge{ v,w });
-	}
-	const auto& dijkstra(ll start) {
-		fill(dis.begin(), dis.end(), INF);
-        fill(vis.begin(), vis.end(), false);
-		const auto pp = PRED(vert, lhs.dis > rhs.dis);
-		priority_queue<vert, vector<vert>, decltype(pp)> T{ pp }; // 最短路点
-		T.push(vert{ start, 0 });
-		dis[start] = 0;
-		while (!T.empty())
-		{
-			vert from = T.top(); T.pop();
-			if (!vis[from.vtx]) {
-				vis[from.vtx] = true;
-				for (auto e : edges[from.vtx]) { // 松弛出边
-					if (dis[e.to] > dis[from.vtx] + e.weight) {
-						dis[e.to] = dis[from.vtx] + e.weight;
-						T.push(vert{ e.to, dis[e.to] });
-					}
-				}
-			}
-		}
-		return dis;
-	}
+auto dijkstra = [&](ll start) {
+    vec dis(n + 1, INF), vis(n + 1, false);
+    priority_queue<II, vector<II>, greater<>> T; // 小顶堆
+    T.emplace( 0, start );
+    dis[start] = 0;
+    while (!T.empty())
+    {
+        auto [_, u] = T.top(); T.pop();
+        if (!vis[u]) {
+            vis[u] = true;
+            for (ll v : G[u]) { // 松弛出边
+                if (dis[v] > dis[u] + 1) {
+                    dis[v] = dis[u] + 1;
+                    T.emplace( dis[v], v );
+                }
+            }
+        }
+    }
+    return dis;
 };
 ```
 
@@ -1227,6 +1213,27 @@ struct graph {
 		dfs(1, 1, dfs);
 		return ans;
 	}
+};
+
+// 便携板子
+auto diameter = [&]()
+{
+    vec dis(n + 1);
+    ll end = 0; dis[end] = 0;
+    auto dfs = [&](ll u, ll pa, auto&& dfs) -> void {
+        for (auto& e : G[u]) {
+            if (e == pa) continue;
+            dis[e] = dis[u] + 1;
+            if (dis[e] > dis[end]) end = e;
+            dfs(e, u, dfs);
+        }
+    };
+    // 在一棵树上，从任意节点 y 开始进行一次 DFS，到达的距离其最远的节点 z 必为直径的一端。
+    dfs(1, 1, dfs); // 1 -> 端点 A
+    ll begin = end;
+    dis[end] = 0;
+    dfs(end,end, dfs); // 端点 A -> B
+    return dis[end];
 };
 ```
 
@@ -2018,7 +2025,7 @@ int main() {
     ll u = Q.front();
     Q.pop();
     // 跑完scc上所有可能的最长路组合
-    // 每个点都会跑一边跑整张(子)图,O(n!)
+    // 每个点都会跑一边跑整张(子)图,O()
     for (ll v : scc.scc[u])
       dfs(v, dp[v], dfs);
     for (ll v : scc.scc[u]) {
