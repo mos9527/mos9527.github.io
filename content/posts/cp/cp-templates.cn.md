@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-06-08T22:47:14.776000+08:00
+lastmod: 2025-06-08T22:49:32.160000+08:00
 title: 算竞笔记 - 题集/板子整理（C++）
 tags: ["ACM","算竞","XCPC","板子","题集","Codeforces","C++"]
 categories: ["题解", "算竞", "合集"]
@@ -4273,16 +4273,6 @@ int main() {
   // g == 1 即可， 否则不存在
   ```
 
-  ---
-  author: mos9527
-  lastmod: 2025-05-30T08:50:48.135148
-  title: 算竞笔记 - 哈希类型专题
-  tags: ["哈希","ACM","算竞","XCPC","板子","题集","Codeforces","C++","数学"]
-  categories: ["题解", "算竞", "合集"]
-  ShowToc: true
-  TocOpen: true
-  typora-root-url: ..\..\static
-  ---
   
   # 字符串哈希
   

@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-06-08T22:46:23.371000+08:00
+lastmod: 2025-06-08T22:50:14.951000+08:00
 title: Competitive Programming - Algorithm Templates And Problem Sets (C++)
 tags: ["ACM","Competeive Programming","XCPC","(Code) Templates","Problem sets","Codeforces","C++"]
 categories: ["Problem Solutions", "Competeive Programming", "Collection/compilation"]
@@ -1721,17 +1721,6 @@ int main() {
 
 
 
----
-author: mos9527
-lastmod: 2025-05-30T08:50:48.135148
-title: Arithmetic Competition Notes - FFT/Polynomial/Number Theory Topics
-tags: ["ACM","Competeive Programming","XCPC","(Code) Templates","Problem sets","Codeforces","C++"]
-categories: ["Problem Solutions", "Competeive Programming", "Collection/compilation"]
-ShowToc: true
-TocOpen: true
-typora-root-url: ..\..\static
----
-
 # Preface
 
 References mainly from https://cp-algorithms.com/algebra/fft.html, https://en.wikipedia.org/wiki/Discrete_Fourier_transform, https://oi.wiki/math/ poly/fft/
@@ -2818,16 +2807,7 @@ int main() {
   | ------------------------------------------------------------ | ------------------------------------------------------------ |
   | ![output](/image-github/435036278-13695e56-aa4e-4352-a90d-07ca14620479.png) | ![deblur](/image-github/435036293-38ad63d7-a12a-4032-8d08-3fd7e872d752.png) |
 
----
-author: mos9527
-lastmod: 2025-05-30T08:50:48.135148
-title: Arithmetic Notes - Hash Types Topic
-tags: ["Hashing","ACM","Competeive Programming","XCPC","(Code) Templates","Problem sets","Codeforces","C++","Mathematics"]
-categories: ["Problem Solutions", "Competeive Programming", "Collection/compilation"]
-ShowToc: true
-TocOpen: true
-typora-root-url: ..\..\static
----
+
 
 ## [1. Candy Rush](https://codeforces.com/gym/104736/problem/C)
 
@@ -3468,7 +3448,7 @@ Number theory, single point change + pruning
 >
 >1. `REPLACE` $l,r$ - for every $i \in [l,r]$, replace $a_i$ with $D(a_i)$
 >2. `SUM` $l,r$ - calculate $\sum_{i=l}^{r}{a_i}$
->   Print the answer for each `SUM` query.
+>     Print the answer for each `SUM` query.
 
 ```c++
 namespace eratosthenes_sieve_d {...}; // 见 板子整理
