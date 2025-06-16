@@ -1390,7 +1390,7 @@ for (auto& [ai, bi] : a) ai = R[ai], bi = R[bi];
 - Offline `set` writing
   - Note that the complexity ($R(x)$) of this `set`, if it is an STL set, is actually $O(n)$
     - See https://codeforces.com/blog/entry/123961 for details
-    - [TL;DR `std::distance`** operates $O(1)$ for *random*** iterators only](https://en.cppreference.com/w/cpp/iterator/distance), $O(n)$ for all other iterators (if applicable)
+    - [TL;DR `std::distance`**operates $O(1)$ for *random*** iterators only](https://en.cppreference.com/w/cpp/iterator/distance), $O(n)$ for all other iterators (if applicable)
     - Generating TLE can be seen at https://codeforces.com/contest/2051/submission/298511255
       - `map` solution (AC): https://codeforces.com/contest/2051/submission/298511985
 
