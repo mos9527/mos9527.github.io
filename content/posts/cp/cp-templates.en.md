@@ -2,8 +2,8 @@
 author: mos9527
 lastmod: 2025-06-08T22:50:14.951000+08:00
 title: Competitive Programming - Algorithm Templates And Problem Sets (C++)
-tags: ["ACM","Competetive Programming","XCPC","(Code) Templates","Problem sets","Codeforces","C++"]
-categories: ["Problem Solutions", "Competetive Programming", "Collection/compilation"]
+tags: ["ACM","Competitive Programming","XCPC","(Code) Templates","Problem sets","Codeforces","C++"]
+categories: ["Problem Solutions", "Competitive Programming", "Collection/compilation"]
 ShowToc: true
 TocOpen: true
 typora-root-url: ..\..\static
