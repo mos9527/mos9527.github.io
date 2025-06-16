@@ -2815,7 +2815,7 @@ TL;DR - string hash accelerated comparison + big hash trick
 
 [2023-2024 ACM-ICPC Latin American Regional Programming Contest](https://codeforces.com/gym/104736)
 
-Official solution (a math. puzzle)：https://codeforces.com/gym/104736/attachments/download/22730/editorial.pdf
+Official solution (a math. puzzle)：[https://codeforces.com/gym/104736/attachments/download/22730/editorial.pdf](https://codeforces.com/gym/104736/attachments/download/22730/editorial.pdf)
 
 ---
 
