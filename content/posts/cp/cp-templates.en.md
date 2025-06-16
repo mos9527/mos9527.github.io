@@ -1723,7 +1723,7 @@ int main() {
 
 # Preface
 
-References mainly from https://cp-algorithms.com/algebra/fft.html, https://en.wikipedia.org/wiki/Discrete_Fourier_transform, https://oi.wiki/math/ poly/fft/
+References mainly from https://cp-algorithms.com/algebra/fft.html, https://en.wikipedia.org/wiki/Discrete_Fourier_transform, https://oi.wiki/math/poly/fft/
 
 ~~to take care of a certain OJ~~ this article routines (except miscellaneous) C++ standard only needs `11`; **[board portal](#reference)**, [topic portal](#problems)
 
