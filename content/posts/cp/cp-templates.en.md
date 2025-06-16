@@ -1095,7 +1095,7 @@ struct fenwick : public vec {
 ```
 #### Support for non-differentiable query templates
 
-- Explanation: https://oi-wiki.org/ds/fenwick/#树状数组维护不可差分信息
+- Explanation: [https://oi-wiki.org/ds/fenwick/#树状数组维护不可差分信息](https://oi-wiki.org/ds/fenwick/#%E6%A0%91%E7%8A%B6%E6%95%B0%E7%BB%84%E7%BB%B4%E6%8A%A4%E4%B8%8D%E5%8F%AF%E5%B7%AE%E5%88%86%E4%BF%A1%E6%81%AF)
 - Topic: https://acm.hdu.edu.cn/showproblem.php?pid=7463
 
 ```C++
@@ -1134,7 +1134,7 @@ struct fenwick {
 
 #### Interval Templates
 
-- Explanation: https://oi-wiki.org/ds/fenwick/#区间加区间和
+- Explanation: [https://oi-wiki.org/ds/fenwick/#区间加区间和](https://oi-wiki.org/ds/fenwick/#%E6%A0%91%E7%8A%B6%E6%95%B0%E7%BB%84%E7%BB%B4%E6%8A%A4%E4%B8%8D%E5%8F%AF%E5%B7%AE%E5%88%86%E4%BF%A1%E6%81%AF)
 - Title: https://hydro.ac/d/ahuacm/p/Algo0304
 ```c++
 int main() {
