@@ -10,7 +10,7 @@ typora-root-url: ..\..\static
 ---
 # Preface
 
-Reference primarily from [Introductory Classics for Algorithmic Competition: A Training Guide (https://cread.jd.com/read/startRead.action?bookId=30133704&readType=1)、[OIWiki](https://oi-wiki.org/)、[CP Algorithms](https://cp-algorithms.com/) and other resources and multiple blogs and courses, authored under their own code breeze
+Reference primarily from [Introductory Classics for Algorithmic Competition: A Training Guide] (https://cread.jd.com/read/startRead.action?bookId=30133704&readType=1)、[OIWiki](https://oi-wiki.org/)、[CP Algorithms](https://cp-algorithms.com/) and other resources and multiple blogs and courses, authored under their own code breeze
 
 **Note:** Some implementations may use newer language features, so please modify them for use on older OJs; **In principle, the code provided is compatible with compilers that comply with the Cpp20 standard and above**.
 
