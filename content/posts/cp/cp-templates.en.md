@@ -2901,7 +2901,7 @@ TL;DR - randomized hash
 
 https://atcoder.jp/contests/abc238
 
-Official solution (a math. puzzle)：https://atcoder.jp/contests/abc238/editorial/3372
+Official solution (a math. puzzle)：[https://atcoder.jp/contests/abc238/editorial/3372](https://atcoder.jp/contests/abc238/editorial/3372)
 
 ---
 
