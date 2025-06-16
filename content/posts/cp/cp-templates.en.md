@@ -1096,7 +1096,7 @@ struct fenwick : public vec {
 #### Support for non-differentiable query templates
 
 - Explanation: https://oi-wiki.org/ds/fenwick/#树状数组维护不可差分信息
-- Topic：https://acm.hdu.edu.cn/showproblem.php?pid=7463
+- Topic: https://acm.hdu.edu.cn/showproblem.php?pid=7463
 
 ```C++
 struct fenwick {
