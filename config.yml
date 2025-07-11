@@ -58,7 +58,7 @@ params:
   homeInfoParams:
       Title: "My Favorite Things<blink>_</blink>"
       Content: >
-        🎹🎈💻
+        🎹🎈💻🎸
       Translator:
         en: "Special thanks to [**@Rypie109**](https://github.com/Rypie109) for bringing English translations for these posts!"
         cn: "简体中文"
