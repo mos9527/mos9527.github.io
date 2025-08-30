@@ -57,8 +57,6 @@ params:
 
   homeInfoParams:
       Title: "My Favorite Things<blink>_</blink>"
-      Content: >
-        🎹🎈💻🎸
       Translator:
         en: "Special thanks to [**@Rypie109**](https://github.com/Rypie109) for bringing English translations for these posts!"
         cn: "简体中文"
@@ -72,8 +70,6 @@ params:
       url: "https://space.bilibili.com/3546693849058014"
     - name: Steam
       url: "https://steamcommunity.com/id/mos9527"
-    - name: X 
-      url: "https://twitter.com/the_mos9527"
 
 menu:
   main:
@@ -89,6 +85,6 @@ menu:
       name: github
       url: https://github.com/mos9527/mos9527.github.io/
       weight: 30
-    - identifier: disco-viewer
-      name: "disco-viewer"
-      url: "https://disco.mos9527.com/"
+    - identifier: extern
+      name: "extern"
+      url: /links
