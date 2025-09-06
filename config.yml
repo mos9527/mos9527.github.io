@@ -81,10 +81,6 @@ menu:
       name: tags
       url: /tags/
       weight: 20
-    - identifier: github
-      name: github
-      url: https://github.com/mos9527/mos9527.github.io/
-      weight: 30
     - identifier: extern
       name: "extern"
       url: /posts/links
