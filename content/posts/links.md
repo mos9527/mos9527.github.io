@@ -15,11 +15,17 @@ _build:
 
 此外，[GitHub 搜索](https://github.com/search?q=owner%3Amos9527&type=code) 也许会更为有用 - 本站内容均可被其索引
 
+
+## 工具链接
+### SonyHeadphonesClient
+> Cross-platform Sony® Sound Connect™ (formerly Headphones Connect™) FOSS Client App
+- Repo https://github.com/mos9527/SonyHeadphonesClient
+- Page https://mos9527.com/SonyHeadphonesClient
 ## 项目文档
 ### Foundation
 > WIP Modern rendering engine. Cpp20/Vulkan
 - Repo https://github.com/mos9527/Foundation
-- Page http://mos9527.com/Foundation/
+- Page http://mos9527.com/Foundation
 
 ### PyCriCodecsEx
 > Criware formats library for Python based on @Youjose's work 
@@ -35,7 +41,7 @@ _build:
 ### disco-corpus
 > Flowcharts in GraphViz format datamined from the CRPG Disco Elysium.
 - Repo https://github.com/mos9527/disco
-- Page https://disco.mos9527.com/
+- Page https://disco.mos9527.com
 
 ## 汉化工作
 ### chn-patch-zhs
