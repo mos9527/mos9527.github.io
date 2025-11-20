@@ -18,17 +18,17 @@ _build:
 
 ## 工具链接
 ### SonyHeadphonesClient
-> Cross-platform Sony® Sound Connect™ (formerly Headphones Connect™) FOSS Client App
+> Cross-platform Sony Sound Connect (formerly Headphones Connect) implementation / 索尼 Sound Connect 第三方实现
 - Repo https://github.com/mos9527/SonyHeadphonesClient
 - Page https://mos9527.com/SonyHeadphonesClient
 ## 项目文档
 ### Foundation
-> WIP Modern rendering engine. Cpp20/Vulkan
+> Advanced Realtime Rendering Framework / 实时渲染高级魔术
 - Repo https://github.com/mos9527/Foundation
 - Page http://mos9527.com/Foundation
 
 ### PyCriCodecsEx
-> Criware formats library for Python based on @Youjose's work 
+> Python Criware formats library for Python based on [@Youjose](https://github.com/Youjose)'s work / Criware 泛用资产库
 - Repo https://github.com/mos9527/PyCriCodecsEx
 - Page https://mos9527.com/PyCriCodecsEx
 
@@ -39,8 +39,8 @@ _build:
 - Page https://mos9527.com/mgs-corpus
 
 ### disco-corpus
-> Flowcharts in GraphViz format datamined from the CRPG Disco Elysium.
-- Repo https://github.com/mos9527/disco
+> GraphViz version of the scripts for the Detective RPG "Disco Elysium"
+- Repo https://github.com/mos9527/disco-corpus
 - Page https://disco.mos9527.com
 
 ## 汉化工作

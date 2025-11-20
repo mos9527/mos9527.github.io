@@ -10,9 +10,9 @@ typora-root-url: ../../../static
 typora-copy-images-to: ../../../static/image-shading-reverse
 ---
 
-# Preface
+## Preface
 
-[同上次封笔](https://mos9527.com/posts/pjsk/archive-20240105/#preface)算是承上启下了，刚好能从琢磨卡通渲染的部分（重新）入手...*毕竟旧工作这方面留下的问题远远比解决的多（）*
+[同上次封笔](https://mos9527.com/posts/pjsk/archive-20240105/#preface)算是承上启下了，刚好能从琢磨卡通渲染的部分（重新）入手...毕竟旧工作这方面留下的问题远远比解决的多
 
 集训前时间也算充裕，看看能写多少吧
 

@@ -10,7 +10,7 @@ typora-root-url: ../../../static
 typora-copy-images-to: ../../../static/image-shading-reverse
 ---
 
-## Preface
+# Preface
 
 Shader部分其实已经有不少现成工作，比如
 
