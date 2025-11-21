@@ -245,7 +245,7 @@ Fragment fragMain(V2F input)
 
 **注：** 个人实现 - 非官方。有误还有烦请指正！
 
-首先，我们给Meshlet/Cluster分组。加入`group`表示其隶属的组编号，`refined`表示**组**的父组编号
+首先，我们给Meshlet/Cluster分组。加入`group`表示其隶属的组编号，`refined`表示产生当前cluster（更精细的）**组**的编号
 
 ```c++
 struct FMeshlet // @ref meshopt_Meshlet
@@ -308,7 +308,7 @@ static_assert(sizeof(FLODGroup) == 24);
 - 选定一个阈值$t$，错误低于者**PASS**
 - 当且仅当$u > t, v <= t$，渲染**当前组**
 
-可以发现，这样可以做到选择**【且仅选择】满足阈值的【下界】的终端节点**，正为我们想要的。而且很显然，这个**任意**操作本质**并行**，在Compute/Task Shader实现也将十分容易。
+可以发现，这样可以做到选择 **【且仅选择】满足阈值的【下界】的节点**，正为我们想要的。而且很显然，这个**任意**操作本质**并行**，在Compute/Task Shader实现也将十分容易。
 
 #### 正式建图
 
@@ -422,3 +422,5 @@ if (lodGroup.depth != globalParams.cutDepth) { // <- Cull depth
 | ![image-20251121085252867](/image-foundation/image-20251121085252867.png) | ![image-20251121085300264](/image-foundation/image-20251121085300264.png) | ![image-20251121085306427](/image-foundation/image-20251121085306427.png) |
 
 ## View-Dependent LOD
+
+#### 
