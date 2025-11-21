@@ -467,6 +467,6 @@ if (meshlet.refined != ~0u){
 
 ### 效果
 
-<video src="/image-foundation/demo-1.mp4" controls=""></video>
+<video style="width:100%" src="/image-foundation/demo-1.mp4" controls=""></video>
 
 以上实现详见 https://github.com/mos9527/Foundation/commit/087d269599a6fbfc6056f708cea21a3dad8f2806
