@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2025-11-20T21:42:38.239000+08:00
-title: Foundation 施工笔记 - 复现 Nanite 虚拟几何体（1）
+title: Foundation 施工笔记 【1】- 复现 Nanite 虚拟几何体（前篇）
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
 ShowToc: true
@@ -235,7 +235,7 @@ Fragment fragMain(V2F input)
 
 ### 实现
 
-自己研究初期，Arseny (`meshoptimizer` 作者！) 正好发布了这篇博文：  [Billions of triangles in minutes - zeux.io](https://zeux.io/2025/09/30/billions-of-triangles-in-minutes/)
+自己研究初期，Arseny (`meshoptimizer` 作者) 正好发布了这篇博文：  [Billions of triangles in minutes - zeux.io](https://zeux.io/2025/09/30/billions-of-triangles-in-minutes/)
 
 除了极大程度地避免自己走弯路以外，作者同期也将自己的 LOD 建图实现分离并给予 API 食用 - [clusterlod.h - meshoptimizer](https://github.com/zeux/meshoptimizer/blob/master/demo/clusterlod.h)
 
@@ -308,7 +308,7 @@ static_assert(sizeof(FLODGroup) == 24);
 - 选定一个阈值$t$，错误低于者**PASS**
 - 当且仅当$u > t, v <= t$，渲染**当前组**
 
-可以发现，这样可以做到选择 **【且仅选择】满足阈值的【下界】的节点**，正为我们想要的。而且很显然，这个**任意**操作本质**并行**，在Compute/Task Shader实现也将十分容易。
+可以发现，这样可以做到选择 **【且仅选择】满足阈值的【上界】的节点**，正为我们想要的。而且很显然，这个**任意**操作本质**并行**，在Compute/Task Shader实现也将十分容易。
 
 #### 正式建图
 
@@ -338,23 +338,24 @@ struct DAG
 
 ```c++
 clodBuild(config, mesh,
-              [&](clodGroup group, const clodCluster* clusters, size_t cluster_count) -> int
+          [&](clodGroup group, const clodCluster* clusters, size_t cluster_count) -> int
+          {
+              size_t group_id = dag.groups.size();
+              dag.groups.push_back(FLODGroup{
+                  .depth = group.depth,
+                  .center = {group.simplified.center[0], group.simplified.center[1], group.simplified.center[2]},
+                  .radius = group.simplified.radius,
+                  .error = group.simplified.error});
+              for (size_t i = 0; i < cluster_count; i++)
               {
-                  dag.groups.push_back(FLODGroup{
-                      .depth = group.depth,
-                      .center = {group.simplified.center[0], group.simplified.center[1], group.simplified.center[2]},
-                      .radius = group.simplified.radius,
-                      .error = group.simplified.error});
-                  for (size_t i = 0; i < cluster_count; i++)
-                  {
-                      auto& cluster = clusters[i];
-                      auto& lvl = dag.clusters.emplace_back(vertices.get_allocator().mResource);
-                      lvl.group = dag.groups.size() - 1u, lvl.refined = cluster.refined;
-                      auto& ind = lvl.indices;
-                      ind.insert(ind.end(), cluster.indices, cluster.indices + cluster.index_count);
-                  }
-                  return 0;
-              });
+                  auto& cluster = clusters[i];
+                  auto& lvl = dag.clusters.emplace_back(vertices.get_allocator().mResource);
+                  lvl.group = group_id, lvl.refined = cluster.refined;
+                  auto& ind = lvl.indices;
+                  ind.insert(ind.end(), cluster.indices, cluster.indices + cluster.index_count);
+              }
+              return group_id; // recorded as refined IDs
+          });
 ```
 
 注意到`clodBuild`的callback在group顺序上有单调递增的保证。最后回顾前文Meshlet构造过程，我们也就此index buffer构造micro index buffer。过程如下：
@@ -412,6 +413,8 @@ if (lodGroup.depth != globalParams.cutDepth) { // <- Cull depth
 ...
 ```
 
+### 效果
+
 效果如下，左至右上至下 LOD 层次递增。（注：帧率差距在于笔记本没插电+debug build；如未说明性能指标将实际相近）
 
 这一部分的完整实现见： https://github.com/mos9527/Foundation/commit/c15200bbf32c8a46cb0982f5da0a7615a7c02581
@@ -423,4 +426,47 @@ if (lodGroup.depth != globalParams.cutDepth) { // <- Cull depth
 
 ## View-Dependent LOD
 
-#### 
+### 错误指标
+
+对于每一个group - 我们均以得到一个以model space为空间的`error`系数；当然，在渲染时需要进行缩放，表现其在screen space的‘直观影响’。直觉地，做到这一点，一是可以在屏幕空间利用其所占面积，即**投影后**屏幕空间bounding box大小 - 这点在后期**遮蔽剔除**实现中也会再次得到应用。
+
+对于球体bbox，透视投影后的屏幕空间表现会是**椭圆** -  [2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere (Michael Mara, Morgan McGuire)](https://jcgt.org/published/0002/02/05/) 提供了计算其准确屏幕空间AABB长方形的手段。同时，假设不考虑物体与near平面相交（情况，计算量可以很小：这里参见 [Approximate projected bounds - Arseny Kapoulkine](https://zeux.io/2023/01/12/approximate-projected-bounds/)。而不幸的是，这类情况在**保证`error`系数单调**（$projected(refined)<=projected(group)$系数仍然成立）的前提下是不能不考虑的。
+
+当然，球体屏幕空间所占大更为保守（偏大）的估计也存在。[clusterlod.h demo](https://github.com/zeux/meshoptimizer/blob/19bb5e6fa8da4ba9c333fc6a265d776363c06b39/demo/nanite.cpp#L27) 中就直接利用了视角倒球面最近距离在*视场Y轴上投影长度*来估计大小 - 这也让与near平面相交（非完全在near平面另一侧 - 此时为Y轴大小）的球体投射大小得以体现 - 实现非常简单。
+
+```glsl
+float projErrorSimple(FLODGroup lodGroup) {
+    float3 center = mul(globalParams.view, float4(lodGroup.center, 1.0)).xyz;
+    float r = lodGroup.radius;
+    float d = max(length(center) - r, globalParams.zNear);
+    return lodGroup.error / d * abs(globalParams.proj[1][1]);
+}
+```
+
+### 运行时剔除
+
+即在shader中引入前文cut阈值及屏幕空间指标。实现如下，附注还请参考注释：
+
+```glsl
+...
+FLODGroup selfGroup = mesh.Load<FLODGroup>(globalParams.mesh.groupOffset + meshlet.group * sizeof(FLODGroup));
+float selfError = projErrorSimple(selfGroup);
+// Remember - we take the upper_bound of the acceptable clusters
+// where it's the *first* LOD that exceeds the error threshold
+bool culled = selfError <= globalParams.threshold;
+if (meshlet.refined != ~0u){
+    FLODGroup refGroup = mesh.Load<FLODGroup>(globalParams.mesh.groupOffset + meshlet.refined * sizeof(FLODGroup));
+    float refError = projErrorSimple(refGroup);
+    // The refined ones exceeds it too - impossible unless it's closer to
+    // the actual upper bound. So cull ourselves.
+    culled |= refError > globalParams.threshold;
+}
+// If culled do not render
+...       
+```
+
+### 效果
+
+<video src="/image-foundation/demo-1.mp4" controls=""></video>
+
+以上实现详见 https://github.com/mos9527/Foundation/commit/087d269599a6fbfc6056f708cea21a3dad8f2806
