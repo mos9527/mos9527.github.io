@@ -312,4 +312,114 @@ static_assert(sizeof(FLODGroup) == 24);
 
 #### 正式建图
 
-TBD. 睡觉了zzz
+DAG结构很简单，如下。
+
+```c++
+struct DAG
+{
+    struct Cluster
+    {
+        uint32_t group{~0u}; // ID of the FLODGroup this cluster belongs to
+        uint32_t refined{~0u}; // ID of the FLODGroup (with more triangles) that produced this cluster during simplification (parent). ~0u if original geometry
+        Vector<uint32_t> indices;
+        Cluster(Allocator* alloc) : indices(alloc) {}
+    };
+    Vector<Cluster> clusters; // Note: scratch buffer
+    // -- final DAG data
+    Vector<FLODGroup> groups; // group error bounds
+    Vector<FMeshlet> meshlets; // meshlets built from all clusters
+    Vector<uint32_t> meshletVtx;
+    Vector<uint8_t> meshletTri;
+    DAG(Allocator* alloc) : clusters(alloc), groups(alloc), meshlets(alloc), meshletVtx(alloc), meshletTri(alloc) {}
+} dag;
+```
+
+注意到`Cluster`内容是不需要上传的，因为接下来我们会利用结果直接生成Meshlet本身。建图过程如下：
+
+```c++
+clodBuild(config, mesh,
+              [&](clodGroup group, const clodCluster* clusters, size_t cluster_count) -> int
+              {
+                  dag.groups.push_back(FLODGroup{
+                      .depth = group.depth,
+                      .center = {group.simplified.center[0], group.simplified.center[1], group.simplified.center[2]},
+                      .radius = group.simplified.radius,
+                      .error = group.simplified.error});
+                  for (size_t i = 0; i < cluster_count; i++)
+                  {
+                      auto& cluster = clusters[i];
+                      auto& lvl = dag.clusters.emplace_back(vertices.get_allocator().mResource);
+                      lvl.group = dag.groups.size() - 1u, lvl.refined = cluster.refined;
+                      auto& ind = lvl.indices;
+                      ind.insert(ind.end(), cluster.indices, cluster.indices + cluster.index_count);
+                  }
+                  return 0;
+              });
+```
+
+注意到`clodBuild`的callback在group顺序上有单调递增的保证。最后回顾前文Meshlet构造过程，我们也就此index buffer构造micro index buffer。过程如下：
+
+```c++
+// Done - build meshlets for each cluster
+size_t numIndices = 0;
+for (auto& cluster : dag.clusters)
+    numIndices += cluster.indices.size();
+// Worst bounds
+dag.meshletVtx.resize(numIndices), dag.meshletTri.resize(numIndices);
+uint32_t* vtx = dag.meshletVtx.data();
+uint8_t* tri = dag.meshletTri.data();
+dag.meshlets.reserve(dag.clusters.size());
+for (auto& cluster : dag.clusters)
+{
+    FMeshlet meshlet{
+        .group = cluster.group,
+        .refined = cluster.refined,
+        .vtxOffset = static_cast<uint32_t>(vtx - dag.meshletVtx.data()),
+        .triOffset = static_cast<uint32_t>(tri - dag.meshletTri.data()),
+    };
+    size_t unique = clodLocalIndices(vtx, tri, cluster.indices.data(), cluster.indices.size());
+    vtx += unique, tri += cluster.indices.size();
+    meshlet.vtxCount = unique, meshlet.triCount = cluster.indices.size() / 3;
+    // Compute bounds
+    meshopt_Bounds bounds = meshopt_computeMeshletBounds(
+        &dag.meshletVtx[meshlet.vtxOffset], &dag.meshletTri[meshlet.triOffset], meshlet.triCount,
+        reinterpret_cast<const float*>(&vertices[0]), vertices.size(), sizeof(FVertex));
+    meshlet.centerRadius = float4(bounds.center[0], bounds.center[1], bounds.center[2], bounds.radius);
+    meshlet.coneAxisAngle =
+        float4(bounds.cone_axis[0], bounds.cone_axis[1], bounds.cone_axis[2], bounds.cone_cutoff);
+    meshlet.coneApex = float3(bounds.cone_apex[0], bounds.cone_apex[1], bounds.cone_apex[2]);
+    dag.meshlets.push_back(meshlet);
+}
+```
+
+最后上传至 GPU - 详见 https://github.com/mos9527/Foundation/blob/vulkan/Examples/MeshShaderHierarchicalLOD.cpp
+
+## Discrete LOD
+
+在实现view-dependent自动LOD之前，不妨尝试直接利用group对应的图内深度，实现传统的 LOD 过渡。
+
+Shader 选择仅需一句话：
+
+```glsl
+...
+uint32_t groupBase = globalParams.mesh.groupOffset + meshlet.group * sizeof(FLODGroup);
+FLODGroup lodGroup = mesh.Load<FLODGroup>(groupBase);
+if (lodGroup.depth != globalParams.cutDepth) { // <- Cull depth    
+    SetMeshOutputCounts(0, 0);
+    return;
+}
+...
+```
+
+效果如下，左至右上至下 LOD 层次递增。（注：帧率差距在于笔记本没插电+debug build；如未说明性能指标将实际相近）
+
+这一部分的完整实现见： https://github.com/mos9527/Foundation/commit/c15200bbf32c8a46cb0982f5da0a7615a7c02581
+
+| ![image-20251121085148908](/image-foundation/image-20251121085148908.png) | ![image-20251121085159730](/image-foundation/image-20251121085159730.png) | ![image-20251121085208195](/image-foundation/image-20251121085208195.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| ![image-20251121085219914](/image-foundation/image-20251121085219914.png) | ![image-20251121085232140](/image-foundation/image-20251121085232140.png) | ![image-20251121085243437](/image-foundation/image-20251121085243437.png) |
+| ![image-20251121085252867](/image-foundation/image-20251121085252867.png) | ![image-20251121085300264](/image-foundation/image-20251121085300264.png) | ![image-20251121085306427](/image-foundation/image-20251121085306427.png) |
+
+## View-Dependent LOD
+
+等我修好hugo inline latex 再写- -
