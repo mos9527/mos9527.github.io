@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2025-11-20T21:42:38.239000+08:00
-title: Foundation 施工笔记 - 实现类 Nanite 虚拟几何体（1）
+title: Foundation 施工笔记 - 复现 Nanite 虚拟几何体（1）
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
 ShowToc: true
@@ -21,7 +21,7 @@ typora-root-url: ../../../static
 
 ## Mesh Shader?
 
-**注：** **参考性内容 - 酌情跳过。**深入了解，还请参阅以下文档：
+**注：** **参考性内容 - 酌情跳过。** 深入了解，还请参阅以下文档：
 
 - [Introduction to Turing Mesh Shaders - NVIDIA](https://developer.nvidia.com/blog/introduction-turing-mesh-shaders/)
 - [【技术精讲】AMD RDNA™ 显卡上的Mesh Shaders（一）： 从 vertex shader 到 mesh shader](https://zhuanlan.zhihu.com/p/691467498)
@@ -212,7 +212,7 @@ Fragment fragMain(V2F input)
 
 载入[斯坦福小兔兔](https://faculty.cc.gatech.edu/~turk/bunny/bunny.html)。效果如图。
 
-![Screenshot_20251120_223343](/../../Pictures/Screenshots/Screenshot_20251120_223343.png)
+![Screenshot_20251120_223343](/image-foundation/image-20251120223343.png)
 
 ## LOD Group
 
@@ -235,7 +235,7 @@ Fragment fragMain(V2F input)
 
 ### 实现
 
-出于机缘巧合，自己研究初期，Arseny (`meshoptimizer` 作者！) 正好发布了这篇博文：  [Billions of triangles in minutes - zeux.io](https://zeux.io/2025/09/30/billions-of-triangles-in-minutes/)
+自己研究初期，Arseny (`meshoptimizer` 作者！) 正好发布了这篇博文：  [Billions of triangles in minutes - zeux.io](https://zeux.io/2025/09/30/billions-of-triangles-in-minutes/)
 
 除了极大程度地避免自己走弯路以外，作者同期也将自己的 LOD 建图实现分离并给予 API 食用 - [clusterlod.h - meshoptimizer](https://github.com/zeux/meshoptimizer/blob/master/demo/clusterlod.h)
 
@@ -272,7 +272,7 @@ struct FMeshlet // @ref meshopt_Meshlet
 };
 ```
 
-分组的目的即为$$O(1)$$决定组别内所有Meshlet是否值得渲染（满足某种错误指标，等等）。每组数据如下：
+分组的目的即为$O(1)$决定组别内所有Meshlet是否值得渲染（满足某种错误指标，等等）。每组数据如下：
 
 ```c++
 struct FLODGroup // @ref clodGroup
@@ -304,9 +304,9 @@ static_assert(sizeof(FLODGroup) == 24);
 
 还记得前文我们记录了Meshlet/Cluster自己所属的组与父组吗？利用单调性，我们**任意地**选择一个Meshlet单元：
 
-- 记录当前视角，**当前组**(`group`)的错误系数为$$u$$,**父亲组**(`refined`)的错误系数为$$v$$。满足 $$u \ge v$$（**注：**不同于原论文，这里当前，父亲（$$u,v$$）的关系倒置）
-- 选定一个阈值$$t$$，错误低于者**PASS**
-- 当且仅当$$u > t, v <= t$$，渲染**当前组**
+- 记录当前视角，**当前组**(`group`)的错误系数为$u$,**父亲组**(`refined`)的错误系数为$v$。满足 $u \ge v$（ **注：** 不同于原论文，这里当前，父亲（$u,v$）的关系倒置）
+- 选定一个阈值$t$，错误低于者**PASS**
+- 当且仅当$u > t, v <= t$，渲染**当前组**
 
 可以发现，这样可以做到选择**【且仅选择】满足阈值的【下界】的终端节点**，正为我们想要的。而且很显然，这个**任意**操作本质**并行**，在Compute/Task Shader实现也将十分容易。
 
@@ -377,6 +377,7 @@ for (auto& cluster : dag.clusters)
         .vtxOffset = static_cast<uint32_t>(vtx - dag.meshletVtx.data()),
         .triOffset = static_cast<uint32_t>(tri - dag.meshletTri.data()),
     };
+    // Index to Micro Index (uint8)
     size_t unique = clodLocalIndices(vtx, tri, cluster.indices.data(), cluster.indices.size());
     vtx += unique, tri += cluster.indices.size();
     meshlet.vtxCount = unique, meshlet.triCount = cluster.indices.size() / 3;
@@ -421,5 +422,3 @@ if (lodGroup.depth != globalParams.cutDepth) { // <- Cull depth
 | ![image-20251121085252867](/image-foundation/image-20251121085252867.png) | ![image-20251121085300264](/image-foundation/image-20251121085300264.png) | ![image-20251121085306427](/image-foundation/image-20251121085306427.png) |
 
 ## View-Dependent LOD
-
-等我修好hugo inline latex 再写- -
