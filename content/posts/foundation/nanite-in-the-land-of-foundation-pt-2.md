@@ -30,7 +30,7 @@ $$
 f = \frac{1}{\tan(fov_y / 2)}，a = \text{宽高比}
 $$
 
-- 我们想要让$z$轴上，**相机处**  $ z= z_{n}$ 的NDC为 $z_{ndc} = 1$； **无穷远**，或一定$$z_{f}$$处 $z_{ndc} = 0$
+- 我们想要让$z$轴上，**相机处**  $ z= z_{n}$ 的NDC为 $z_{ndc} = 1$； **无穷远**，或一定$z_{f}$ 处 $z_{ndc} = 0$
 - 理由是充分的。简要地，$[1,0]$映射可大幅改善near plane附件深度精度。详细解释及动机还请参考：
   - https://mynameismjp.wordpress.com/2010/03/22/attack-of-the-depth-buffer/
   - https://developer.nvidia.com/content/depth-precision-visualized
@@ -39,9 +39,9 @@ $$
 
 $$
 P = \begin{bmatrix}
-\frac{f}{a} & 0 & 0 & 0 \\
-0 & f & 0 & 0 \\
-0 & 0 & \frac{z_n}{z_f - z_n} & \frac{z_f z_n}{z_f - z_n} \\
+\frac{f}{a} & 0 & 0 & 0 \newline
+0 & f & 0 & 0 \newline
+0 & 0 & \frac{z_n}{z_f - z_n} & \frac{z_f z_n}{z_f - z_n} \newline
 0 & 0 & -1 & 0 
 \end{bmatrix}
 $$
@@ -50,9 +50,9 @@ $$
 
 $$
 P = \begin{bmatrix}
-\frac{f}{a} & 0 & 0 & 0 \\
-0 & f & 0 & 0 \\
-0 & 0 & 0 & z_n \\
+\frac{f}{a} & 0 & 0 & 0 \newline
+0 & f & 0 & 0 \newline
+0 & 0 & 0 & z_n \newline
 0 & 0 & -1 & 0 
 \end{bmatrix}
 $$
@@ -65,19 +65,19 @@ $$
 
   在Vulkan（目前我们唯一支持的 RHI），翻转Viewport/Framebuffer很容易；仅需在`vkSetViewport`做翻转并启用`shaderDrawParameters` extension即可。我们RHI中的实现如下：
 
-  ```c++
-  RHICommandList& VulkanCommandList::SetViewport(float x, float y, float width, float height, float depth_min, float depth_max, bool flipY) {
-      CHECK(mAllocator && "Invalid command list states.");
-      if (flipY)
-      {
-          y = height - y;
-          height = -height;
-      }
-      vk::Viewport viewport{ x, y, width, height, depth_min, depth_max };
-      mCommandBuffer.setViewport(0, viewport);
-      return *this;
+```c++
+RHICommandList& VulkanCommandList::SetViewport(float x, float y, float width, float height, float depth_min, float depth_max, bool flipY) {
+  CHECK(mAllocator && "Invalid command list states.");
+  if (flipY)
+  {
+      y = height - y;
+      height = -height;
   }
-  ```
+  vk::Viewport viewport{ x, y, width, height, depth_min, depth_max };
+  mCommandBuffer.setViewport(0, viewport);
+  return *this;
+}
+```
 
 ​	这样做，我们的坐标系和Blender，`OpenGL`与`GLTF`将完全一致。对视角矩阵的构造如下：$pos=(0,0,0),quat(xyzw)=(0,0,0,1)$的原始变换下，相机将朝$-Z$方向看。
 
