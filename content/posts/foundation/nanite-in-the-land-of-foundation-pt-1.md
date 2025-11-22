@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2025-11-20T21:42:38.239000+08:00
-title: Foundation 施工笔记 【1】- 复现 Nanite 虚拟几何体（前篇）
+title: Foundation 施工笔记 - 复现 Nanite 虚拟几何体【1】
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
 ShowToc: true
@@ -11,11 +11,11 @@ typora-root-url: ../../../static
 
 ## Preface
 
-预谋多时而虽迟但到的 [Foundation](https://github.com/mos9527/Foundation/) （名称暂定）博文系列。
+预谋多时而虽迟但到的 [Foundation](https://github.com/mos9527/Foundation/) 博文系列。
 
-特别中二的名字以外，项（天）目（坑）并非最近开始的工作（迄今 331 Commit）。期间诸多内容，如各类无锁 (Lock-free) 数据结构、RHI、RenderGraph细节、Shader 反射等，也都是实现期间*相当*想留一笔的工作...
+特别中二的名字以外，项（天）目（坑）并非最近开始的工作（开始于约莫 ~2023）。期间诸多内容，如各类无锁 (Lock-free) 数据结构、RHI、RenderGraph细节、Shader 反射等，也都是实现期间*相当*想留一笔的工作...
 
-嘛、反正也是后期也不得不记的事，不如梭哈开篇为好（）那么就开始吧？
+嘛、反正也是后期也不得不记的事，不如梭哈开篇为好——那么就开始吧？
 
 **注：** Foundation 文档：https://mos9527.com/Foundation/
 
@@ -44,7 +44,7 @@ typora-root-url: ../../../static
 
 除此之外，其实现对**流送/Streaming**的支持也实现了**虚拟几何体**而无视显存限制等等的优良特性，免费**镶嵌/Tesselation**，和对极高面数的网格支持，**免去Batching/Instancing**...
 
-最先产品化这类技术的，最早考证可追溯于[GPU-Driven Rendering Pipelines - Sebastian Aaltonen SIGGRAPH 2015](https://www.advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf)。同时，业内，包括 [Unity / 团结引擎 - 虚拟几何体](https://docs.unity.cn/cn/tuanjiemanual/Manual/VirtualGeometry.html)， [RE Engine - Is Rendering Still Evolving?](https://www.capcom-games.com/coc/2023/en/session/15/) ，[Remedy Northlight -Alan Wake 2: A Deep Dive into Path Tracing Technology](https://www.nvidia.com/en-us/on-demand/session/gdc24-gdc1003/?playlistId=playList-821861a9-571a-4073-abab-d60ece4d1e49)，及业余空间中的 [bevy](https://jms55.github.io/posts/2024-06-09-virtual-geometry-bevy-0-14/#future-work)  等等也已在自己的管线实现了类似的技术。
+最先产品化这类技术的，最早考证可追溯于[GPU-Driven Rendering Pipelines - Sebastian Aaltonen SIGGRAPH 2015](https://www.advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf)。同时，业内，包括 [Unity / 团结引擎 - 虚拟几何体](https://docs.unity.cn/cn/tuanjiemanual/Manual/VirtualGeometry.html)， [RE Engine - Is Rendering Still Evolving?](https://www.capcom-games.com/coc/2023/en/session/15/) ，[Remedy Northlight - Alan Wake 2: A Deep Dive into Path Tracing Technology](https://www.nvidia.com/en-us/on-demand/session/gdc24-gdc1003/?playlistId=playList-821861a9-571a-4073-abab-d60ece4d1e49)，及业余空间中的 [bevy](https://jms55.github.io/posts/2024-06-09-virtual-geometry-bevy-0-14/#future-work)  等等也已在自己的管线实现了类似的技术。
 
 ![image-20251120215946457](/image-foundation/tuanjie-virtual-geometry-doc.png)
 
@@ -308,7 +308,7 @@ static_assert(sizeof(FLODGroup) == 24);
 - 选定一个阈值$t$，错误低于者**PASS**
 - 当且仅当$u > t, v <= t$，渲染**当前组**
 
-可以发现，这样可以做到选择 **【且仅选择】满足阈值的【上界】的节点**，正为我们想要的。而且很显然，这个**任意**操作本质**并行**，在Compute/Task Shader实现也将十分容易。
+可以发现，这样可以做到选择 **【且仅选择】满足阈值的【上界】的节点**，找到图中"cut"所交的LOD Group，这正为我们想要的。而且很显然，这个**任意**操作本质**并行**，在Compute/Task Shader实现也将十分容易。
 
 #### 正式建图
 
@@ -428,9 +428,15 @@ if (lodGroup.depth != globalParams.cutDepth) { // <- Cull depth
 
 ### 错误指标
 
-对于每一个group - 我们均以得到一个以model space为空间的`error`系数；当然，在渲染时需要进行缩放，表现其在screen space的‘直观影响’。直觉地，做到这一点，一是可以在屏幕空间利用其所占面积，即**投影后**屏幕空间bounding box大小 - 这点在后期**遮蔽剔除**实现中也会再次得到应用。
+对于每一个group - 我们均以得到一个以model space为空间的`error`系数。
 
-对于球体bbox，透视投影后的屏幕空间表现会是**椭圆** -  [2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere (Michael Mara, Morgan McGuire)](https://jcgt.org/published/0002/02/05/) 提供了计算其准确屏幕空间AABB长方形的手段。同时，假设不考虑物体与near平面相交（情况，计算量可以很小：这里参见 [Approximate projected bounds - Arseny Kapoulkine](https://zeux.io/2023/01/12/approximate-projected-bounds/)。而不幸的是，这类情况在**保证`error`系数单调**（$projected(refined)<=projected(group)$系数仍然成立）的前提下是不能不考虑的。
+当然，在渲染时需要进行缩放，表现其在screen space的‘直观影响’。直觉地，做到这一点，一是可以在屏幕空间利用其所占面积，即**投影后**屏幕空间bounding box大小 - 这点在后期**遮蔽剔除**实现中也会再次得到应用。
+
+对于球体bbox，透视投影后的屏幕空间表现会是**椭圆** 。 
+
+- [2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere (Michael Mara, Morgan McGuire)](https://jcgt.org/published/0002/02/05/) 提供了计算其准确屏幕空间AABB长方形的手段。
+- 同时，假设不考虑物体与near平面相交（情况，计算量可以很小：这里参见 [Approximate projected bounds - Arseny Kapoulkine](https://zeux.io/2023/01/12/approximate-projected-bounds/)。
+- 而不幸的是，这类情况在**保证`error`系数单调**（$projected(refined)<=projected(group)$系数仍然成立）的前提下是不能不考虑的。
 
 当然，球体屏幕空间所占大更为保守（偏大）的估计也存在。[clusterlod.h demo](https://github.com/zeux/meshoptimizer/blob/19bb5e6fa8da4ba9c333fc6a265d776363c06b39/demo/nanite.cpp#L27) 中就直接利用了视角倒球面最近距离在*视场Y轴上投影长度*来估计大小 - 这也让与near平面相交（非完全在near平面另一侧 - 此时为Y轴大小）的球体投射大小得以体现 - 实现非常简单。
 
@@ -443,7 +449,7 @@ float projErrorSimple(FLODGroup lodGroup) {
 }
 ```
 
-### 运行时剔除
+### 运行时 Cut
 
 即在shader中引入前文cut阈值及屏幕空间指标。实现如下，附注还请参考注释：
 
@@ -470,3 +476,27 @@ if (meshlet.refined != ~0u){
 <video style="width:100%" src="/image-foundation/demo-1.mp4" controls=""></video>
 
 以上实现详见 https://github.com/mos9527/Foundation/commit/087d269599a6fbfc6056f708cea21a3dad8f2806
+
+## References
+
+- [Foundation](https://github.com/mos9527/Foundation/)
+- [Foundation 文档](https://mos9527.com/Foundation/)
+- [Introduction to Turing Mesh Shaders - NVIDIA](https://developer.nvidia.com/blog/introduction-turing-mesh-shaders/)
+- [【技术精讲】AMD RDNA™ 显卡上的Mesh Shaders（一）： 从 vertex shader 到 mesh shader](https://zhuanlan.zhihu.com/p/691467498)
+- [GPU-Driven Rendering Pipelines - Sebastian Aaltonen SIGGRAPH 2015](https://www.advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf)
+- [Unity / 团结引擎 - 虚拟几何体](https://docs.unity.cn/cn/tuanjiemanual/Manual/VirtualGeometry.html)
+- [RE Engine - Is Rendering Still Evolving?](https://www.capcom-games.com/coc/2023/en/session/15/)
+- [Remedy Northlight - Alan Wake 2: A Deep Dive into Path Tracing Technology](https://www.nvidia.com/en-us/on-demand/session/gdc24-gdc1003/?playlistId=playList-821861a9-571a-4073-abab-d60ece4d1e49)
+- [bevy](https://jms55.github.io/posts/2024-06-09-virtual-geometry-bevy-0-14/#future-work)
+- [METIS](https://github.com/KarypisLab/METIS)
+- [zeux/meshoptimizer](https://github.com/zeux/meshoptimizer)
+- [SV_GroupIndex](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/sv-groupindex)
+- [zeux/niagara](https://github.com/zeux/niagara/)
+- [The Stanford Bunny](https://faculty.cc.gatech.edu/~turk/bunny/bunny.html)
+- [Nanite - A Deep Dive](https://advances.realtimerendering.com/s2021/Karis_Nanite_SIGGRAPH_Advances_2021_final.pdf)
+- [Billions of triangles in minutes - zeux.io](https://zeux.io/2025/09/30/billions-of-triangles-in-minutes/)
+- [clusterlod.h - meshoptimizer](https://github.com/zeux/meshoptimizer/blob/master/demo/clusterlod.h)
+- [2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere (Michael Mara, Morgan McGuire)](https://jcgt.org/published/0002/02/05/)
+- [Approximate projected bounds - Arseny Kapoulkine](https://zeux.io/2023/01/12/approximate-projected-bounds/)
+- [clusterlod.h demo](https://github.com/zeux/meshoptimizer/blob/19bb5e6fa8da4ba9c333fc6a265d776363c06b39/demo/nanite.cpp#L27)
+
