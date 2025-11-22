@@ -44,7 +44,7 @@ typora-root-url: ../../../static
 
 除此之外，其实现对**流送/Streaming**的支持也实现了**虚拟几何体**而无视显存限制等等的优良特性，免费**镶嵌/Tesselation**，和对极高面数的网格支持，**免去Batching/Instancing**...
 
-同时，业内，包括 [Unity / 团结引擎 - 虚拟几何体](https://docs.unity.cn/cn/tuanjiemanual/Manual/VirtualGeometry.html)， [RE Engine - Is Rendering Still Evolving?](https://www.capcom-games.com/coc/2023/en/session/15/) ，[Remedy Northlight -Alan Wake 2: A Deep Dive into Path Tracing Technology](https://www.nvidia.com/en-us/on-demand/session/gdc24-gdc1003/?playlistId=playList-821861a9-571a-4073-abab-d60ece4d1e49)，及业余空间中的 [bevy](https://jms55.github.io/posts/2024-06-09-virtual-geometry-bevy-0-14/#future-work)  等等也已在自己的管线实现了类似的技术。
+最先产品化这类技术的，最早考证可追溯于[GPU-Driven Rendering Pipelines - Sebastian Aaltonen SIGGRAPH 2015](https://www.advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf)。同时，业内，包括 [Unity / 团结引擎 - 虚拟几何体](https://docs.unity.cn/cn/tuanjiemanual/Manual/VirtualGeometry.html)， [RE Engine - Is Rendering Still Evolving?](https://www.capcom-games.com/coc/2023/en/session/15/) ，[Remedy Northlight -Alan Wake 2: A Deep Dive into Path Tracing Technology](https://www.nvidia.com/en-us/on-demand/session/gdc24-gdc1003/?playlistId=playList-821861a9-571a-4073-abab-d60ece4d1e49)，及业余空间中的 [bevy](https://jms55.github.io/posts/2024-06-09-virtual-geometry-bevy-0-14/#future-work)  等等也已在自己的管线实现了类似的技术。
 
 ![image-20251120215946457](/image-foundation/tuanjie-virtual-geometry-doc.png)
 
