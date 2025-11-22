@@ -1,7 +1,7 @@
 ---
 author: mos9527
 lastmod: 2025-11-20T21:42:38.239000+08:00
-title: Foundation 施工笔记 - 复现 Nanite 虚拟几何体【1】
+title: Foundation 施工笔记 【1】- Mesh Shader 和自适应 LOD
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
 ShowToc: true
