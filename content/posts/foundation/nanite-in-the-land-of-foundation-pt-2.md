@@ -89,7 +89,7 @@ inline mat4 viewMatrixRHReverseZ(vec3 pos, quat rot)
 }
 ```
 
-## GPU Scene
+## GPU Scene 
 
 传统地，渲染管线需要在 CPU 组织DrawCalls - 变换，剔除等操作在上传前完成。自 DX11 世代起出现的 Compute Shader模型及`ExecuteIndirect`使得GPU上生成DC成为可能。
 
@@ -112,9 +112,9 @@ inline mat4 viewMatrixRHReverseZ(vec3 pos, quat rot)
   
   
 
-## GPU "Draw" Command
+## "Draw Scene" GPU-command
 
-我们将不考虑传统Vertex管线而直接实现Meshlet整套 GPU Driven 管线。
+我们将不考虑传统Vertex管线而直接实现Meshlet整套 GPU Driven 管线。子标题名来自 [GPU-Driven Rendering Pipelines - Sebastian Aaltonen SIGGRAPH 2015](https://www.advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf)
 
 回忆Mesh Shader管线可选的前置Task/Amplifcation Shader Stage——生成Meshlet "Drawcall" 本身可以来自这个几乎是Compute Shader（除仅能在Graphics Queue上跑）的环节进行。命令对应 [DrawMeshTasks](https://mos9527.com/Foundation/classFoundation_1_1RHI_1_1RHICommandList.html#ae4fde8bf43a426dfacc15012a122e272) （Vulkan中的`VkCmdDrawMeshTasksEXT`)
 
@@ -122,10 +122,18 @@ inline mat4 viewMatrixRHReverseZ(vec3 pos, quat rot)
 
 ### 完整 Dispatch Chain
 
-综上，我们完整的Dispatch链如下，处理对象粒度递增。
+综上，我们完整的Dispatch链如下，处理对象粒度递增。(CS: Comptue Shader)
 
 | CS `Dispatch`                                                | CS `Submit`                                                | Task `DrawMeshTasksIndirect`                          | Task->Mesh `DispatchMesh`                        |
 | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------ |
 | **实例**剔除；产生连续**存储非空** Task 命令及计数     | 产生 Indirect Task Dispatch 命令    | **Meshlet**的**自适应 LOD 选择**+**剔除**，并产生`DispatchMesh`在同一Pipeline进行 | **三角形**剔除，继续到Fragment/Pixel Stage（略） |
 
-TBD
+需要注意的是，Task-Mesh属于同一管线。故Task中的`DispatchMesh`**仅能为0或1个**。为此在`CS Submit`时可进行分组，对实例$N$ 个 Meshlet产生$\lceil \frac{N}{WorkGroupSize}\rceil $个 Task Shader Indirect。
+
+最后——在 CPU 上，准备好前置 Buffer 之后的Dispatch仅需一句[DrawMeshTasksIndirect](https://mos9527.com/Foundation/classFoundation_1_1RHI_1_1RHICommandList.html#ab24bede0c6c26faa021dc0638fc40a25)
+
+### 实例化效果
+
+在**不进行任何剔除**的情况下，性能指标及效果如图。共$10^3$的斯坦福小兔子实例，模型均复用上述PrimitiveBuffer同一指针。
+
+![image-20251123101132828](/../../.config/Typora/typora-user-images/image-20251123101132828.png)
