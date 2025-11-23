@@ -136,4 +136,4 @@ inline mat4 viewMatrixRHReverseZ(vec3 pos, quat rot)
 
 在**不进行任何剔除**的情况下，性能指标及效果如图。共$10^3$的斯坦福小兔子实例，模型均复用上述PrimitiveBuffer同一指针。
 
-![image-20251123101132828](/../../.config/Typora/typora-user-images/image-20251123101132828.png)
+![image-20251123101132828](/image-foundation/image-20251123101132828.png)
