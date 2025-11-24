@@ -137,3 +137,19 @@ inline mat4 viewMatrixRHReverseZ(vec3 pos, quat rot)
 在**不进行任何剔除**的情况下，性能指标及效果如图。共$10^3$的斯坦福小兔子实例，模型均复用上述PrimitiveBuffer同一指针。
 
 ![image-20251123101132828](/image-foundation/image-20251123101132828.png)
+
+**注：** 在 Windows 进行调试时发现在以下（个人）配置中可稳定产生`VK_ERROR_DEVICE_LOST`
+
+- Pipeline 内含 **Task Shader** 并使用 `vkCmdBindPipeline` 绑定
+- AMD Software: Adrenalin Edition 25.11.1 (2025/11/06)
+- Radeon 780M Graphics （本子集显）
+
+包括 [官方 Sample 中的 mesh_shader_culling](https://github.com/KhronosGroup/Vulkan-Samples/tree/main/samples/extensions/mesh_shader_culling) 也可复现。考虑进行 CTS 测试，结果将在后续补充。
+
+### GLTF 场景
+
+进而加载真正的场景文件也将很简单——当然，这是建立在只完成spec很小一部分内容的前提上的。我们**暂时**要做的是：
+
+- 场景树到global transform
+- 静态mesh表现
+- 有限的pbr材质支持
