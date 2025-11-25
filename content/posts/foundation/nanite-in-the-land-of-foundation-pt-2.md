@@ -110,7 +110,15 @@ inline mat4 viewMatrixRHReverseZ(vec3 pos, quat rot)
   - 值得注意的是，CPU写入overrun情况将较难调试。但避免的充分必要条件即为预留$MN$空间，假设上界已知。
   - 绑定时，`vkCmdBindDescriptorSets`也允许传入[Descriptor Dynamic Offset](https://docs.vulkan.org/guide/latest/descriptor_dynamic_offset.html)。Shader上可直接就通常的Uniform Buffer方式访问数据，无需额外计算偏移。或者，手动传入offset读取也可取——鉴于该特性的'Vulkanism' - 出于对未来 RHI 兼容性考虑选择后者。
   
-  
+
+### 附：结构体对齐
+
+对于模板`Load<T>`，[Slang 文档仅仅提及 4-byte 对齐需求](https://docs.shader-slang.org/en/latest/external/core-module-reference/types/byteaddressbuffer-04b/load-0.html#signature) - 实际上若参考[DXC ByteAddressBuffer Load Store Additions](https://github.com/microsoft/DirectXShaderCompiler/wiki/ByteAddressBuffer-Load-Store-Additions)，我们的结构体需要地址和其对齐要求最严格（最大）field对齐。
+
+> The layout of the type mapped into the buffer matches the layout used for `StructuredBuffer`. The `byteOffset` should be aligned by the size (in bytes) of the largest scalar type contained within type `T`. For instance, if the largest type is uint64_t, `byteOffset` must be aligned by 8. If the largest type is `float16_t`, then the minimum alignment required is 2.
+
+这里做个小记，未来对mesh数据进行量化的时候（如使用`half`存储`float16`数据）需要避免踩坑。
+
 
 ## "Draw Scene" GPU-command
 
@@ -118,7 +126,13 @@ inline mat4 viewMatrixRHReverseZ(vec3 pos, quat rot)
 
 回忆Mesh Shader管线可选的前置Task/Amplifcation Shader Stage——生成Meshlet "Drawcall" 本身可以来自这个几乎是Compute Shader（除仅能在Graphics Queue上跑）的环节进行。命令对应 [DrawMeshTasks](https://mos9527.com/Foundation/classFoundation_1_1RHI_1_1RHICommandList.html#ae4fde8bf43a426dfacc15012a122e272) （Vulkan中的`VkCmdDrawMeshTasksEXT`)
 
-鲜为人知的还有 [DrawMeshTasksIndirect](https://mos9527.com/Foundation/classFoundation_1_1RHI_1_1RHICommandList.html#ab24bede0c6c26faa021dc0638fc40a25) （Vulkan中的`VkCmdDrawMeshTasksIndirectEXT`) —— 这里可以从（或许是）Compute Shader 生成的 command buffer 从 GPU（驱动）dispatch Task Shaders。两层'amplification'的自由度可谓相当大；同时，若使用Compute生成命令，还将允许Async Compute的实现（不需要 Graphics Queue！），和真正的 Graphics Queue 进行一定并行overlap。
+鲜为人知的还有 [DrawMeshTasksIndirect](https://mos9527.com/Foundation/classFoundation_1_1RHI_1_1RHICommandList.html#ab24bede0c6c26faa021dc0638fc40a25) （Vulkan中的`VkCmdDrawMeshTasksIndirectEXT`) —— 这里可以从（或许是）Compute Shader 生成的 command buffer 从 GPU（驱动）dispatch Task Shaders，进一步解放 CPU （用户侧）需求。
+
+驱动层实现细节还请参见：
+
+- [Task shader driver implementation on AMD HW - Timur](https://timur.hu/blog/2022/how-task-shaders-are-implemented)
+- [【技术精讲】AMD RDNA™ 显卡上的Mesh Shaders（一）： 从 vertex shader 到 mesh shader](https://zhuanlan.zhihu.com/p/691467498)
+- [Using Mesh Shaders for Professional Graphics - NVIDIA](https://developer.nvidia.com/blog/using-mesh-shaders-for-professional-graphics/)
 
 ### 完整 Dispatch Chain
 
@@ -138,18 +152,114 @@ inline mat4 viewMatrixRHReverseZ(vec3 pos, quat rot)
 
 ![image-20251123101132828](/image-foundation/image-20251123101132828.png)
 
-**注：** 在 Windows 进行调试时发现在以下（个人）配置中可稳定产生`VK_ERROR_DEVICE_LOST`
+**注：** 在 Windows 进行调试时发现在以下（个人）配置中可稳定产生`VK_ERROR_DEVICE_LOST` 
 
-- Pipeline 内含 **Task Shader** 并使用 `vkCmdBindPipeline` 绑定
+- Pipeline 内含 **Task Shader** 并使用 `vkCmdBindPipeline` 绑定，`Submit()`即丢设备
 - AMD Software: Adrenalin Edition 25.11.1 (2025/11/06)
 - Radeon 780M Graphics （本子集显）
 
-包括 [官方 Sample 中的 mesh_shader_culling](https://github.com/KhronosGroup/Vulkan-Samples/tree/main/samples/extensions/mesh_shader_culling) 也可复现。考虑进行 CTS 测试，结果将在后续补充。
+包括 [官方 Sample 中的 mesh_shader_culling](https://github.com/KhronosGroup/Vulkan-Samples/tree/main/samples/extensions/mesh_shader_culling) 也可复现（= =||）。后续若能成功Debug将在此处更新——在此之前，后续测试都将在我的 Arch Linux 机器上运行。
 
-### GLTF 场景
+## GLTF Scene
 
 进而加载真正的场景文件也将很简单——当然，这是建立在只完成spec很小一部分内容的前提上的。我们**暂时**要做的是：
 
 - 场景树到global transform
 - 静态mesh表现
 - 有限的pbr材质支持
+
+场景加载涉及 JSON 解析等，这里直接使用 [cgltf](https://github.com/jkuhlmann/cgltf)，实现上参考 [zeux/niagara - scene.cpp](https://github.com/zeux/niagara/blob/e5ae459c5a40fa500bc6e4bdedb7ced660200d69/src/scene.cpp#L392) 。场景自定义序列化自然为必要，届时暂不考虑复用glTF格式。
+
+### RAII C指针
+
+至于为什么要这么做：**exception unwind自动解构**和其他early out机会。我们的`CHECK_MSG` macro实际是在产生异常的 - 如此在解析中间出事也不会leak。实现如下——这个pattern在别的地方也会经常用到。
+
+```c++
+cgltf_data* data = nullptr;
+UniquePtr<cgltf_data, decltype(&cgltf_free)> raii(data, &cgltf_free); // C pointer with RAII
+{
+    cgltf_result result = cgltf_parse_file(&options, path.data(), &data);
+    CHECK_MSG(result == cgltf_result_success, "Scene load failure: {}", static_cast<int>(result));
+    ...
+}
+```
+
+### 解析细节
+
+暂时避免OOP/ECS一套轮子，我们只做到：
+
+```c++
+void LoadGLTF(StringView path, Vector<FMesh>& outMeshes, Vector<FInstance>& outInstances)
+```
+
+- 从glTF场景文件产生`FMesh`,`FInstance`列表
+
+- `FInstance`包含**全局(global)** transform及`FMesh` index
+
+  ```c++
+  struct FInstance
+  {
+      float3 transform;
+      quat rotation;
+      float3 scale;
+  
+      uint32_t meshIndex;
+  };
+  ```
+
+- `outMeshes[FInstance::meshIndex]` 即为对应 mesh 数据。定义参考前文。
+
+实现上比较简单，不多阐述。需要注意的是[`glTF`中的`primitive`概念](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes)的命名比较神必，你以为是三角形这种几何 Primitive,实际上...
+
+> Meshes are defined as arrays of *primitives*. Primitives correspond to the data required for GPU draw calls. Primitives specify one or more `attributes`, corresponding to the vertex attributes used in the draw calls. Indexed primitives also define an `indices` property. Attributes and indices are defined as references to accessors containing corresponding data. Each primitive **MAY** also specify a `material` and a `mode` that corresponds to the GPU topology type (e.g., triangle set).
+
+他对应一个drawcall。这里理解成自己需要一个单独shader渲染就好。
+
+- 导入，优化并做LOD区分是个很麻烦的事情，运行时考虑并发进行。当然，复用缓存内容也将是必须。这里属于cooking的范畴，之后介绍。最后包括Job pool利用方面代码如下：
+
+```c++
+ThreadPool pool(std::thread::hardware_concurrency(), 4096, GContext->allocator, "meshopt");
+for (size_t mi = 0, i = 0; i < data->meshes_count; i++)
+{
+    auto& mesh = data->meshes[i];
+    auto& subs = submeshIndices.emplace_back(GContext->allocator);
+    for (size_t p = 0; p < mesh.primitives_count; p++)
+    {
+        auto* sub = mesh.primitives + p;
+        if (sub->type == cgltf_primitive_type_triangles)
+        {
+            pool.Push(
+                [&](size_t index)
+                {
+                    auto& submesh = outMeshes[index];
+                    submesh = LoadSubmesh(sub);
+                    submesh.Optimize();
+                    submesh.ClusterizeDAG();
+                }, mi++);
+        }
+        subs.emplace_back(p);
+    }
+}
+/* Instances */
+for (size_t i = 0; i < data->nodes_count; i++)
+{
+    const cgltf_node* node = &data->nodes[i];
+    if (node->mesh)
+    {
+        mat4 world;
+        cgltf_node_transform_world(node, reinterpret_cast<float*>(&world));
+        FInstance instance{};
+        float3 skew; float4 presp; // unused
+        decompose(world, instance.scale, instance.rotation, instance.transform, skew, presp);
+        auto meshIndex = cgltf_mesh_index(data, node->mesh);
+        for (auto sub : submeshIndices[meshIndex])
+        {
+            instance.meshIndex = sub;
+            outInstances.emplace_back(instance);
+        }
+    }
+}
+// Collect
+pool.Join();
+```
+
