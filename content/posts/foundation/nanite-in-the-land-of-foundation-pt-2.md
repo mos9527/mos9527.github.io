@@ -189,10 +189,10 @@ UniquePtr<cgltf_data, decltype(&cgltf_free)> raii(data, &cgltf_free); // C point
 暂时避免OOP/ECS一套轮子，我们只做到：
 
 ```c++
-void LoadGLTF(StringView path, Vector<FMesh>& outMeshes, Vector<FInstance>& outInstances)
+void LoadGLTF(StringView path, Vector<FMesh>& outMeshes, Vector<FInstance>& outInstances, Vector<FCamera>& outCamera)
 ```
 
-- 从glTF场景文件产生`FMesh`,`FInstance`列表
+- 从glTF场景文件产生`FMesh`,`FInstance`列表和其他我们想要的东西
 
 - `FInstance`包含**全局(global)** transform及`FMesh` index
 
@@ -213,53 +213,99 @@ void LoadGLTF(StringView path, Vector<FMesh>& outMeshes, Vector<FInstance>& outI
 
 > Meshes are defined as arrays of *primitives*. Primitives correspond to the data required for GPU draw calls. Primitives specify one or more `attributes`, corresponding to the vertex attributes used in the draw calls. Indexed primitives also define an `indices` property. Attributes and indices are defined as references to accessors containing corresponding data. Each primitive **MAY** also specify a `material` and a `mode` that corresponds to the GPU topology type (e.g., triangle set).
 
-他对应一个drawcall。这里理解成自己需要一个单独shader渲染就好。
+这里对应一个drawcall，理解成自己需要一个单独shader渲染就好。
 
-- 导入，优化并做LOD区分是个很麻烦的事情，运行时考虑并发进行。当然，复用缓存内容也将是必须。这里属于cooking的范畴，之后介绍。最后包括Job pool利用方面代码如下：
+### 效果
 
-```c++
-ThreadPool pool(std::thread::hardware_concurrency(), 4096, GContext->allocator, "meshopt");
-for (size_t mi = 0, i = 0; i < data->meshes_count; i++)
+仍然只可视化 Meshlets，最低 LOD 阈值渲染[Intel Sponza](https://github.com/mos9527/Scenes?tab=readme-ov-file#intel-gpu-research-samples---sponza)的效果如下。
+
+![image-20251126164710937](/image-foundation/image-20251126101132828.png)
+
+### 材质与 Bindless
+
+不像 D3D12 有[`ResourceDescriptorHeap`](https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_DynamicResources.html)，Vulkan 的 Bindless状况比较“非官方”。这里采用的方案为对申请一个`Descriptor Set`，然后启用`runtimeDescriptorArray`(Vulkan 1.2 Core)按需更新。Shader中允许这样的使用（来自[MipGeneration 样例](https://github.com/mos9527/Foundation/blob/vulkan/Examples/MipGeneration.cpp))：
+
+```glsl
+texture2D textures[];
+[shader("fragment")]
+float4 fragMain(float2 uv: TEXCOORD0) : SV_Target
 {
-    auto& mesh = data->meshes[i];
-    auto& subs = submeshIndices.emplace_back(GContext->allocator);
-    for (size_t p = 0; p < mesh.primitives_count; p++)
-    {
-        auto* sub = mesh.primitives + p;
-        if (sub->type == cgltf_primitive_type_triangles)
-        {
-            pool.Push(
-                [&](size_t index)
-                {
-                    auto& submesh = outMeshes[index];
-                    submesh = LoadSubmesh(sub);
-                    submesh.Optimize();
-                    submesh.ClusterizeDAG();
-                }, mi++);
-        }
-        subs.emplace_back(p);
-    }
+    return textures[pc.binding].SampleLevel(sampler, uv, pc.mipReady);
 }
-/* Instances */
-for (size_t i = 0; i < data->nodes_count; i++)
-{
-    const cgltf_node* node = &data->nodes[i];
-    if (node->mesh)
-    {
-        mat4 world;
-        cgltf_node_transform_world(node, reinterpret_cast<float*>(&world));
-        FInstance instance{};
-        float3 skew; float4 presp; // unused
-        decompose(world, instance.scale, instance.rotation, instance.transform, skew, presp);
-        auto meshIndex = cgltf_mesh_index(data, node->mesh);
-        for (auto sub : submeshIndices[meshIndex])
-        {
-            instance.meshIndex = sub;
-            outInstances.emplace_back(instance);
-        }
-    }
-}
-// Collect
-pool.Join();
 ```
 
+CPU Binding 更新也很直接。详见[实现](https://github.com/mos9527/Foundation/blob/vulkan/Source/RenderCore/Bindless.hpp)。不过，在真正实现shading之前...
+
+## Overdraw
+
+### 图像 Atomics
+
+直觉的你也许会想到可以用Alpha Blending，但是代价不谈，Primitive 顺序无关的“Blending”（OIT）实现是非平凡的。实现上有像素级链表和其他的一些Hack - 细节上未来实现透明 Raster Pass 再讲。
+
+这里，alpha blending 是不必要的。`imageAtomicAdd` 允许在 Fragment Shader 里同样进行原子操作 - 注意 Slang 中暂时不含该intrinsic，需要 `import glsl` 引入。参见 https://github.com/shader-slang/slang/issues/4120；Shader 部分如下，注意`overdraw`是`R32ui`材质，先前也需要 CS 清空。
+
+```glsl
+// https://github.com/shader-slang/slang/issues/4120
+import glsl;
+[[vk_binding(5,0)]] RWTexture2D<uint32_t> overdraw;
+
+[shader("fragment")]
+Fragment main(V2F input, float2 fragCoord : SV_Position /* pixel space */)
+{
+    Fragment output;
+    output.color = float4(input.normal, 1.0);
+    imageAtomicAdd(overdraw, int2(fragCoord), 1);
+    return output;
+}
+
+```
+
+RenderDoc中可视化如图：
+
+![image-20251127092908387](/image-foundation/image-20251127092908387.png)
+
+### 并行 minmax
+
+显然，可视化也需要知道像素范围的上下界。这里属于  Reduction 类问题 - 实现上理论最优的均为分治算法，如图（来自[Optimizing Parallel Reduction in CUDA - Mark Harris](https://developer.download.nvidia.cn/compute/cuda/1.1-Beta/x86_website/projects/reduction/doc/reduction.pdf))
+
+![image-20251127100852954](/image-foundation/image-20251127100852954.png)
+
+**Mip Chain 生成**实际上正式该类算法的一种实现，包含多次 reduction kernel/CS dispatch。这里的thread占有率（occupancy）会是最优的 - 但是dispatch间不可避免地存在barrier，overhead在此并非平凡。
+
+同时，在这里我们并不需要中间mip。以下为折中（偷懒）方案之一：**单次 Dispatch**，WorkGroup单位求max后，合并到全局atomic：其存在的可能contention即为$O(\frac{N}{WorkGroupSize})$，其中$N$为总像素数。当然，总的时间复杂度仍然是$O(N)$
+
+利用wave intrinsic，易得的优化空间也存在，这里参考 [【技术精讲】AMD RDNA™ 显卡上的Mesh Shaders（二）：优化和最佳实践](https://zhuanlan.zhihu.com/p/691937933?share_code=UUd2VvVBg5Vo&utm_psn=1976247216818657016) 的部分内容。
+
+```glsl
+struct PushConstant {
+    int w, h;
+}
+[[vk::push_constant]] PushConstant pc;
+
+Texture2D<uint32_t> texture;
+RWStructuredBuffer<Atomic<uint32_t>> globalMax;
+groupshared Atomic<uint32_t> groupMax;
+
+[shader("compute")]
+[numthreads(16, 16, 1)]
+void main(uint2 tid: SV_DispatchThreadID, uint gid : SV_GroupIndex) {
+    groupMax = 0;
+    GroupMemoryBarrierWithGroupSync(); // Init
+    uint32_t value = 0u;
+    if (tid.x < pc.w && tid.y < pc.h)
+        value = texture.Load(int3(tid.x,tid.y,0));
+    uint32_t waveMax = WaveActiveMax(value);
+    if (WaveIsFirstLane())
+        groupMax.max(waveMax);
+    GroupMemoryBarrierWithGroupSync(); // Wait for all waves
+    if (gid == 0)
+        globalMax[0].max(groupMax.load());
+}
+
+```
+
+另外的，**单次 Mipmap 生成魔法**也存在，即 https://github.com/GPUOpen-Effects/FidelityFX-SPD。这里出于学习目的暂不考虑直接引入。
+
+### 效果
+
+![image-20251127110822965](/image-foundation/image-20251127110822965.png)
