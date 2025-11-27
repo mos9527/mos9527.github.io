@@ -69,9 +69,7 @@ for a, b, c in os.walk(POST_FOLDER):
             print(f"[!] {file} can't be decoded. skipping.")
             continue
         if any((x.startswith("lastmod:") for x in lines)):
-            print(f"[*] {file} already has lastmod. updating.")
-        else:
-            lines.insert(2)
+            print(f"[*] {file} already has lastmod. updating.")        
 
         with auto_utime(path) as ftime:
             lastmod = ftime.modify.isoformat()

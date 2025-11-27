@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-22T21:42:38.239000+08:00
+lastmod: 2025-11-27T11:08:28.204347
 title: Foundation 施工笔记 【2】- Editor 场景加载与 GPU-Driven 渲染
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
