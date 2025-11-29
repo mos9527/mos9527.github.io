@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-29T11:14:55.790563
+lastmod: 2025-11-29T11:15:13.736802
 title: Foundation 施工笔记 【2】- GPU-Driven 管线及场景剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
