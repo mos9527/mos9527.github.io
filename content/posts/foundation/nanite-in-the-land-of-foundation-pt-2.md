@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-29T16:10:32.522132
+lastmod: 2025-11-29T22:58:08.478615
 title: Foundation 施工笔记 【2】- GPU-Driven 管线及场景剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -421,7 +421,7 @@ CPU 上的剔除暂不讨论 - 毕竟目前为止还不包括场景上Editor内�
 
 #### 效果
 
-  球体bounding box是相对保守的 - 对于较大的被cull对象会存在假阴性。不过，效果可见一斑，如下图开启前后展示。
+  球体bounding box是相对保守的 - 对于较大的被cull对象会存在假阴性（剔除少了）。不过，效果可见一斑，如下图开启前后展示。
 
   ![image-20251129101736119](/image-foundation/image-20251129101736119.png)
 
@@ -450,9 +450,9 @@ $$
 $$
 这样，越大的occluder，要采样的mip等级是越高的。真正采样的像素数即为$(x\cdot\ 2^{-\log_{2}x})^2$恒等于$1$，**但是注意**：该式是保守的。观察下图：
 
-![image-20251129155246957](/../../Desktop/image-20251129155246957.png)
+![image-20251129155246957](/image-foundation/image-20251129155246957.png)
 
-假设投影到aabb，我们的矩形完全可以落在**四个texel之间**的位置。这意味着，最坏情况下的像素数其实是**4** - 上面的向上取整**应该为向下取整**。不过实践上，向上取整的结果可以接受 - 如此只会（保守地）带来假阳性，而能导致该情况的bbox往往是几个像素大小的——绘制代价并不太大，[niagara](https://github.com/zeux/niagara/blob/master/src/shaders/drawcull.comp.glsl) 也采用了后者方案。
+假设投影到aabb，我们的矩形完全可以落在**四个texel之间**的位置。这意味着，最坏情况下的像素数其实是**4** - 上面的向上取整**应该为向下取整**。不过实践上，向上取整的结果可以接受 - 如此只会（保守地）带来假阴性，而能导致该情况的bbox往往是几个像素大小的——绘制代价并不太大，[niagara](https://github.com/zeux/niagara/blob/master/src/shaders/drawcull.comp.glsl) 也采用了后者方案。
 
 #### HZB （Mip Chain）生成
 
@@ -468,14 +468,84 @@ $$
 
 ![image-20251129104238884](/image-foundation/image-20251129104238884.png)
 
-优势良多，这里不一一介绍。同时HZB也可以在后期AO，SSR，SSGI中利用，可见整体开销而言该手段相当廉价。这里将整个场景拆成**两次**渲染：
+优势良多，这里不一一介绍，这里将整个场景拆成**两次**渲染：
 
 - 第一次：复用上一帧得到的HZB，对通过 HZB Cull的单元（Meshlet）渲染并**标记**，第二次跳过这些单元。
 - 第二次：第一次留下的ZBuffer值得被用于更新HZB。之后，用更新的HZB继续Cull并渲染**未被标记**的单元。
 - 最后可选的，若后续仍有Pass需要HZB利用，在这里再次更新。
 
-初始化很简单：HZB在我们Reverse Z的场景下清$0$即可。注意标记部分有一些优化可循：
+实现上细节相当，相当多；值得注意的几点有：
 
-### 背面剔除（Backface Culling）
+- 第二次请不要清空GBuffer/ZBuffer - -
+- AABB投影还请参见[第一篇提及内容](https://mos9527.com/posts/foundation/nanite-in-the-land-of-foundation-pt-1/#%E9%94%99%E8%AF%AF%E6%8C%87%E6%A0%87)。这里利用的是 [Approximate projected bounds - Arseny Kapoulkine](https://zeux.io/2023/01/12/approximate-projected-bounds/)的实现；注意clip znear者直接pass（通过剔除）。
+- 两次pass遍历的meshlet单元是一样的（至少我的实现如此）。因此标记buffer可以选择不去刻意清空而选择`bitmask & (~(1u << bit))`置0，不过清空也很快。
+- 假阴性（剔除过少）是不可避免的。但是假阳性（剔除过多）一定是你的实现有误——**最长边像素大小**请务必取得保守：比如[niagara](https://github.com/zeux/niagara)就采用了下取整到$2^n$的zbuffer大小做像素大小上界。
 
-TBD
+Shader 核心部分参下：
+
+```glsl
+// -- Occlusion Cull --
+uint32_t meshletGlobalID = mesh.meshletGlobalIndex + meshletID;
+if (cullOcclusion && visible) {
+    if (late) {
+        bool phase1Visible = occlusion[meshletGlobalID / 32].load() & (1u << (meshletGlobalID % 32));
+        if (phase1Visible)
+            visible = false; // Skip
+    }
+    if (visible) {
+        float4 aabb; // x1, y1, x2, y2 in UV
+        // Let anything past the near plane pass
+        const float hizWidth = 1u << globalParams.zbufferWidthP2;
+        const float hizHeight = 1u << globalParams.zbufferHeightP2;
+        viewCenter = pointToView(meshlet.centerRadius.xyz, inst, globalParams.view);
+        float radius = meshlet.centerRadius.w * scale;
+        if (projSphereAABB(viewCenter, radius, globalParams.proj[0][0], globalParams.proj[1][1], globalParams.zNear, aabb)) {
+            float width = hizWidth * (aabb.z - aabb.x);
+            float height = hizHeight * (aabb.w - aabb.y);
+            float l = max(width,height);
+            float lambda = min(floor(log2(max(l, 1.0f))), globalParams.hizLevels - 1.0f);
+            float2 texel = (aabb.xy + aabb.zw) / 2.0f;
+            float d = hiz.SampleLevel(hizSampler, texel, lambda).x;
+            // View space depth *decreases* with distance
+            float viewDepth = viewCenter.z + radius;
+            float dMax = globalParams.zNear / -viewDepth;
+            bool pass = d <= dMax;
+            visible &= pass;
+            // Commit to occlusion buffer if visible ONLY in early pass
+            if (early) {
+                if (visible)
+                    occlusion[meshletGlobalID / 32].or(1u << (meshletGlobalID % 32));
+            }
+        }
+    }
+}
+```
+
+#### 效果
+
+如图，可见场景中被窗帘遮盖的维纳斯在开启后被成功剔除，Overdraw内不可见。
+
+![image-20251129220129428](/image-foundation/image-20251129220129428.png)
+
+![image-20251129220147658](/image-foundation/image-20251129220147658.png)
+
+值得注意的是这里显然的假阴性：中间的一块正方形就没能被剔除掉。原因很显然，球体bounding box对大多数网格而言会是非常保守的——平面则是该类bbox的worst case。相反，对精细度高（如维纳斯）的网格，meshlet很小，在此效果更加显著。
+
+### 圆锥及背面剔除（Cone/Backface Culling）
+
+Cone Culling 部分来自[`meshoptimizer`](https://meshoptimizer.org/)，以下为引用：
+
+> The resulting `bounds` values can be used to perform frustum or occlusion culling using the bounding sphere, or cone culling using the cone axis/angle (which will reject the entire meshlet if all triangles are guaranteed to be back-facing from the camera point of view):
+>
+> ```
+> if (dot(normalize(cone_apex - camera_position), cone_axis) >= cone_cutoff) reject();
+> ```
+>
+> Cluster culling should ideally run at a lower frequency than mesh shading, either using amplification/task shaders, or using a separate compute dispatch.
+
+视角与预计算圆锥法线角度超过该阈值即可认为**所有**meshlet内三角形背面而直接剔除，同时这里对*所有*三角形而言是充要的。Task shader中实现即可。
+
+接下来在Mesh Shader环节，我们还可以进行逐三角形的**背面剔除/Backface Culling**：假设环绕方向逆时针，利用生成的三角形两边叉乘符号即可判断是否backface，设置`SV_CullPrimitive`决定剔除：这里是可以取代光栅器的cull mode的，不过读取变换后顶点也会产生一定开销，故暂时没有加入实现。
+
+效果图略。
+
