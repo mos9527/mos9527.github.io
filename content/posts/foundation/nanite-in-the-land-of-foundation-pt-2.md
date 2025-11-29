@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-27T11:08:28.204347
+lastmod: 2025-11-29T10:20:20.562188
 title: Foundation 施工笔记 【2】- Editor 场景加载与 GPU-Driven 渲染
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -215,6 +215,32 @@ void LoadGLTF(StringView path, Vector<FMesh>& outMeshes, Vector<FInstance>& outI
 
 这里对应一个drawcall，理解成自己需要一个单独shader渲染就好。
 
+### 序列化
+
+Meshlet及LOD生成代价不低，缓存必要性存在。序列化细节并不多，这里一笔带过。形式如下：
+
+```c++
+template<> void FSerialize(FWriter& w, FMesh const& obj)
+{
+    FSerialize(w, obj.vertices);
+    FSerialize(w, obj.lods);
+    FSerialize(w, obj.dag);
+}
+...
+const uint32_t kSceneMagic = 0xDEADDEAD;
+void FSerialize(FWriter& w, Vector<FMesh> const& meshes, Vector<FInstance> const& instances,
+                 Vector<FCamera> const& cameras)
+{
+    FSerialize(w, kSceneMagic);
+    FSerialize(w, meshes);
+    FSerialize(w, instances);
+    FSerialize(w, cameras);
+}
+// other structs...
+```
+
+最近在 [SonyHeadphonesClient](https://github.com/mos9527/SonyHeadphonesClient/tree/rewrite/tooling) rewrite里做过自动序列化代码生成，未来结构体太多（不太可能）时或许也可以采用。但目前结构体复杂程度不会太高，序列化部分均为手写。
+
 ### 效果
 
 仍然只可视化 Meshlets，最低 LOD 阈值渲染[Intel Sponza](https://github.com/mos9527/Scenes?tab=readme-ov-file#intel-gpu-research-samples---sponza)的效果如下。
@@ -309,3 +335,93 @@ void main(uint2 tid: SV_DispatchThreadID, uint gid : SV_GroupIndex) {
 ### 效果
 
 ![image-20251127110822965](/image-foundation/image-20251127110822965.png)
+
+## Culling
+
+剔除，裁剪...怎么翻译都好，后文将以*cull*指代渲染中被省略的物体。
+
+CPU 上的剔除暂不讨论 - 毕竟目前为止还不包括场景上Editor内的互动，不过届时能够直接$O(log N)$ Raycast 是需要这些东西的。接下来的几个手段将无一例外在 CS 中实现。
+
+### 视锥剔除（Frustum Culling）
+
+或许是最直接 - 也最容易弄错的一种。概述如下：**NDC空间**的正方体视锥变回世界坐标后可以由六个平面定义，及对应near,far,和上下左右。体积盒在之中的，在透视变换后必要不充分会贡献渲染结果。
+
+“在之中”判断即为平面-体积相交问题。对于AABB长方体盒而言，有**相当**多的edge case要考虑。正确cull是很难的 - 鉴于我们的bounding box皆为球体，这里仅留下几个链接作为参考：
+
+- [More (Robust) Frustum Culling - Bruno Opsenica](https://bruop.github.io/improved_frustum_culling/)
+- [fixing frustum culling - 2013 - Inigo Quilez](https://iquilezles.org/articles/frustumcorrect/)
+
+![image-20251129090811687](/image-foundation/image-20251129090248297.png)
+
+对于球体，检测要简单得多。在**View Space**，定义各平面为$(a,b,c,d), ax + by + cz = d$，有球体$(x,y,z,r)$
+
+- 如图，上下左右平面必经过view space原点。故这些平面简化为$ax + by + cz = 0$
+
+- **注意**，目前的透视矩阵是**对称**的。意味着对于左平面$ax+cz=0$,右平面即为$ax-cz=0$；上下即为$by \pm cz  = 0$
+
+- 我们记左右平面$a,c$为$i,j$,上下平面$b,c$为$k,l$。以左右为例，球体与视锥相交即为解圆心-平面距离：
+  $$
+  \begin{align*}
+      ix + jz &\ge -r \quad (\text{左}) \\
+      -ix + jz &\ge -r \quad (\text{右})
+  \end{align*}
+  $$
+
+- 可化简为
+  $$
+  jz \ge -r + |ix| \implies jz \ge |ix| -r
+  $$
+
+- 对上下同理，得到化简结果
+  $$
+  lz \ge -r + |ky| \implies lz \ge |ky| -r
+  $$
+
+- Shader实现将很简单。`true`当且仅当球体*未被*剔除。
+
+  ```glsl
+  bool frustumCull(float4 ijkl /* [left ac:ij] [top bc:kl] */, float3 center /* view */, float radius /* scaled */, float zNear) {
+  
+      float ix = abs(ijkl.x * center.x);
+      float ky = abs(ijkl.z * center.y);
+      float jz = ijkl.y * center.z;
+      float lz = ijkl.w * center.z;
+      return (center.z >= -zNear) && (jz >= ix -radius) && (lz >= ky -radius);
+  }
+  ```
+
+- 平面可以取NDC内几点利用投影矩阵逆求叉积取得。或者，也可以*注意到*view space内的几个系数其实很容易取得。[Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix](https://www.gamedevs.org/uploads/fast-extraction-viewing-frustum-planes-from-world-view-projection-matrix.pdf) 告诉我们abcd系数为：左平面：$P_3 + P_0$，上平面：$P_3 - P_1$
+
+- 别忘了`glm/GLSL`的矩阵存储是默认**列优先（column-major)**，而正常线代书写基本为列优先。
+
+- 以上，$ijkl$系数计算如下
+
+  ```c++
+  // (i,j,k,l), where left/right planes are ix +- jz = 0, top/bottom planes are ky +- lz = 0
+  inline float4 planeSymmetric(mat4 proj)
+  {
+      mat4 projT = transpose(proj);
+      float4 left = projT[3] + projT[0];   // (m41 + m11, m42 + m12, m43 + m13, m44 + m14)
+      float4 bottom = projT[3] + projT[1];    // (m41 + m21, m42 + m22, m43 + m23, m44 + m24)
+      // Normalize
+      left /= length(left.xyz());
+      bottom /= length(bottom.xyz());
+      return {left.x, left.z, bottom.y, bottom.z};
+  }
+  ```
+
+  #### 效果
+
+  球体bounding box是相对保守的 - 对于较大的被cull对象会存在假阴性。不过，效果可见一斑，如下图开启前后展示。
+
+  ![image-20251129101736119](/image-foundation/image-20251129101736119.png)
+
+  ![image-20251129101843632](/image-foundation/image-20251129101843632.png)
+
+### 遮蔽剔除（Occlusion Culling）
+
+TBD
+
+### 背面剔除（Backface Culling）
+
+TBD
