@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-29T11:15:13.736802
+lastmod: 2025-11-29T16:10:32.522132
 title: Foundation 施工笔记 【2】- GPU-Driven 管线及场景剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -396,14 +396,13 @@ CPU 上的剔除暂不讨论 - 毕竟目前为止还不包括场景上Editor内�
   $$
   M = 
   \begin{bmatrix}
-  m_{00} & m_{10} & m_{20} & m_{30} \\
-  m_{01} & m_{11} & m_{21} & m_{31} \\
-  m_{02} & m_{12} & m_{22} & m_{32} \\
+  m_{00} & m_{10} & m_{20} & m_{30} \newline
+  m_{01} & m_{11} & m_{21} & m_{31} \newline
+  m_{02} & m_{12} & m_{22} & m_{32} \newline
   m_{03} & m_{13} & m_{23} & m_{33}
   \end{bmatrix}
   $$
   
-
 - 以上，$ijkl$系数计算如下
 
   ```c++
@@ -430,13 +429,38 @@ CPU 上的剔除暂不讨论 - 毕竟目前为止还不包括场景上Editor内�
 
 ### 遮蔽剔除（Occlusion Culling）
 
-视锥剔除并不能解决多个物体重叠而互相遮蔽的问题。传统的，有depth prepass这样提前渲染zbuffer来利用光栅器[Early Z](https://therealmjp.github.io/posts/to-earlyz-or-not-to-earlyz/)剔除不必要重叠PS工作的方法。在 UE4, Unity URP的Forward+都有实现。另外还有Occlusion Query这样的方法在RTR4中有所提及，这里不介绍。
+视锥剔除并不能解决多个物体重叠而互相遮蔽的问题。传统的，有depth prepass这样提前渲染zbuffer来利用光栅器[Early Z](https://therealmjp.github.io/posts/to-earlyz-or-not-to-earlyz/)剔除不必要重叠PS工作的方法。在 UE4, Unity URP的Forward+都有实现。另外还有Occlusion Query等的方法在RTR4中也有所提及，这里不介绍。
 
 #### HZB
 
 ![image-20251129105112412](/image-foundation/image-20251129105112412.png)
 
-**HZB/Hierarchal Z Buffer**则是可以利用硬件对bounding box直接进行剔除的手段。RTR4 p846也有所提及。这里不多说，因为下一个方法也会直接利用。
+**HZB/Hierarchal Z Buffer** Cull 则是可以利用硬件对bounding box直接进行剔除的手段。RTR4 p846也有所提及。
+
+直接利用bounding box在**屏幕空间**的投影直接对zbuffer逐像素比较可以完成对其剔除的任务，但这是极为昂贵的，同时不必要。假设zbuffer近1远0，深度远值更小，我们做出以下断言：
+
+- 直觉的，**REJECT**的充分条件是**zbuffer该区域的深度中，【全体】比bbox屏幕空间内的最大深度【更大】**。
+- 取反则为：**PASS**的必要条件是，**zbuffer该区域的深度中，【存在】比bbox屏幕空间内的最大深度【小于等于】的值**
+
+~~想必不用latex也看得懂~~ 那么，**PASS**前提即可化简为**区域内【最小值，小于等于】bbox【最大深度】**。
+
+区域内快速（$O(1)$）求最小值正是HZB在这里的目的。转RTR4 p848：mip一共$n$级，投影后的bbox**最长边像素大小**（在HZB Mip 0中）为$l$，我们采样的mip为:
+$$
+\lambda = min(\lceil log_2(max(l, 1))) \rceil, n - 1)
+$$
+这样，越大的occluder，要采样的mip等级是越高的。真正采样的像素数即为$(x\cdot\ 2^{-\log_{2}x})^2$恒等于$1$，**但是注意**：该式是保守的。观察下图：
+
+![image-20251129155246957](/../../Desktop/image-20251129155246957.png)
+
+假设投影到aabb，我们的矩形完全可以落在**四个texel之间**的位置。这意味着，最坏情况下的像素数其实是**4** - 上面的向上取整**应该为向下取整**。不过实践上，向上取整的结果可以接受 - 如此只会（保守地）带来假阳性，而能导致该情况的bbox往往是几个像素大小的——绘制代价并不太大，[niagara](https://github.com/zeux/niagara/blob/master/src/shaders/drawcull.comp.glsl) 也采用了后者方案。
+
+#### HZB （Mip Chain）生成
+
+前文也有所提及 - 我们将对一张$2^n * 2^n$材质生成中间直到$1*1$的所有mip。在 DX 11 世代甚至有[相关 API](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-generatemips) 让驱动帮你干这个活，当然现代图形API中是见不到的。
+
+自己生成可以如前文所述，多次dispatch，每次将分辨率减半，重复到$1*1$为止；或者利用[FFXSPD](https://github.com/GPUOpen-Effects/FidelityFX-SPD)这样的高级发明单次dispatch搞定——省事起见先选择前者（）效果如下，注意：downsample时需利用[`VK_SAMPLER_REDUCTION_MODE_MIN`](https://docs.vulkan.org/refpages/latest/refpages/source/VkSamplerReductionMode.html) （默认求平均）- 回忆我们的zbuffer是近1远0,因此每次采样取最小值。效果如图：
+
+![image-20251129104238884](/image-foundation/generated-mip-256-256.gif)
 
 #### Two-Phase Occlusion Culling
 
@@ -444,15 +468,13 @@ CPU 上的剔除暂不讨论 - 毕竟目前为止还不包括场景上Editor内�
 
 ![image-20251129104238884](/image-foundation/image-20251129104238884.png)
 
-优势良多，这里不一一介绍。同时HZB也可以在后期AO，SSR，SSGI中利用，可见整体开销而言该手段相当廉价。
+优势良多，这里不一一介绍。同时HZB也可以在后期AO，SSR，SSGI中利用，可见整体开销而言该手段相当廉价。这里将整个场景拆成**两次**渲染：
 
-#### HZB （Mip Chain）生成
+- 第一次：复用上一帧得到的HZB，对通过 HZB Cull的单元（Meshlet）渲染并**标记**，第二次跳过这些单元。
+- 第二次：第一次留下的ZBuffer值得被用于更新HZB。之后，用更新的HZB继续Cull并渲染**未被标记**的单元。
+- 最后可选的，若后续仍有Pass需要HZB利用，在这里再次更新。
 
-前文也有所提及 - 我们将对一张$2^n * 2^n$材质生成中间直到$1*1$的所有mip。在 DX 11 世代甚至有[相关 API](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-generatemips) 让驱动帮你干这个活，当然现代图形API中是见不到的。
-
-自己生成可以如前文所述，多次dispatch，每次将分辨率减半，重复到$1*1$为止；或者利用[FFXSPD](https://github.com/GPUOpen-Effects/FidelityFX-SPD)这样的高级发明单次dispatch搞定——省事起见先选择前者（）
-
-
+初始化很简单：HZB在我们Reverse Z的场景下清$0$即可。注意标记部分有一些优化可循：
 
 ### 背面剔除（Backface Culling）
 
