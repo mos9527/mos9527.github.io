@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-29T11:06:18.644608
+lastmod: 2025-11-29T11:14:55.790563
 title: Foundation 施工笔记 【2】- GPU-Driven 管线及场景剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -330,7 +330,7 @@ void main(uint2 tid: SV_DispatchThreadID, uint gid : SV_GroupIndex) {
 
 ```
 
-另外的，**单次 Mipmap 生成魔法**也存在，即 https://github.com/GPUOpen-Effects/FidelityFX-SPD。这里出于学习目的暂不考虑直接引入。
+另外的，**单次 Mipmap 生成魔法**也存在，即 https://github.com/GPUOpen-Effects/FidelityFX-SPD——后面再提。
 
 ### 效果
 
@@ -392,7 +392,17 @@ CPU 上的剔除暂不讨论 - 毕竟目前为止还不包括场景上Editor内�
 
 - 平面可以取NDC内几点利用投影矩阵逆求叉积取得。或者，也可以*注意到*view space内的几个系数其实很容易取得。[Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix](https://www.gamedevs.org/uploads/fast-extraction-viewing-frustum-planes-from-world-view-projection-matrix.pdf) 告诉我们abcd系数为：左平面：$P_3 + P_0$，上平面：$P_3 - P_1$
 
-- 别忘了`glm/GLSL`的矩阵存储是默认**列优先（column-major)**，而正常线代书写基本为列优先。
+- 别忘了`glm/GLSL`的矩阵存储是默认**列优先（column-major，下面竖列)**，而正常线代书写基本为行优先。方便记忆，设大小4方阵, $M$和glm矩阵$m_{ij}$。显然的，方阵转置即可在二者间转换。
+  $$
+  M = 
+  \begin{bmatrix}
+  m_{00} & m_{10} & m_{20} & m_{30} \\
+  m_{01} & m_{11} & m_{21} & m_{31} \\
+  m_{02} & m_{12} & m_{22} & m_{32} \\
+  m_{03} & m_{13} & m_{23} & m_{33}
+  \end{bmatrix}
+  $$
+  
 
 - 以上，$ijkl$系数计算如下
 
