@@ -1,7 +1,7 @@
 ---
 author: mos9527
-lastmod: 2025-11-29T10:20:20.562188
-title: Foundation 施工笔记 【2】- Editor 场景加载与 GPU-Driven 渲染
+lastmod: 2025-11-29T11:06:18.644608
+title: Foundation 施工笔记 【2】- GPU-Driven 管线及场景剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
 ShowToc: true
@@ -138,9 +138,9 @@ inline mat4 viewMatrixRHReverseZ(vec3 pos, quat rot)
 
 综上，我们完整的Dispatch链如下，处理对象粒度递增。(CS: Comptue Shader)
 
-| CS `Dispatch`                                                | CS `Submit`                                                | Task `DrawMeshTasksIndirect`                          | Task->Mesh `DispatchMesh`                        |
-| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------ |
-| **实例**剔除；产生连续**存储非空** Task 命令及计数     | 产生 Indirect Task Dispatch 命令    | **Meshlet**的**自适应 LOD 选择**+**剔除**，并产生`DispatchMesh`在同一Pipeline进行 | **三角形**剔除，继续到Fragment/Pixel Stage（略） |
+| CS `Dispatch`                        | CS `Submit`                      | Task `DrawMeshTasksIndirect`                                 | Task->Mesh `DispatchMesh`                        |
+| ------------------------------------ | -------------------------------- | ------------------------------------------------------------ | ------------------------------------------------ |
+| 产生**连续存储非空** Task 命令及计数 | 产生 Indirect Task Dispatch 命令 | **Meshlet**的**自适应 LOD 选择**+**剔除**，并产生`DispatchMesh`在同一Pipeline进行 | **三角形**剔除，继续到Fragment/Pixel Stage（略） |
 
 需要注意的是，Task-Mesh属于同一管线。故Task中的`DispatchMesh`**仅能为0或1个**。为此在`CS Submit`时可进行分组，对实例$N$ 个 Meshlet产生$\lceil \frac{N}{WorkGroupSize}\rceil $个 Task Shader Indirect。
 
@@ -410,7 +410,7 @@ CPU 上的剔除暂不讨论 - 毕竟目前为止还不包括场景上Editor内�
   }
   ```
 
-  #### 效果
+#### 效果
 
   球体bounding box是相对保守的 - 对于较大的被cull对象会存在假阴性。不过，效果可见一斑，如下图开启前后展示。
 
@@ -420,7 +420,29 @@ CPU 上的剔除暂不讨论 - 毕竟目前为止还不包括场景上Editor内�
 
 ### 遮蔽剔除（Occlusion Culling）
 
-TBD
+视锥剔除并不能解决多个物体重叠而互相遮蔽的问题。传统的，有depth prepass这样提前渲染zbuffer来利用光栅器[Early Z](https://therealmjp.github.io/posts/to-earlyz-or-not-to-earlyz/)剔除不必要重叠PS工作的方法。在 UE4, Unity URP的Forward+都有实现。另外还有Occlusion Query这样的方法在RTR4中有所提及，这里不介绍。
+
+#### HZB
+
+![image-20251129105112412](/image-foundation/image-20251129105112412.png)
+
+**HZB/Hierarchal Z Buffer**则是可以利用硬件对bounding box直接进行剔除的手段。RTR4 p846也有所提及。这里不多说，因为下一个方法也会直接利用。
+
+#### Two-Phase Occlusion Culling
+
+在书上再翻几面，可以找到 [GPU-Driven Rendering Pipelines - Sebastian Aaltonen SIGGRAPH 2015](https://www.advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf) 介绍的 **Two-Phase Occlusion Culling**。其中 depth pyramid 即为HZB - Nanite中也实现了这样的方法（见 [Nanite A Deep Dive](https://advances.realtimerendering.com/s2021/Karis_Nanite_SIGGRAPH_Advances_2021_final.pdf) p19）。
+
+![image-20251129104238884](/image-foundation/image-20251129104238884.png)
+
+优势良多，这里不一一介绍。同时HZB也可以在后期AO，SSR，SSGI中利用，可见整体开销而言该手段相当廉价。
+
+#### HZB （Mip Chain）生成
+
+前文也有所提及 - 我们将对一张$2^n * 2^n$材质生成中间直到$1*1$的所有mip。在 DX 11 世代甚至有[相关 API](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-generatemips) 让驱动帮你干这个活，当然现代图形API中是见不到的。
+
+自己生成可以如前文所述，多次dispatch，每次将分辨率减半，重复到$1*1$为止；或者利用[FFXSPD](https://github.com/GPUOpen-Effects/FidelityFX-SPD)这样的高级发明单次dispatch搞定——省事起见先选择前者（）
+
+
 
 ### 背面剔除（Backface Culling）
 
