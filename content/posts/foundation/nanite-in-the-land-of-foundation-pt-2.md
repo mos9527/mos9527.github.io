@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-29T22:58:08.478615
+lastmod: 2025-11-29T23:06:39.078594
 title: Foundation 施工笔记 【2】- GPU-Driven 管线及场景剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -435,7 +435,7 @@ CPU 上的剔除暂不讨论 - 毕竟目前为止还不包括场景上Editor内�
 
 ![image-20251129105112412](/image-foundation/image-20251129105112412.png)
 
-**HZB/Hierarchal Z Buffer** Cull 则是可以利用硬件对bounding box直接进行剔除的手段。RTR4 p846也有所提及。
+**HZB/Hierarchal Z Buffer** Cull 则是可以利用mip chain对bounding box直接进行剔除的手段。RTR4 p846也有所提及。
 
 直接利用bounding box在**屏幕空间**的投影直接对zbuffer逐像素比较可以完成对其剔除的任务，但这是极为昂贵的，同时不必要。假设zbuffer近1远0，深度远值更小，我们做出以下断言：
 
@@ -460,7 +460,7 @@ $$
 
 自己生成可以如前文所述，多次dispatch，每次将分辨率减半，重复到$1*1$为止；或者利用[FFXSPD](https://github.com/GPUOpen-Effects/FidelityFX-SPD)这样的高级发明单次dispatch搞定——省事起见先选择前者（）效果如下，注意：downsample时需利用[`VK_SAMPLER_REDUCTION_MODE_MIN`](https://docs.vulkan.org/refpages/latest/refpages/source/VkSamplerReductionMode.html) （默认求平均）- 回忆我们的zbuffer是近1远0,因此每次采样取最小值。效果如图：
 
-![image-20251129104238884](/image-foundation/generated-mip-256-256.gif)
+![mip-256-256](/image-foundation/mip-256-256.gif)
 
 #### Two-Phase Occlusion Culling
 
