@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-30T20:20:50.654413
+lastmod: 2025-11-30T20:23:37.286848
 title: Foundation 施工笔记 【2】- GPU-Driven 管线及场景剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -478,7 +478,7 @@ $$
 
 - 第二次请不要清空GBuffer/ZBuffer - -
 
-- AABB投影还请参见[第一篇提及内容](https://mos9527.com/posts/foundation/nanite-in-the-land-of-foundation-pt-1/#%E9%94%99%E8%AF%AF%E6%8C%87%E6%A0%87)。这里利用的是 [Approximate projected bounds - Arseny Kapoulkine](https://zeux.io/2023/01/12/approximate-projected-bounds/)的实现；注意clip znear者直接pass（通过剔除）。**注意：**原文NDC到UV的转换是在Vulkan默认NDC进行的，而我们已经做了Y flip转换 - 这里需要处理。同时，我们的相机是默认看$-Z$的，x minmax需要调整，参下：
+- AABB投影还请参见[第一篇提及内容](https://mos9527.com/posts/foundation/nanite-in-the-land-of-foundation-pt-1/#%E9%94%99%E8%AF%AF%E6%8C%87%E6%A0%87)。这里利用的是 [Approximate projected bounds - Arseny Kapoulkine](https://zeux.io/2023/01/12/approximate-projected-bounds/)的实现；注意clip znear者直接pass（通过剔除）。**注意：**原文NDC到UV的转换是在Vulkan默认NDC进行的，而我们已经做了Y flip转换 - 这里需要注意最后xyzw调配和符号。
 
   ```glsl
   // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
@@ -507,8 +507,6 @@ $$
   	return true;
   }
   ```
-
-  
 
 - 两次pass遍历的meshlet单元是一样的（至少我的实现如此）。因此标记buffer可以选择不去刻意清空而选择`bitmask & (~(1u << bit))`置0，不过清空也很快。
 
@@ -562,7 +560,11 @@ if (cullOcclusion && visible) {
 
 ![image-20251129220147658](/image-foundation/image-20251129220147658.png)
 
-值得注意的是这里显然的假阴性：中间的一块正方形就没能被剔除掉。原因很显然，球体bounding box对大多数网格而言会是非常保守的——平面则是该类bbox的worst case。相反，对精细度高（如维纳斯）的网格，meshlet很小，在此效果更加显著。
+值得注意的是这里显然的假阴性：中间的一块正方形就没能被剔除掉。原因很显然，球体bounding box对大多数网格而言会是非常保守的——平面则是该类bbox的worst case。相反，对精细度高（如维纳斯）的网格，meshlet很小，在此效果更加显著。以下为 GLTF 样例模型 Sponza 的剔除效果（前/后）：
+
+![image-20251130202232032](/image-foundation/image-20251130202232032.png)
+
+![image-20251130202247582](/image-foundation/image-20251130202247582.png)
 
 ### 圆锥及背面剔除（Cone/Backface Culling）
 
