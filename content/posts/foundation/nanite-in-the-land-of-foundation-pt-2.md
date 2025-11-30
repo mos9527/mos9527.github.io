@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-30T12:36:22.586859
+lastmod: 2025-11-30T20:20:50.654413
 title: Foundation 施工笔记 【2】- GPU-Driven 管线及场景剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -487,7 +487,7 @@ $$
   {
       // f = 1 / tan(fovY / 2), a = aspect ratio
       // P00 = f/a, P11 = f
-  	if (c.z + r > zNear) // clipping near plane
+  	if (c.z + r > -zNear) // clipping near plane
   		return false;
   
   	float3 cr = c * r;
@@ -502,7 +502,7 @@ $$
   	float maxy = (vy * c.y + cr.z) / (vy * c.z - cr.y);
   
   	aabb = float4(minx * P00, miny * P11, maxx * P00, maxy * P11);
-  	aabb = aabb.xwzy * float4(-0.5f, 0.5f, -0.5f, 0.5f) + float4(0.5f); // OGL clip space -> uv space
+  	aabb = aabb.zyxw * float4(-0.5f, 0.5f, -0.5f, 0.5f) + float4(0.5f); // OGL clip space -> uv space
   
   	return true;
   }
