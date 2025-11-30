@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-29T23:06:39.078594
+lastmod: 2025-11-30T12:26:53.013724
 title: Foundation 施工笔记 【2】- GPU-Driven 管线及场景剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -456,7 +456,7 @@ $$
 
 #### HZB （Mip Chain）生成
 
-前文也有所提及 - 我们将对一张$2^n * 2^n$材质生成中间直到$1*1$的所有mip。在 DX 11 世代甚至有[相关 API](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-generatemips) 让驱动帮你干这个活，当然现代图形API中是见不到的。
+前文也有所提及 - 我们将对一张$2^w * 2^h$材质生成中间直到$1*1$的所有mip。在 DX 11 世代甚至有[相关 API](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-generatemips) 让驱动帮你干这个活，当然现代图形API中是见不到的。
 
 自己生成可以如前文所述，多次dispatch，每次将分辨率减半，重复到$1*1$为止；或者利用[FFXSPD](https://github.com/GPUOpen-Effects/FidelityFX-SPD)这样的高级发明单次dispatch搞定——省事起见先选择前者（）效果如下，注意：downsample时需利用[`VK_SAMPLER_REDUCTION_MODE_MIN`](https://docs.vulkan.org/refpages/latest/refpages/source/VkSamplerReductionMode.html) （默认求平均）- 回忆我们的zbuffer是近1远0,因此每次采样取最小值。效果如图：
 
@@ -477,8 +477,40 @@ $$
 实现上细节相当，相当多；值得注意的几点有：
 
 - 第二次请不要清空GBuffer/ZBuffer - -
-- AABB投影还请参见[第一篇提及内容](https://mos9527.com/posts/foundation/nanite-in-the-land-of-foundation-pt-1/#%E9%94%99%E8%AF%AF%E6%8C%87%E6%A0%87)。这里利用的是 [Approximate projected bounds - Arseny Kapoulkine](https://zeux.io/2023/01/12/approximate-projected-bounds/)的实现；注意clip znear者直接pass（通过剔除）。
+
+- AABB投影还请参见[第一篇提及内容](https://mos9527.com/posts/foundation/nanite-in-the-land-of-foundation-pt-1/#%E9%94%99%E8%AF%AF%E6%8C%87%E6%A0%87)。这里利用的是 [Approximate projected bounds - Arseny Kapoulkine](https://zeux.io/2023/01/12/approximate-projected-bounds/)的实现；注意clip znear者直接pass（通过剔除）。**注意：**原文NDC到UV的转换是在Vulkan默认NDC进行的，而我们已经做了Y flip转换 - 这里需要处理。
+
+  ```glsl
+  // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
+  // Returns (x1, y1, x2, y2) in UV space [0,1] from OpenGL NDC space
+  bool projSphereAABB(float3 c /* view */, float r /* scaled */, float P00, float P11, float zNear, out float4 aabb)
+  {
+      // f = 1 / tan(fovY / 2), a = aspect ratio
+      // P00 = f/a, P11 = f
+  	if (c.z + r > zNear) // clipping near plane
+  		return false;
+  
+  	float3 cr = c * r;
+  	float czr2 = c.z * c.z - r * r;
+  
+  	float vx = sqrt(c.x * c.x + czr2);
+  	float minx = (vx * c.x - cr.z) / (vx * c.z + cr.x);
+  	float maxx = (vx * c.x + cr.z) / (vx * c.z - cr.x);
+  
+  	float vy = sqrt(c.y * c.y + czr2);
+  	float miny = (vy * c.y - cr.z) / (vy * c.z + cr.y);
+  	float maxy = (vy * c.y + cr.z) / (vy * c.z - cr.y);
+  
+  	aabb = float4(minx * P00, miny * P11, maxx * P00, maxy * P11);
+  	aabb = aabb.xwzy * float4(0.5f, 0.5f, 0.5f, 0.5f) + float4(0.5f); // !! OpenGL clip space -> uv space
+  	return true;
+  }
+  ```
+
+  
+
 - 两次pass遍历的meshlet单元是一样的（至少我的实现如此）。因此标记buffer可以选择不去刻意清空而选择`bitmask & (~(1u << bit))`置0，不过清空也很快。
+
 - 假阴性（剔除过少）是不可避免的。但是假阳性（剔除过多）一定是你的实现有误——**最长边像素大小**请务必取得保守：比如[niagara](https://github.com/zeux/niagara)就采用了下取整到$2^n$的zbuffer大小做像素大小上界。
 
 Shader 核心部分参下：
