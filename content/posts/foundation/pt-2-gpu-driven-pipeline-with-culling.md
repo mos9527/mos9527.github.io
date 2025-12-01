@@ -589,6 +589,7 @@ Cone Culling 部分来自[`meshoptimizer`](https://meshoptimizer.org/)，以下�
 ## References
 
 - [Foundation](https://github.com/mos9527/Foundation/)
+- [Real-Time Rendering 4th Edition](https://www.realtimerendering.com/)
 - [glTF 2.0 Specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html)
 - [Attack of the depth buffer](https://mynameismjp.wordpress.com/2010/03/22/attack-of-the-depth-buffer/)
 - [Depth Precision Visualized](https://developer.nvidia.com/content/depth-precision-visualized)
