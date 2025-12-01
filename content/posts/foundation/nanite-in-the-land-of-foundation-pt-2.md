@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-30T20:25:06.822634
+lastmod: 2025-12-01T09:08:29.652712
 title: Foundation 施工笔记 【2】- GPU-Driven 管线及场景剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -512,6 +512,8 @@ $$
 
 - 假阴性（剔除过少）是不可避免的。但是假阳性（剔除过多）一定是你的实现有误——**最长边像素大小**请务必取得保守：比如[niagara](https://github.com/zeux/niagara)就采用了下取整到$2^n$的zbuffer大小做像素大小上界。
 
+- Sampler需要注意clamp to edge - 不然出屏幕边界的texel中心会读到垃圾数据。~~希望你有也一个周末的时间去debug~~。
+
 Shader 核心部分参下：
 
 ```glsl
@@ -583,4 +585,36 @@ Cone Culling 部分来自[`meshoptimizer`](https://meshoptimizer.org/)，以下�
 接下来在Mesh Shader环节，我们还可以进行逐三角形的**背面剔除/Backface Culling**：假设环绕方向逆时针，利用生成的三角形两边叉乘符号即可判断是否backface，设置`SV_CullPrimitive`决定剔除：这里是可以取代光栅器的cull mode的，不过读取变换后顶点也会产生一定开销，故暂时没有加入实现。
 
 效果图略。
+
+## References
+
+- [Foundation](https://github.com/mos9527/Foundation/)
+- [glTF 2.0 Specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html)
+- [Attack of the depth buffer](https://mynameismjp.wordpress.com/2010/03/22/attack-of-the-depth-buffer/)
+- [Depth Precision Visualized](https://developer.nvidia.com/content/depth-precision-visualized)
+- [Unreal Engine GPUScene](https://github.com/EpicGames/UnrealEngine/blob/release/Engine/Source/Runtime/Renderer/Private/GPUScene.h)
+- [Slang Pointers](https://shader-slang.org/slang/user-guide/convenience-features.html#:~:text=the%20source%20type.-,Pointers%20(limited),-Slang%20supports%20pointers)
+- [Vulkan Synchronization - SIGGRAPH 2021](https://www.lunarg.com/wp-content/uploads/2021/08/Vulkan-Synchronization-SIGGRAPH-2021.pdf)
+- [Vulkan Guide - Descriptor Dynamic Offset](https://docs.vulkan.org/guide/latest/descriptor_dynamic_offset.html)
+- [Slang ByteAddressBuffer](https://docs.shader-slang.org/en/latest/external/core-module-reference/types/byteaddressbuffer-04b/load-0.html#signature)
+- [DXC ByteAddressBuffer Load Store Additions](https://github.com/microsoft/DirectXShaderCompiler/wiki/ByteAddressBuffer-Load-Store-Additions)
+- [GPU-Driven Rendering Pipelines - Sebastian Aaltonen SIGGRAPH 2015](https://www.advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf)
+- [Task shader driver implementation on AMD HW - Timur](https://timur.hu/blog/2022/how-task-shaders-are-implemented)
+- [【技术精讲】AMD RDNA™ 显卡上的Mesh Shaders（一）： 从 vertex shader 到 mesh shader](https://zhuanlan.zhihu.com/p/691467498)
+- [Using Mesh Shaders for Professional Graphics - NVIDIA](https://developer.nvidia.com/blog/using-mesh-shaders-for-professional-graphics/)
+- [Vulkan Samples - mesh_shader_culling](https://github.com/KhronosGroup/Vulkan-Samples/tree/main/samples/extensions/mesh_shader_culling)
+- [cgltf](https://github.com/jkuhlmann/cgltf)
+- [zeux/niagara](https://github.com/zeux/niagara)
+- [HLSL Dynamic Resources](https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_DynamicResources.html)
+- [Slang Issue #4120](https://github.com/shader-slang/slang/issues/4120)
+- [Optimizing Parallel Reduction in CUDA - Mark Harris](https://developer.download.nvidia.cn/compute/cuda/1.1-Beta/x86_website/projects/reduction/doc/reduction.pdf)
+- [【技术精讲】AMD RDNA™ 显卡上的Mesh Shaders（二）：优化和最佳实践](https://zhuanlan.zhihu.com/p/691937933)
+- [FidelityFX-SPD](https://github.com/GPUOpen-Effects/FidelityFX-SPD)
+- [To EarlyZ or not to EarlyZ](https://therealmjp.github.io/posts/to-earlyz-or-not-to-earlyz/)
+- [Nanite A Deep Dive](https://advances.realtimerendering.com/s2021/Karis_Nanite_SIGGRAPH_Advances_2021_final.pdf)
+- [Approximate projected bounds - Arseny Kapoulkine](https://zeux.io/2023/01/12/approximate-projected-bounds/)
+- [meshoptimizer](https://meshoptimizer.org/)
+- [More (Robust) Frustum Culling - Bruno Opsenica](https://bruop.github.io/improved_frustum_culling/)
+- [fixing frustum culling - 2013 - Inigo Quilez](https://iquilezles.org/articles/frustumcorrect/)
+- [Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix](https://www.gamedevs.org/uploads/fast-extraction-viewing-frustum-planes-from-world-view-projection-matrix.pdf)
 
