@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-02T17:00:42.004162
+lastmod: 2025-12-02T17:08:59.175871
 title: Foundation 施工笔记 【3】- 原生 Profiling 及早期优化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -47,13 +47,15 @@ Query 类 API 覆盖率相当广泛 - [Vulkan (1.0+)](https://registry.khronos.o
 
 ![image-20251201110059390](/image-foundation/image-20251201110059390.png)
 
-### 可视化
+## Profiler UI
 
 值得注意的是，Pass的执行**开始**顺序一定，但**可能**不按该顺序完毕。也就是说，**即使**是在同一个queue上submit，收集到pass的时序是有可能“重叠”的——Queue上的执行并非线性！参见 [Ensure Correct Vulkan Synchronization by Using Synchronization Validation](https://www.lunarg.com/wp-content/uploads/2021/08/Vulkan-Synchronization-SIGGRAPH-2021.pdf)（下图）。
 
 ![image-20251202161527523](/image-foundation/image-20251202161527523.png)
 
 同时，**Foundation 支持Async Compute**。两个Queue只会增大“可能并行”的可能性，若存在则在一行内绘制profile时序一定会重叠 - 我们需要分行。
+
+### 区间分行
 
 事实上，这个问题很*典*：理解成启止时间已知进行一种**调度**，是否感觉更加熟悉？参见[区间调度问题](https://en.wikipedia.org/wiki/Interval_scheduling) —— OS课上学过的[最早截止时间调度](https://zh.wikipedia.org/wiki/%E6%9C%80%E6%97%A9%E6%88%AA%E6%AD%A2%E6%97%B6%E9%97%B4%E4%BC%98%E5%85%88%E8%B0%83%E5%BA%A6)，这里就可以用到。$O(n logn)$贪心解法如下：
 
@@ -118,4 +120,12 @@ int ImProfilerAssignLanes(Span<ImProfilerSample> samples)
 - `Present to Present` 则为帧时间，也用于计算 FPS 和 CPU/GPUΔ
 - GPU为完成所有command buffer的总用时
 
+### 效果
+
+效果如下。以下为开启Async Compute与关闭的时序表现：
+
 ![image-20251202165816737](/image-foundation/image-20251202165816737.png)
+
+![image-20251202170449485](/image-foundation/image-20251202170449485.png)
+
+当然，async compute带来的额外同步开销是不可避免的（注意图1中的“空白”部分）。同时在此工作*大多*串行，overlap效果被同步overhead抵消而反减——后期在pass更复杂，ALU/带宽工作分离程度更高时，优势将更加“显然”。
