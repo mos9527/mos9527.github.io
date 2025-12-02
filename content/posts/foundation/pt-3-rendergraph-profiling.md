@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-02T17:10:37.351492
+lastmod: 2025-12-02T17:11:25.105950
 title: Foundation 施工笔记 【3】- 原生 Profiling 及早期优化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -11,9 +11,7 @@ typora-root-url: ../../../static/
 
 ## Preface
 
-[上一篇](https://mos9527.com/posts/foundation/pt-2-gpu-driven-pipeline-with-culling/)后，我们*几乎*拥有了一个非常高效且“所见即所得”的 GPU 渲染管线。不过，特别地，对于**遮蔽剔除**，可以注意到非平凡的额外开销。
-
-很显然，原实现是亟须优化的。当然，GPU侧，NV/AMD 也早有了非常成熟的工具链，即[NVIDIA Nsight Graphics](https://developer.nvidia.com/nsight-graphics)，[Radeon™ Developer Tool Suite](https://gpuopen.com/news/introducing-radeon-developer-tool-suite/)。CPU侧自己也很早集成了[tracy profiler](https://github.com/wolfpld/tracy)。但这些都离不开第三方工具的加持 - 接下来将介绍一些“引擎”内的profile手段，和利用它们及官方工具降低culling带来的overhead。
+上一篇的实现仅仅是POC的水平，亟须优化。工具上，NV/AMD 也早有了非常成熟的toolchain，即[NVIDIA Nsight Graphics](https://developer.nvidia.com/nsight-graphics)，[Radeon™ Developer Tool Suite](https://gpuopen.com/news/introducing-radeon-developer-tool-suite/)。CPU侧自己也很早集成了[tracy profiler](https://github.com/wolfpld/tracy)：但这些都离不开第三方工具的加持 - 接下来将介绍一些“引擎”内的profile手段，和利用它们及官方工具降低culling带来的overhead。
 
 ## Timestamp Queries
 
