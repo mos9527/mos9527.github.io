@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-02T17:08:59.175871
+lastmod: 2025-12-02T17:10:37.351492
 title: Foundation 施工笔记 【3】- 原生 Profiling 及早期优化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -86,7 +86,7 @@ int ImProfilerAssignLanes(Span<ImProfilerSample> samples)
 
 ![image-20251202162600175](/image-foundation/image-20251202162600175.png)
 
-但是**注意**。GPU内能够Overlap的工作是不会*太多*的：barrier等等都将限制能够并行的pass数量，也就是**行数**。如上图，也只有`Clear Overdraw..`和async compute部分的工作重在了一起。我们不妨考虑一下的贪心做法。这里，我们将尽可能向更早期的行加入区间：
+但是**注意**。GPU内能够Overlap的工作是不会*太多*的：barrier等等都将限制能够并行的pass数量，也就是**行数**。如上图，也只有`Clear Overdraw..`和async compute部分的工作重在了一起。我们不妨考虑一下*另一种*贪心做法。这里，我们将尽可能向更早期的行加入区间：
 
 ```c++
 int ImProfilerAssignLanes(Span<ImProfilerSample> samples)
