@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-03T11:12:50.903856
+lastmod: 2025-12-03T21:20:52.771743
 title: Foundation 施工笔记 【3】- 原生 Profiling 及早期优化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -128,6 +128,10 @@ int ImProfilerAssignLanes(Span<ImProfilerSample> samples)
 
 当然，async compute带来的额外同步开销是不可避免的（注意图1中的“空白”部分）。同时在此工作*大多*串行，overlap效果被同步overhead抵消而反减——后期在pass更复杂，ALU/带宽工作分离程度更高时，优势将更加“显然”。
 
+额外的，还有标配直方图等统计量。实现上很粗暴：环形缓冲+排序+binning。注意时间轴使用了$log_{10}$缩放：这里和[`tracy`](https://github.com/wolfpld/tracy) 一致。
+
+![image-20251203212038626](/image-foundation/image-20251203212038626.png)
+
 ## Cull Indices
 
 SM6.0加入的[Wave Intrinsics](https://github.com/Microsoft/DirectXShaderCompiler/wiki/Wave-Intrinsics)允许我们直接且*全平台*地利用GPU的SIMD潜力来构建高并发，低抢占的现代compute shader。（还有PS/fragment可用的 quad wave - 这里暂时不提）
@@ -208,3 +212,10 @@ DispatchMesh(shared.meshletCount,1,1,shared);
 
 `DispatchMesh`本身也包含一次barrier；注意到LDS实现中前一句也因此多余，上文wave实现中也因此没有额外同步。
 
+### 结果
+
+LDS和Wave实现的时序图如下，前后顺序对应。在AMD硬件和WorkGroup大小为64时，提升并不明显。
+
+![image-20251203211743470](/image-foundation/image-20251203211743470.png)
+
+![image-20251203211120058](/image-foundation/image-20251203211120058.png)
