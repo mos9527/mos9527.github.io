@@ -1,7 +1,7 @@
 ---
 author: mos9527
-lastmod: 2025-11-22T14:53:00.847915
-title: Foundation 施工笔记 【1】- Mesh Shader 和自适应 LOD
+lastmod: 2025-12-05T12:55:25.542835
+title: Foundation 施工笔记 【1】- Mesh Shader 自适应 LOD
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
 ShowToc: true
