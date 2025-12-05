@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-04T23:14:34.140884
+lastmod: 2025-12-05T09:34:53.731977
 title: Foundation 施工笔记 【3】- 内置 Profiler 及部分优化技巧
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -323,10 +323,9 @@ result.position[2] = quantizeFP16(vertex.position[2]);
 
 若值域已知，用定点方式表示浮点数也是很常见的有损压缩技巧——Unity对蒙皮权重就有这样的操作。特别地，对于值域在$[0,1]$ (UNROM) ,$[-1,1]$ (SNORM)的数而言，我们可以直接省去值域本身的存储：毕竟就在名字("Unsigned Normal","Signed Normal") 里嘛。
 
-这两者实现上非常直觉：$\text{数值}*\text{值域区间}$ 即得到量化后数值，反过来也很简单。实现（及SNORM以UNORM无符号存储变式 `[de]quantizeSnormShifted`）如下，$N$为量化bit数：
+这两者实现上非常直觉：$\text{数值}*\text{值域区间}$ 即得到量化后数值，反过来也很简单。实现（及SNORM以UNORM无符号存储变式 `[de]quantizeSnormShifted`）如下，$N$为量化bit数
 
 ```c++
-
 inline uint32_t quantizeUnorm(float v, int32_t N)
 {
     const auto scale = static_cast<float>((1 << N) - 1);
@@ -354,7 +353,7 @@ inline float dequantizeSnormShifted(uint32_t q, int32_t Nbits)
 }
 ```
 
-应用上，UV坐标就属于UNORM的范畴。现在先不谈法向量(normal)，切向量(tagent)：他们确实可以直接用SNORM表达，你也可以这么做！不过后面会介绍一些更为奇技淫巧™且更高效的方案。
+应用上，UV坐标就属于UNORM的范畴。现在先不谈法向量(normal)，切向量(tagent)：他们（规范化为单位向量时）确实可以直接用SNORM表达，你也可以这么做！不过后面会介绍一些更为奇技淫巧™且更高效的方案。
 
 ```c++
 uint16_t uv[2]; // quantized UNORM16
@@ -364,5 +363,61 @@ result.uv[1] = quantizeUnorm(vertex.uv[1], 16);
 ```
 
 ### 法向量/TBN 量化
+
+高效法向量存储是个热门话题：延后（Deferred）渲染流行以来：因有在GBuffer存储法向量的必要，且内存有限，能够高效存储法线/切线/TBN(Tangent-Bitangent-Normal)矩阵做bump map是很值得追求的一个目标。
+
+正如前文所述，对于单位的normal，tagent：定点量化也是一种选择。其他更为高效的选项也存在，参考：
+
+- [Compact Normal Storage for small G-Buffers - Aras Pranckevičius](https://aras-p.info/texts/CompactNormalStorage.html)
+
+这里只介绍其中部分的几个方案。
+
+#### 单位向量投影
+
+规范化的**三维**单位向量可以投影到某种**二维**坐标表示。更熟悉地，问题可以描述为：在**球坐标系**，规范长度为$1$时，就能用仅极角，方位角表示单位长度的所有向量。
+
+不过注意，三角函数的执行是可能昂贵的——而且，往往在shader code中可以**完全**避免：iq大佬的这三篇博文非常值得拜读：
+
+- [Avoiding trigonometry I](https://iquilezles.org/articles/noacos)
+- [Avoiding trigonometry II](https://iquilezles.org/articles/sincos)
+- [Avoiding trigonometry III](https://iquilezles.org/articles/noatan)
+
+参考 [Survey of Efficient Representations for Independent Unit Vectors - 2. 3D Unit Vector Representations](https://jcgt.org/published/0003/02/01/)，我们刚刚描述的正为其中**spherical**方案。除了计算需要三角函数，这样的朴素算法的误差也是很不理想的。
+
+![image-20251205084118183](/image-foundation/image-20251205084118183.png)
+
+文中的**oct**方案，也就是**八面体**，则被认为是"Best overall method"。以下为原论文中的参考实现：
+
+```glsl
+// Returns ±1
+vec2 signNotZero(vec2 v) {
+	return vec2((v.x >= 0.0) ? +1.0 : -1.0, (v.y >= 0.0) ? +1.0 : -1.0);
+}
+// Assume normalized input. Output is on [-1, 1] for each component.
+vec2 float32x3_to_oct(in vec3 v) {
+    // Project the sphere onto the octahedron, and then onto the xy plane
+    vec2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + abs(v.z)));
+    // Reflect the folds of the lower hemisphere over the diagonals
+    return (v.z <= 0.0) ? ((1.0 - abs(p.yx)) * signNotZero(p)) : p;
+}
+vec3 oct_to_float32x3(vec2 e) {
+    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+    if (v.z < 0) v.xy = (1.0 - abs(v.yx)) * signNotZero(v.xy);
+    return normalize(v);
+}
+```
+
+对单位法向量，我们选择了利用10bit存储投影后SNORM值。该部分实现如下：注意`shifted`，我们存储时并不处理符号。
+
+```c++
+float2 oct = PackUnitOctahedralSnorm(normal);
+uint32_t nX = quantizeSnormShifted(oct.x, 10), nY = quantizeSnormShifted(oct.y, 10);
+```
+
+### 切向量表示
+
+如果要做normal/bump mapping的话，完整的TBN基底是少不了的。$\mathbf{t}$的具体编码取决于构建资产的工具本身：参考 [Tangent Space Normal Maps - Blender Wiki](https://archive.blender.org/wiki/2015/index.php/Dev:Shading/Tangent_Space_Normal_Maps/)。幸运的是，当下应用一般采用同一种“标准”（包括glTF，Blender，Unity，UE等等），即 [MikkTSpace](http://www.mikktspace.com/)。
+
+**注：**参考 [Surface Gradient–Based Bump Mapping Framework - Mikkelsen 2020](https://jcgt.org/published/0009/03/04/) ，[Surface Gradient Bump Mapping Framework Overview - jeremyong](https://www.jeremyong.com/graphics/2023/12/16/surface-gradient-bump-mapping/) - 在硬件上**在线**计算也是可能的：接下来将整理该方向实现的一些shader及数学细节。
 
 TBD
