@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-05T17:53:57.254786
+lastmod: 2025-12-05T17:54:28.256271
 title: Foundation 施工笔记 【4】- 网格数据量化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -296,7 +296,7 @@ inline void BuildOrthonormalBasis(const float3 n, float3& b1, float3& b2)
 }
 ```
 
-不过，直接利用这些基底直接做bump map是不正确的——理由已在前文给出：法线贴图取决于烘焙到的tangent space，若要保持他们一致，则烘焙时和在线的结果也许一样：这很难做。但是知道**多**不正确，或者用他们如何**重构**$\mathbf{t}, \mathbf{b}$，则是很好做的一件事：$\mathbf{t}$投影即可。
+不过，直接利用这些基底直接做bump map是不正确的——理由已在前文给出：法线贴图取决于烘焙到的tangent space，若要保持他们一致，则烘焙时和在线的结果也许一样：这很难做。但是知道**多**不正确，或者用他们如何**重构**$\mathbf{t}, \mathbf{b}$，则是很好做的一件事：$\mathbf{t}$投影即可。朴素设计三角函数的实现如下：
 
 ```c++
 float3 b1, b2;
