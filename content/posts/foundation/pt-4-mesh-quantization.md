@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-05T17:57:14.172635
+lastmod: 2025-12-05T19:52:54.385925
 title: Foundation 施工笔记 【4】- 网格数据量化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -26,13 +26,13 @@ struct FVertex
 static_assert(sizeof(FVertex) == 48);
 ```
 
-### FP16 量化
+## FP16 量化
 
 现代硬件基本都有硬件级别的 FP16（半精度）支持。业界包括 Unity 在内在存储顶点数据时也提供了[烘焙部分通道（vertices/normals/...）为该精度](https://docs.unity3d.com/6000.2/Documentation/Manual/types-of-mesh-data-compression.html#vertex-compression)的选项，实现上这也比较简单。
 
 CPU，或者C++侧对有限精度浮点数的支持一直以来并不友好 - 毕竟硬件级相关指令在AVX512才有。在[C++23](https://en.cppreference.com/w/cpp/types/floating-point.html)中才有了语言级别的`float16/float64/float128`甚至是`bfloat16`的支持——鉴于某M姓编译器对23标准的支持仍是draft，暂时不考虑升级标准支持这些特性。
 
-当然，手动进行FP32-FP16转化是可能的。全精度和半精度的二进制结构都在[IEEE 754]中定义了几十年，标准上不存在问题。以下转换实现再次来自[`meshoptimizer`](https://github.com/zeux/meshoptimizer/blob/master/src/quantization.cpp)：
+当然，手动进行FP32-FP16转化是可能的。全精度和半精度的二进制结构都在IEEE 754中定义了几十年，标准上不存在问题。以下转换实现再次来自[`meshoptimizer`](https://github.com/zeux/meshoptimizer/blob/master/src/quantization.cpp)：
 
 ```c++
 union FloatBits
@@ -85,7 +85,7 @@ result.position[2] = quantizeFP16(vertex.position[2]);
 
 **注意：** 这里最后存在2字节的填充$w$。目的在于让最后整个vertex的大小为$4$的倍数——结构体中最大field的大小，且同时`meshoptmizer`也会利用$4$对齐的属性提供一些操作的SIMD加速。
 
-### 定点量化
+## 定点量化
 
 若值域已知，用定点方式表示浮点数也是很常见的有损压缩技巧——Unity对蒙皮权重就有这样的操作。特别地，对于值域在$[0,1]$ (UNROM) ,$[-1,1]$ (SNORM)的数而言，我们可以直接省去值域本身的存储：毕竟就在名字("Unsigned Normal","Signed Normal") 里嘛。
 
@@ -128,17 +128,15 @@ result.uv[0] = quantizeUnorm(vertex.uv[0], 16);
 result.uv[1] = quantizeUnorm(vertex.uv[1], 16);
 ```
 
-### 法向量 (Normal) 及切向量 (Tangent) 压缩
+## 法向量 (Normal) 及切向量 (Tangent) 压缩
 
 高效法向量存储是个热门话题：延后（Deferred）渲染流行以来：因有在GBuffer存储法向量的必要，且内存有限，能够高效存储法线/切线/TBN(Tangent-Bitangent-Normal)矩阵做bump map是很值得追求的一个目标。
 
-正如前文所述，对于单位的normal，tagent：定点量化也是一种选择。其他更为高效的选项也存在，参考：
+正如前文所述，对于单位的normal，tagent：定点量化也是一种选择。不过对于单位向量而言，我们的压缩策略是很多的——参考[Compact Normal Storage for small G-Buffers - Aras Pranckevičius](https://aras-p.info/texts/CompactNormalStorage.html)这篇老文章。
 
-- [Compact Normal Storage for small G-Buffers - Aras Pranckevičius](https://aras-p.info/texts/CompactNormalStorage.html)
+这里介绍几种自己实现过的**三种**比较有趣的packing方案——这里实际应用的为最后一个，故前面细节会较少，还请见谅。
 
-这里只介绍其中部分的几个方案。
-
-#### 单位向量投影
+### 单位向量投影
 
 方案之一的idea来自：规范化的**三维**单位向量可以投影到某种**二维**坐标表示。更熟悉地，问题可以描述为：在**球坐标系**，规范长度为$1$时，就能用仅极角，方位角表示单位长度的所有向量。
 
@@ -175,13 +173,13 @@ vec3 oct_to_float32x3(vec2 e) {
 
 直接应用于法向量，切向量的确是一种方案；最后有相关shadertoy演示有限bit数量化后压缩效果：[传送门](https://www.shadertoy.com/view/Mtfyzl)。可见即使在较低量化空间下，视觉效果也是可观的。
 
-#### 四元数存储
+### 四元数存储
 
 不过，如果要做normal/bump mapping的话，完整的TBN/切空间基底是少不了的。
 
 注意切空间和法线贴图的关系并没有绝对的标准（参见 [Tangent Space Normal Maps - Blender Wiki](https://archive.blender.org/wiki/2015/index.php/Dev:Shading/Tangent_Space_Normal_Maps/)），一个法向量*可以*对应无穷多的切向量。不过包括 glTF，Blender，Unity，UE在内基本都在用的是 [MikkTSpace](http://www.mikktspace.com/)，大多数法线贴图也是于这里提供的切空间烘焙——同时因为关系非1:1,一般地，拥有法线贴图的网格也的顶点会离线存储这样的切向量以确保正确性。
 
-##### Bitangent 符号
+#### Bitangent 符号
 
 一个常见trick即为离线存储时，只存储$\mathbf{n}, \mathbf{t}$和一个符号量：应为共面，$\mathbf{b}$即为$\mathbf{n} \mathbf{t}$叉乘，并做这样的翻转。glTF也是这么做的：
 
@@ -193,7 +191,7 @@ vec3 oct_to_float32x3(vec2 e) {
 
 假设完整精度直接存储，我们的tangent frame这样需要$4*(3+4)=28$字节。当然上述的投影+量化技巧也值得应用，不过原理上并没有新东西，这里不阐述。
 
-##### 四元数压缩
+#### 四元数压缩
 
 其实直接间看矩阵形式：定义$\mathbf{TBN}$矩阵是个3x3的正交阵（一般如此，例外情况则需要正交化处理）——相当于旋转矩阵，这是可以直接用四元数表示的。在`glm`中可以直接利用`mat3_cast`和`quat_cast`相互转换。
 
@@ -267,7 +265,7 @@ inline quat unpackQuaternionXYZPositionBit(float4 const& packed)
 }
 ```
 
-#### 法向量 + 切向量旋转量
+### 法向量 + 切向量旋转量
 
 ![image-20251205173111991](/image-foundation/image-20251205173111991.png)
 
