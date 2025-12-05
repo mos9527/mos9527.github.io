@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-05T13:17:53.077899
+lastmod: 2025-12-05T17:53:57.254786
 title: Foundation 施工笔记 【4】- 网格数据量化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -128,7 +128,7 @@ result.uv[0] = quantizeUnorm(vertex.uv[0], 16);
 result.uv[1] = quantizeUnorm(vertex.uv[1], 16);
 ```
 
-### 法向量/TBN 量化
+### 法向量 (Normal) 及切向量 (Tangent) 压缩
 
 高效法向量存储是个热门话题：延后（Deferred）渲染流行以来：因有在GBuffer存储法向量的必要，且内存有限，能够高效存储法线/切线/TBN(Tangent-Bitangent-Normal)矩阵做bump map是很值得追求的一个目标。
 
@@ -140,9 +140,9 @@ result.uv[1] = quantizeUnorm(vertex.uv[1], 16);
 
 #### 单位向量投影
 
-规范化的**三维**单位向量可以投影到某种**二维**坐标表示。更熟悉地，问题可以描述为：在**球坐标系**，规范长度为$1$时，就能用仅极角，方位角表示单位长度的所有向量。
+方案之一的idea来自：规范化的**三维**单位向量可以投影到某种**二维**坐标表示。更熟悉地，问题可以描述为：在**球坐标系**，规范长度为$1$时，就能用仅极角，方位角表示单位长度的所有向量。
 
-不过注意，三角函数的执行是可能昂贵的——而且，往往在shader code中可以**完全**避免：iq大佬的这三篇博文非常值得拜读：
+不过注意，三角函数的执行是可能昂贵的——而且，往往在shader code中可以**完全**避免。这里可阅读iq大佬的这三篇博文：
 
 - [Avoiding trigonometry I](https://iquilezles.org/articles/noacos)
 - [Avoiding trigonometry II](https://iquilezles.org/articles/sincos)
@@ -173,17 +173,139 @@ vec3 oct_to_float32x3(vec2 e) {
 }
 ```
 
-对单位法向量，我们选择了利用10bit存储投影后SNORM值。该部分实现如下：注意`shifted`，我们存储时并不处理符号。
+直接应用于法向量，切向量的确是一种方案；最后有相关shadertoy演示有限bit数量化后压缩效果：[传送门](https://www.shadertoy.com/view/Mtfyzl)。可见即使在较低量化空间下，视觉效果也是可观的。
+
+#### 四元数存储
+
+不过，如果要做normal/bump mapping的话，完整的TBN/切空间基底是少不了的。
+
+注意切空间和法线贴图的关系并没有绝对的标准（参见 [Tangent Space Normal Maps - Blender Wiki](https://archive.blender.org/wiki/2015/index.php/Dev:Shading/Tangent_Space_Normal_Maps/)），一个法向量*可以*对应无穷多的切向量。不过包括 glTF，Blender，Unity，UE在内基本都在用的是 [MikkTSpace](http://www.mikktspace.com/)，大多数法线贴图也是于这里提供的切空间烘焙——同时因为关系非1:1,一般地，拥有法线贴图的网格也的顶点会离线存储这样的切向量以确保正确性。
+
+##### Bitangent 符号
+
+一个常见trick即为离线存储时，只存储$\mathbf{n}, \mathbf{t}$和一个符号量：应为共面，$\mathbf{b}$即为$\mathbf{n} \mathbf{t}$叉乘，并做这样的翻转。glTF也是这么做的：
+
+| Name         | Accessor Type(s) | Component Type(s)                                            | Description                                                  |
+| :----------- | :--------------- | :----------------------------------------------------------- | :----------------------------------------------------------- |
+| `POSITION`   | VEC3             | *float*                                                      | Unitless XYZ vertex positions                                |
+| `NORMAL`     | VEC3             | *float*                                                      | Normalized XYZ vertex normals                                |
+| `TANGENT`    | VEC4             | *float*                                                      | XYZW vertex tangents where the XYZ portion is normalized, **and the W component is a sign value (-1 or +1) indicating handedness of the tangent basis** |
+
+假设完整精度直接存储，我们的tangent frame这样需要$4*(3+4)=28$字节。当然上述的投影+量化技巧也值得应用，不过原理上并没有新东西，这里不阐述。
+
+##### 四元数压缩
+
+其实直接间看矩阵形式：定义$\mathbf{TBN}$矩阵是个3x3的正交阵（一般如此，例外情况则需要正交化处理）——相当于旋转矩阵，这是可以直接用四元数表示的。在`glm`中可以直接利用`mat3_cast`和`quat_cast`相互转换。
+
+该操作在 [Bindless Texturing for Deferred Rendering and Decals - MJP](https://therealmjp.github.io/posts/bindless-texturing-for-deferred-rendering-and-decals), [压缩tangent frame - KlayGE](http://www.klayge.org/2012/09/21/%e5%8e%8b%e7%bc%a9tangent-frame/)中都有提及。不过注意，直接存储四元数$(xyzw)$也是很浪费的（$4*4=16$字节！)。不过值得注意的是，我们的四元数也是**单位**四元数，即$x^2+y^2+z^2+w^2=1$。两篇文章都提到了如何利用该性质$4$字节完成四元数存储的任务，接下来将介绍**四元数压缩**的一种高精度实现。
+
+KlayGE直接利用$A2BGR10$格式存储了$x,y,z$部分，最后$A$记录$w = \pm\sqrt{1-x^2-y^2-z^2}$的符号。不过，精度上的优化空间是可循的：MJP文章引用的[The BitSquid low level animation system](https://bitsquid.blogspot.com/2009/11/bitsquid-low-level-animation-system.html)用$A$去记录**四个分量中绝对值最大的分量【位置】**。原因引用原作者：
+
+> ...You could use arithmetic encoding to store x, y and z using 10.67 bits per component for the range -1, 1 and this would give you slightly better precision for these values.
+The problem comes when you want to reconstruct w using sqrt(1-x^2-y^2-z^2) because that function is numerically unstable for small w.
+Have a look at this graph:
+https://www.desmos.com/calculator/nfdbj0law4
+Below w=0.5 the error starts to become bigger than the error (0.001) in the input values and as we get closer to zero the error becomes a lot bigger (0.03).
+
+文中graph如下，对应$\sqrt{w^{2}+0.001}-w$：可见$w<0.5$之后的计算误差增长非常快。去重构*绝对值最大值*而非*可能*最小的$w$即可以避免这种数值误差。
+
+![image-20251205163112243](/image-foundation/image-20251205163112243.png)
+
+另外，一个实现细节在于：$q=(x,y,z,w)$与$-q=(-x,-y,-z,-w)$表示的是同一个变换。我们可以借此简化之前的$w$意义为**四个分量中最大的分量【位置】**，包括符号：这建立在若绝对值最大分量为负，则全体取反的基础上。
+
+结合以上信息，以下为**四元数压缩**的具体实现——参考 [TheRealMJP/DeferredTexturing](https://github.com/TheRealMJP/DeferredTexturing/blob/master/SampleFramework12/v1.01/Shaders/Quaternion.hlsl)。稍作修改即可适用slang shader。
 
 ```c++
-float2 oct = PackUnitOctahedralSnorm(normal);
-uint32_t nX = quantizeSnormShifted(oct.x, 10), nY = quantizeSnormShifted(oct.y, 10);
+// Packs quaternion to [UNORM XYZ, 2-bit max index]
+inline float4 packQuaternionXYZPositionBit(quat const& q)
+{
+    float4 Q(q.x, q.y, q.z, q.w);
+    float4 absQ(abs(Q.x), abs(Q.y), abs(Q.z), abs(Q.w));
+    float absMax = max(max(absQ.x, absQ.y), max(absQ.z, absQ.w));
+    uint maxIndex = 0;
+    if (absQ[0] == absMax)
+        maxIndex = 0;
+    if (absQ[1] == absMax)
+        maxIndex = 1;
+    if (absQ[2] == absMax)
+        maxIndex = 2;
+    if (absQ[3] == absMax)
+        maxIndex = 3;
+    if (Q[maxIndex] < 0) // ensure positive
+        Q = -Q;
+    float3 packed;
+    if (maxIndex == 0)
+        packed = Q.yzw();
+    if (maxIndex == 1)
+        packed = Q.xzw();
+    if (maxIndex == 2)
+        packed = Q.xyw();
+    else /* maxIndex == 3 */
+        packed = Q.xyz();
+    packed *= sqrt(2.0f); // e.g. (1,0,0,1), max bounds
+    packed = packed * 0.5f + 0.5f; // [-1,1] -> [0,1]
+    return float4(packed, maxIndex / 3.0f);
+}
+
+// Unpacks quaternion from [UNORM XYZ, 2-bit max index] to quat
+inline quat unpackQuaternionXYZPositionBit(float4 const& packed)
+{
+    uint maxIndex = packed.w * 3.0f;
+    float3 p = packed.xyz() * 2.0f - 1.0f; // [0,1] -> [-1,1]
+    p /= sqrt(2.0f);
+    float4 Q;
+    float maxValue = sqrt(max(.0f, 1 - p.x * p.x - p.y * p.y - p.z * p.z));
+    if (maxIndex == 0)
+        Q = float4(maxValue, p.xyz);
+    else if (maxIndex == 1)
+        Q = float4(p.x, maxValue, p.yz);
+    else if (maxIndex == 2)
+        Q = float4(p.xy, maxValue, p.z);
+    else /* maxIndex == 3 */
+        Q = float4(p.xyz, maxValue);
+    return quat(Q.x, Q.y, Q.z, Q.w);
+}
 ```
 
-### 切向量表示
+#### 法向量 + 切向量旋转量
 
-如果要做normal/bump mapping的话，完整的TBN基底是少不了的。$\mathbf{t}$的具体编码取决于构建资产的工具本身：参考 [Tangent Space Normal Maps - Blender Wiki](https://archive.blender.org/wiki/2015/index.php/Dev:Shading/Tangent_Space_Normal_Maps/)。幸运的是，当下应用一般采用同一种“标准”（包括glTF，Blender，Unity，UE等等），即 [MikkTSpace](http://www.mikktspace.com/)。
+![image-20251205173111991](/image-foundation/image-20251205173111991.png)
 
-**注：**参考 [Surface Gradient–Based Bump Mapping Framework - Mikkelsen 2020](https://jcgt.org/published/0009/03/04/) ，[Surface Gradient Bump Mapping Framework Overview - jeremyong](https://www.jeremyong.com/graphics/2023/12/16/surface-gradient-bump-mapping/) - 在硬件上**在线**计算也是可能的：接下来将整理该方向实现的一些shader及数学细节。
+idea来自[RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://advances.realtimerendering.com/s2020/RenderingDoomEternal.pdf)。思想上和之前的四元数方案有些异曲同工之妙：$\mathbf{n} \cdot \mathbf{t} = 0$是一定的。那不妨在法线所在平面内构造**运行时**某种正交基，我们的$\mathbf{t}$一定和他们共面：用这两个向量基底构建他就好。
+
+法向量**在线**构造正交基的方法很多，参考：
+
+- [Followup: Normal Mapping Without Precomputed Tangents](http://www.thetenthplanet.de/archives/1180)
+- [Surface Gradient Bump Mapping Framework Overview](https://www.jeremyong.com/graphics/2023/12/16/surface-gradient-bump-mapping/) 及 [Surface Gradient–Based Bump Mapping Framework](https://jcgt.org/published/0009/03/04/)
+- [Tangent-basis workflow for getting 100% correct normal-mapping #1252 - KhronosGroup/glTF](https://github.com/KhronosGroup/glTF/issues/1252)
+
+最简单且快速的一种来自[Building an Orthonormal Basis from a 3D Unit Vector Without Normalization - Frisvad, 2012](https://backend.orbit.dtu.dk/ws/portalfiles/portal/126824972/onb_frisvad_jgt2012_v2.pdf)，他在 [UE](https://github.com/EpicGames/UnrealEngine/blob/684b4c133ed87e8050d1fdaa287242f0fe2c1153/Engine/Source/Runtime/MeshUtilitiesCommon/Public/MeshUtilitiesCommon.h#L102) 中也能见到。以下为简化实现：
+```c++
+inline void BuildOrthonormalBasis(const float3 n, float3& b1, float3& b2)
+{
+    if (n.z < -0.9999999)
+    {
+        b1 = float3(0.0, -1.0, 0.0);
+        b2 = float3(-1.0, 0.0, 0.0);
+        return;
+    }
+    float a = 1.0 / (1.0 + n.z);
+    float b = -n.x * n.y * a;
+    b1 = float3(1.0 - n.x * n.x * a, b, -n.x);
+    b2 = float3(b, 1.0 - n.y * n.y * a, -n.y);
+}
+```
+
+不过，直接利用这些基底直接做bump map是不正确的——理由已在前文给出：法线贴图取决于烘焙到的tangent space，若要保持他们一致，则烘焙时和在线的结果也许一样：这很难做。但是知道**多**不正确，或者用他们如何**重构**$\mathbf{t}, \mathbf{b}$，则是很好做的一件事：$\mathbf{t}$投影即可。
+
+```c++
+float3 b1, b2;
+BuildOrthonormalBasis(normal, b1, b2);
+// To angle
+float cosAngle = dot(tangent, b1), sinAngle = dot(tangent, b2);
+float angle = atan2(sinAngle, cosAngle) / pi<float>();
+// From angle
+tangent = cos(angle) * b1 + sin(angle) * b2;    
+```
 
 TBD
