@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-05T17:54:28.256271
+lastmod: 2025-12-05T17:57:14.172635
 title: Foundation 施工笔记 【4】- 网格数据量化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -242,7 +242,7 @@ inline float4 packQuaternionXYZPositionBit(quat const& q)
         packed = Q.xyw();
     else /* maxIndex == 3 */
         packed = Q.xyz();
-    packed *= sqrt(2.0f); // e.g. (1,0,0,1), max bounds
+    packed *= sqrt(2.0f); // e.g. 45deg, max bounds
     packed = packed * 0.5f + 0.5f; // [-1,1] -> [0,1]
     return float4(packed, maxIndex / 3.0f);
 }
