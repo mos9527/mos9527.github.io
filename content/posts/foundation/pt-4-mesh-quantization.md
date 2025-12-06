@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T18:34:14.970416
+lastmod: 2025-12-06T19:05:48.672381
 title: Foundation 施工笔记 【4】- 网格数据量化及压缩
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -371,15 +371,15 @@ outTangent = cosAngle * b1 + sinAngle * b2;
 
 ![image-20251206094116091](/image-foundation/image-20251206094116091.png)
 
-其实，回顾之前的八面体投影——我们不妨给$\mathbb{R^2}$的单位圆做同样的事情：$\mathbf{L_1}$范式下的单位圆即上图。实现如下，我们将单位圆上的坐标$(x,y)$投影到$x$轴上，符号和之前一样代表象限。
+其实，回顾之前的八面体投影——我们不妨给$\mathbb{R^2}$的单位圆做同样的事情：$\mathbf{L_1}$范式下的单位圆即上图。实现如下，和之前一样——我们将$\mathbf{L_1}$单位圆上的坐标投影到$x$轴上，不同的是这里符号直接代表$y$象限。
 
 ```c++
-// R2, L1 to L2 projection on unit circle
+// R2, L2 to L1 projection on unit circle
 float packUnitCircleSnorm(float2 v){
     v /= fabsf(v.x) + fabsf(v.y);
     return v.y >= EPS ? (v.x + 1.0f) * 0.5f : -(v.x + 1.0f) * 0.5f;
 }
-// R2, L2 to L1 projection on unit circle
+// R2, L1 to L2 projection on unit circle
 float2 unpackUnitCircleSnorm(float v){
     float x = fabsf(v) * 2.0f - 1.0f;
     float y = 1.0f - fabsf(x);
@@ -387,7 +387,7 @@ float2 unpackUnitCircleSnorm(float v){
 }
 ```
 
-应用到tangent角度编码如下：https://seblagarde.wordpress.com/2014/12/01/inverse-trigonometric-functions-gpu-optimization-for-amd-gcn-architecture/
+应用到tangent角度编码如下：
 
 ```c++
 float3 b1, b2;
@@ -485,12 +485,12 @@ float3 unpackUnitOctahedralSnorm(float2 v)
     float2 xy = nor.z >= EPS ? v.xy() : (float2(1.0f) - abs(float2(v.yx()))) * sign(float2(v.xy() + EPS));
     return normalize(float3(xy.x, xy.y, nor.z));
 }
-// R2, L1 to L2 projection on unit circle
+// R2, L2 to L1 projection on unit circle
 float packUnitCircleSnorm(float2 v){
     v /= fabsf(v.x) + fabsf(v.y);
     return v.y >= EPS ? (v.x + 1.0f) * 0.5f : -(v.x + 1.0f) * 0.5f;
 }
-// R2, L2 to L1 projection on unit circle
+// R2, L1 to L2 projection on unit circle
 float2 unpackUnitCircleSnorm(float v){
     float x = fabsf(v) * 2.0f - 1.0f;
     float y = 1.0f - fabsf(x);
