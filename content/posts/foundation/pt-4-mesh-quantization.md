@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T11:31:00.185549
+lastmod: 2025-12-06T11:38:44.835949
 title: Foundation 施工笔记 【4】- 网格数据量化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -134,9 +134,7 @@ result.uv[1] = quantizeUnorm(vertex.uv[1], 16);
 
 高效法向量存储是个热门话题：延后（Deferred）渲染流行以来：因有在GBuffer存储法向量的必要，且内存有限，能够高效存储法线/切线/TBN(Tangent-Bitangent-Normal)矩阵做bump map是很值得追求的一个目标。
 
-正如前文所述，对于单位的normal，tagent：定点量化也是一种选择。不过对于单位向量而言，我们的压缩策略是很多的——部分参考[Compact Normal Storage for small G-Buffers - Aras Pranckevičius](https://aras-p.info/texts/CompactNormalStorage.html)这篇老文章。
-
-这里介绍几种自己实现过的**三种**比较有趣的packing方案——这里实际应用的为最后一个，故前面细节会较少，还请见谅。
+正如前文所述，对于单位的normal，tagent：定点量化也是一种选择。不过对于单位向量而言，我们的压缩策略是很多的——部分参考[Compact Normal Storage for small G-Buffers - Aras Pranckevičius](https://aras-p.info/texts/CompactNormalStorage.html)这篇老文章；以下介绍几个比较新且业界有应用的几个压缩方案。
 
 ### 单位向量投影
 
@@ -269,8 +267,6 @@ inline quat unpackQuaternionXYZPositionBit(float4 const& packed)
 结合之前的定点量化和$RGB10A2$格式，我们能仅利用$4$字节做到完整的TBN存储。
 
 ### 法向量 + 切向量旋转量
-
-**注：** 此为实际应用方案。
 
 ![image-20251205173111991](/image-foundation/image-20251205173111991.png)
 
@@ -434,13 +430,15 @@ static_assert(sizeof(FQVertex) == 16);
 
 -  `position`最后存在2字节的填充$w$。目的在于让最后整个vertex的大小为$4$的倍数（$16$）——`meshoptmizer`也会利用$4$对齐的属性提供一些操作的SIMD加速。此外，GPU也会更喜欢$4$对齐的数据：这点以后再提。
 
-- `tbn32` 即为tangent frame，这里使用了$4$字节存储——实际仍为最后一种方案。bitfield格式如下：
+- `tbn32` 即为tangent frame，这里使用了$4$字节存储。若选择最后一种方案。bitfield格式如下：
 
   ```
   NormalX [12] NormalY [12] TangentAngle[7] BitangentSign[1]
   ```
   
-  可见TBN是被完整存储的。理由多余的精度空间，我们把他放在了法向量packing上：相对于四元数packing是个优势。
+  可见TBN是被完整存储的。理由多余的精度空间，我们把他放在了法向量packing上：24位专门用于normal，相对于四元数packing是个优势。
+  
+  若使用四元数packing，这会更适合gbuffer存储（$RGB10A2$）；这点未来实现PBR光照时会再次提及。
   
 - `uv`以unorm格式量化到$16+16$位存储
 
