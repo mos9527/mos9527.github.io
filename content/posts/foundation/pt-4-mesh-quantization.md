@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T14:44:57.611309
+lastmod: 2025-12-06T14:50:27.858752
 title: Foundation 施工笔记 【4】- 网格数据量化及压缩
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -201,10 +201,10 @@ float3 unpackUnitOctahedralSnorm(float2 v)
 KlayGE直接利用$RGB10A2$格式存储了$x,y,z$部分，最后$A$记录$w = \pm\sqrt{1-x^2-y^2-z^2}$的符号。不过，精度上的优化空间是可循的：MJP文章引用的[The BitSquid low level animation system](https://bitsquid.blogspot.com/2009/11/bitsquid-low-level-animation-system.html)用$A$去记录**四个分量中绝对值最大的分量【位置】**。原因引用原作者：
 
 > ...You could use arithmetic encoding to store x, y and z using 10.67 bits per component for the range -1, 1 and this would give you slightly better precision for these values.
-The problem comes when you want to reconstruct w using sqrt(1-x^2-y^2-z^2) because that function is numerically unstable for small w.
-Have a look at this graph:
-https://www.desmos.com/calculator/nfdbj0law4
-Below w=0.5 the error starts to become bigger than the error (0.001) in the input values and as we get closer to zero the error becomes a lot bigger (0.03).
+> The problem comes when you want to reconstruct w using sqrt(1-x^2-y^2-z^2) because that function is numerically unstable for small w.
+> Have a look at this graph:
+> https://www.desmos.com/calculator/nfdbj0law4
+> Below w=0.5 the error starts to become bigger than the error (0.001) in the input values and as we get closer to zero the error becomes a lot bigger (0.03).
 
 文中graph如下，对应$\sqrt{w^{2}+0.001}-w$：可见$w<0.5$之后的计算误差增长非常快。去重构*绝对值最大值*而非*可能*最小的$w$即可以避免这种数值误差。
 
