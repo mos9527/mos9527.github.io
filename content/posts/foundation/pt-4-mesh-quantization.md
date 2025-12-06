@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T11:23:32.253068
+lastmod: 2025-12-06T11:26:15.150515
 title: Foundation 施工笔记 【4】- 网格数据量化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -270,11 +270,11 @@ inline quat unpackQuaternionXYZPositionBit(float4 const& packed)
 
 ### 法向量 + 切向量旋转量
 
-**注：**此为实际应用方案。
+**注：** 此为实际应用方案。
 
 ![image-20251205173111991](/image-foundation/image-20251205173111991.png)
 
-idea来自[RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://advances.realtimerendering.com/s2020/RenderingDoomEternal.pdf) —— 这里id只用了**$3$字节**来存储tangent frame！
+idea来自[RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://advances.realtimerendering.com/s2020/RenderingDoomEternal.pdf) —— 这里id只用了 **$3$字节** 来存储tangent frame！
 
 不妨在法线所在平面内构造**运行时**某种正交基，因为我们的$\mathbf{t}$一定和他们共面：知道t和其中一个基底的**夹角**之后，用这两个向量基底构建就好。
 
