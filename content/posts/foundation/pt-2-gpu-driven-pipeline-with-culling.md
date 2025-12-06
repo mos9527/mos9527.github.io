@@ -1,7 +1,7 @@
 ---
 author: mos9527
-lastmod: 2025-12-05T12:55:54.377096
-title: Foundation 施工笔记 【2】- GPU-Driven 管线细节
+lastmod: 2025-12-06T08:22:29.312292
+title: Foundation 施工笔记 【2】- GPU-Driven 管线与剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
 ShowToc: true

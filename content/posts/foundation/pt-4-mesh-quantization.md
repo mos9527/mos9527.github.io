@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-05T19:52:54.385925
+lastmod: 2025-12-06T11:22:51.689796
 title: Foundation 施工笔记 【4】- 网格数据量化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -12,7 +12,19 @@ typora-root-url: ../../../static/
 
 ## Preface
 
-对网格数据而言，顶点数可以很多很多：如果存储每个顶点的开销能够减少，显然对GPU显存和磁盘存储压力而言是非常好的事情。以下介绍目前Editor内存在的一些量化操作。下面为完整精度的顶点struct，其足矣表示glTF标准中的任何非蒙皮网格。
+对网格数据而言，顶点数可以很多很多：如果存储每个顶点的开销能够减少，显然对GPU显存和磁盘存储压力而言是非常好的事情。以下介绍目前Editor内存在的一些量化操作。glTF中的顶点可以有以下属性（参见 [Spec](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes)）：
+
+| Name         | Accessor Type(s) | Component Type(s)                                            | Description                                                  |
+| :----------- | :--------------- | :----------------------------------------------------------- | :----------------------------------------------------------- |
+| `POSITION`   | VEC3             | *float*                                                      | Unitless XYZ vertex positions                                |
+| `NORMAL`     | VEC3             | *float*                                                      | Normalized XYZ vertex normals                                |
+| `TANGENT`    | VEC4             | *float*                                                      | XYZW vertex tangents where the XYZ portion is normalized, and the W component is a sign value (-1 or +1) indicating handedness of the tangent basis |
+| `TEXCOORD_n` | VEC2             | *float* *unsigned byte* normalized *unsigned short* normalized | ST texture coordinates                                       |
+| `COLOR_n`    | VEC3 VEC4        | *float* *unsigned byte* normalized *unsigned short* normalized | RGB or RGBA vertex color linear multiplier                   |
+| `JOINTS_n`   | VEC4             | *unsigned byte* *unsigned short*                             | See [Skinned Mesh Attributes](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#skinned-mesh-attributes) |
+| `WEIGHTS_n`  | VEC4             | *float* *unsigned byte* normalized *unsigned short* normalized | See [Skinned Mesh Attributes](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#skinned-mesh-attributes) |
+
+下面为完整精度的顶点struct，足矣表示glTF标准中的任何非蒙皮（不看`JOINTS, WEIGHTS`）网格（vertex color暂时忽略）。
 
 ```c++
 struct FVertex
@@ -73,17 +85,7 @@ float dequantizeFP16(unsigned short h)
     }
 ```
 
-应用上，我们只对`float3 position`做FP16存储 - 理由会在后面给出。
-
-```c++
-uint16_t position[4]; // quantized FP16 [xyz] padding [w]
-...
-result.position[0] = quantizeFP16(vertex.position[0]);
-result.position[1] = quantizeFP16(vertex.position[1]);
-result.position[2] = quantizeFP16(vertex.position[2]);
-```
-
-**注意：** 这里最后存在2字节的填充$w$。目的在于让最后整个vertex的大小为$4$的倍数——结构体中最大field的大小，且同时`meshoptmizer`也会利用$4$对齐的属性提供一些操作的SIMD加速。
+应用上，我们只对`float3 position`做FP16存储 - 这是顶点数据中唯一一种分量可取全体实数范围的值。对于其他有界的量，我们可以进行...
 
 ## 定点量化
 
@@ -128,11 +130,11 @@ result.uv[0] = quantizeUnorm(vertex.uv[0], 16);
 result.uv[1] = quantizeUnorm(vertex.uv[1], 16);
 ```
 
-## 法向量 (Normal) 及切向量 (Tangent) 压缩
+## Tangent Frame 压缩
 
 高效法向量存储是个热门话题：延后（Deferred）渲染流行以来：因有在GBuffer存储法向量的必要，且内存有限，能够高效存储法线/切线/TBN(Tangent-Bitangent-Normal)矩阵做bump map是很值得追求的一个目标。
 
-正如前文所述，对于单位的normal，tagent：定点量化也是一种选择。不过对于单位向量而言，我们的压缩策略是很多的——参考[Compact Normal Storage for small G-Buffers - Aras Pranckevičius](https://aras-p.info/texts/CompactNormalStorage.html)这篇老文章。
+正如前文所述，对于单位的normal，tagent：定点量化也是一种选择。不过对于单位向量而言，我们的压缩策略是很多的——部分参考[Compact Normal Storage for small G-Buffers - Aras Pranckevičius](https://aras-p.info/texts/CompactNormalStorage.html)这篇老文章。
 
 这里介绍几种自己实现过的**三种**比较有趣的packing方案——这里实际应用的为最后一个，故前面细节会较少，还请见谅。
 
@@ -140,44 +142,43 @@ result.uv[1] = quantizeUnorm(vertex.uv[1], 16);
 
 方案之一的idea来自：规范化的**三维**单位向量可以投影到某种**二维**坐标表示。更熟悉地，问题可以描述为：在**球坐标系**，规范长度为$1$时，就能用仅极角，方位角表示单位长度的所有向量。
 
-不过注意，三角函数的执行是可能昂贵的——而且，往往在shader code中可以**完全**避免。这里可阅读iq大佬的这三篇博文：
-
-- [Avoiding trigonometry I](https://iquilezles.org/articles/noacos)
-- [Avoiding trigonometry II](https://iquilezles.org/articles/sincos)
-- [Avoiding trigonometry III](https://iquilezles.org/articles/noatan)
-
-参考 [Survey of Efficient Representations for Independent Unit Vectors - 2. 3D Unit Vector Representations](https://jcgt.org/published/0003/02/01/)，我们刚刚描述的正为其中**spherical**方案。除了计算需要三角函数，这样的朴素算法的误差也是很不理想的。
+参考 [Survey of Efficient Representations for Independent Unit Vectors - 2. 3D Unit Vector Representations](https://jcgt.org/published/0003/02/01/)，我们刚刚描述的正为其中**spherical**方案。当然，更为巧妙地投影方式也存在：
 
 ![image-20251205084118183](/image-foundation/image-20251205084118183.png)
 
-文中的**oct**方案，也就是**八面体**，则被认为是"Best overall method"。以下为原论文中的参考实现：
+文中的**oct**方案，也就是**八面体**，则被认为是"Best overall method"。原理上很优雅，引用原文：
+
+> The reason that the mapping is computationally efficient (and elegant) is that it maps the sphere to an octahedron by changing the definition of distance from the $\mathbf{L^2}$ (Euclidean) norm to the $\mathbf{L^1}$ (Manhattan) norm
+
+**即为$\mathbb{R^3}$单位圆在$L_1$范数（曼哈顿距离）下的投影**。实现如下。可见实现上不需要三角函数——解码时甚至不需要除法！
 
 ```glsl
-// Returns ±1
-vec2 signNotZero(vec2 v) {
-	return vec2((v.x >= 0.0) ? +1.0 : -1.0, (v.y >= 0.0) ? +1.0 : -1.0);
-}
-// Assume normalized input. Output is on [-1, 1] for each component.
-vec2 float32x3_to_oct(in vec3 v) {
+// Original formulation from: https://jcgt.org/published/0003/02/01/paper.pdf
+// R3, L2 to L1 projection on unit sphere
+float2 PackUnitOctahedralSnorm(float3 v)
+{
     // Project the sphere onto the octahedron, and then onto the xy plane
-    vec2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + abs(v.z)));
+    v /= float3(fabsf(v.x) + fabsf(v.y) + fabsf(v.z));
     // Reflect the folds of the lower hemisphere over the diagonals
-    return (v.z <= 0.0) ? ((1.0 - abs(p.yx)) * signNotZero(p)) : p;
+    return v.z >= EPS ? v.xy() : (float2(1.0f) - abs(float2(v.yx()))) * sign(float2(v.xy() + EPS));
 }
-vec3 oct_to_float32x3(vec2 e) {
-    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
-    if (v.z < 0) v.xy = (1.0 - abs(v.yx)) * signNotZero(v.xy);
-    return normalize(v);
+// Original formulation from: https://jcgt.org/published/0003/02/01/paper.pdf
+// R3, L1 to L2 projection on unit sphere
+float3 UnpackUnitOctahedralSnorm(float2 v)
+{
+    float3 nor = float3(v.xy(), 1.0f - fabsf(v.x) - fabsf(v.y));
+    float2 xy = nor.z >= EPS ? v.xy() : (float2(1.0f) - abs(float2(v.yx()))) * sign(float2(v.xy() + EPS));
+    return normalize(float3(xy.x, xy.y, nor.z));
 }
 ```
 
-直接应用于法向量，切向量的确是一种方案；最后有相关shadertoy演示有限bit数量化后压缩效果：[传送门](https://www.shadertoy.com/view/Mtfyzl)。可见即使在较低量化空间下，视觉效果也是可观的。
+最后有相关shadertoy演示有限bit数量化后压缩效果：[Normals Compression - Octahedron by iq](https://www.shadertoy.com/view/Mtfyzl)。可见即使在较低量化空间下，视觉效果也是可观的。
 
 ### 四元数存储
 
-不过，如果要做normal/bump mapping的话，完整的TBN/切空间基底是少不了的。
+不过，如果要做normal/bump mapping的话，完整的TBN/切空间基底是少不了的。我们还需要知道**切向量**（Tangent）
 
-注意切空间和法线贴图的关系并没有绝对的标准（参见 [Tangent Space Normal Maps - Blender Wiki](https://archive.blender.org/wiki/2015/index.php/Dev:Shading/Tangent_Space_Normal_Maps/)），一个法向量*可以*对应无穷多的切向量。不过包括 glTF，Blender，Unity，UE在内基本都在用的是 [MikkTSpace](http://www.mikktspace.com/)，大多数法线贴图也是于这里提供的切空间烘焙——同时因为关系非1:1,一般地，拥有法线贴图的网格也的顶点会离线存储这样的切向量以确保正确性。
+注意切空间和法线贴图的关系并没有绝对的标准（参见 [Tangent Space Normal Maps - Blender Wiki](https://archive.blender.org/wiki/2015/index.php/Dev:Shading/Tangent_Space_Normal_Maps/)），一个法向量*可以*对应无穷多的切向量。不过包括 glTF，Blender，Unity，UE在内基本都在用的是 [MikkTSpace](http://www.mikktspace.com/)，大多数法线贴图也是于这里提供的切空间烘焙——同时因为关系非1:1,一般地，拥有法线贴图的网格也的顶点会离线存储这样的切向量以确保正确性——假如有烘焙好的tangent，**离线存储**是一定要做的。
 
 #### Bitangent 符号
 
@@ -197,7 +198,7 @@ vec3 oct_to_float32x3(vec2 e) {
 
 该操作在 [Bindless Texturing for Deferred Rendering and Decals - MJP](https://therealmjp.github.io/posts/bindless-texturing-for-deferred-rendering-and-decals), [压缩tangent frame - KlayGE](http://www.klayge.org/2012/09/21/%e5%8e%8b%e7%bc%a9tangent-frame/)中都有提及。不过注意，直接存储四元数$(xyzw)$也是很浪费的（$4*4=16$字节！)。不过值得注意的是，我们的四元数也是**单位**四元数，即$x^2+y^2+z^2+w^2=1$。两篇文章都提到了如何利用该性质$4$字节完成四元数存储的任务，接下来将介绍**四元数压缩**的一种高精度实现。
 
-KlayGE直接利用$A2BGR10$格式存储了$x,y,z$部分，最后$A$记录$w = \pm\sqrt{1-x^2-y^2-z^2}$的符号。不过，精度上的优化空间是可循的：MJP文章引用的[The BitSquid low level animation system](https://bitsquid.blogspot.com/2009/11/bitsquid-low-level-animation-system.html)用$A$去记录**四个分量中绝对值最大的分量【位置】**。原因引用原作者：
+KlayGE直接利用$RGB10A2$格式存储了$x,y,z$部分，最后$A$记录$w = \pm\sqrt{1-x^2-y^2-z^2}$的符号。不过，精度上的优化空间是可循的：MJP文章引用的[The BitSquid low level animation system](https://bitsquid.blogspot.com/2009/11/bitsquid-low-level-animation-system.html)用$A$去记录**四个分量中绝对值最大的分量【位置】**。原因引用原作者：
 
 > ...You could use arithmetic encoding to store x, y and z using 10.67 bits per component for the range -1, 1 and this would give you slightly better precision for these values.
 The problem comes when you want to reconstruct w using sqrt(1-x^2-y^2-z^2) because that function is numerically unstable for small w.
@@ -265,13 +266,23 @@ inline quat unpackQuaternionXYZPositionBit(float4 const& packed)
 }
 ```
 
+结合之前的定点量化和$RGB10A2$格式，我们能仅利用$4$字节做到完整的TBN存储。
+
 ### 法向量 + 切向量旋转量
+
+**注：**此为实际应用方案。
 
 ![image-20251205173111991](/image-foundation/image-20251205173111991.png)
 
-idea来自[RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://advances.realtimerendering.com/s2020/RenderingDoomEternal.pdf)。思想上和之前的四元数方案有些异曲同工之妙：$\mathbf{n} \cdot \mathbf{t} = 0$是一定的。那不妨在法线所在平面内构造**运行时**某种正交基，我们的$\mathbf{t}$一定和他们共面：用这两个向量基底构建他就好。
+idea来自[RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://advances.realtimerendering.com/s2020/RenderingDoomEternal.pdf) —— 这里id只用了**$3$字节**来存储tangent frame！
 
-法向量**在线**构造正交基的方法很多，参考：
+不妨在法线所在平面内构造**运行时**某种正交基，因为我们的$\mathbf{t}$一定和他们共面：知道t和其中一个基底的**夹角**之后，用这两个向量基底构建就好。
+
+这和四元数本身有异曲同工之妙——也是旋转轴+角度的表达。不过因为我们要的并非*真正的*四元数，这里没有对*四个*分量归一化的必要；后面也会提到这给压缩带来的更多好处。
+
+#### 在线构造正交基
+
+从法向量**在线**构造正交基的方法很多，参考：
 
 - [Followup: Normal Mapping Without Precomputed Tangents](http://www.thetenthplanet.de/archives/1180)
 - [Surface Gradient Bump Mapping Framework Overview](https://www.jeremyong.com/graphics/2023/12/16/surface-gradient-bump-mapping/) 及 [Surface Gradient–Based Bump Mapping Framework](https://jcgt.org/published/0009/03/04/)
@@ -294,7 +305,11 @@ inline void BuildOrthonormalBasis(const float3 n, float3& b1, float3& b2)
 }
 ```
 
-不过，直接利用这些基底直接做bump map是不正确的——理由已在前文给出：法线贴图取决于烘焙到的tangent space，若要保持他们一致，则烘焙时和在线的结果也许一样：这很难做。但是知道**多**不正确，或者用他们如何**重构**$\mathbf{t}, \mathbf{b}$，则是很好做的一件事：$\mathbf{t}$投影即可。朴素设计三角函数的实现如下：
+不过，直接利用这些基底直接做bump map是不正确的——理由已在前文给出：法线贴图取决于烘焙到的tangent space，若要保持他们一致，则烘焙时和在线的结果也许一样：这很难做。但是知道**多**不正确，或者用他们如何**重构**$\mathbf{t}, \mathbf{b}$，则是很好做的一件事：$\mathbf{t}$投影算出**夹角**即可。
+
+#### 夹角：atan2 朴素实现
+
+直接向两个正交基投影可得单位圆上对应坐标，如下。这里存在`atan2,cos,sin`的使用。
 
 ```c++
 float3 b1, b2;
@@ -306,4 +321,211 @@ float angle = atan2(sinAngle, cosAngle) / pi<float>();
 tangent = cos(angle) * b1 + sin(angle) * b2;    
 ```
 
-TBD
+#### 夹角：万能公式实现
+
+别忘了高中学过的[万能公式](https://zh.wikipedia.org/wiki/%E6%AD%A3%E5%88%87%E5%8D%8A%E8%A7%92%E5%85%AC%E5%BC%8F)。特别地是以下三者（记$t = \tan \frac{\phi}{2} \newline$）
+$$
+\cos \phi ={\frac {1-t^2}{1+t^2}} \newline
+\sin \phi ={\frac {2t}{1+t^2}} \newline
+\text{易得 } t={\frac {\sin \phi }{1+\cos \phi }}={\frac {\sin \phi (1-\cos \phi )}{(1+\cos \phi )(1-\cos \phi )}}={\frac {1-\cos \phi }{\sin \phi }}
+$$
+于是我们可以很轻松地得到不需要三角函数的实现，如下：
+
+```c++
+float3 b1, b2;
+BuildOrthonormalBasis(normal, b1, b2);
+// To t
+float cosAngle = dot(tangent, b1), sinAngle = dot(tangent, b2);
+float t = sinAngle / (1 + cosAngle + EPS);
+// From t
+float cosAngle = (1 - t * t) / (1 + t * t + EPS), sinAngle = (2 * t) / (1 + t * t + EPS);
+outTangent = cosAngle * b1 + sinAngle * b2;
+```
+
+不过问题也很显然：上面方法的$t$范围是全体实数——想要定点量化则是不可取的。
+
+#### 夹角：$L_1$投影
+
+![image-20251206094116091](/image-foundation/image-20251206094116091.png)
+
+其实，回顾之前的八面体投影——我们不妨给$\mathbb{R^2}$的单位圆做同样的事情：$\mathbf{L_1}$下的单位圆即上图。实现如下，我们将单位圆上的坐标$(x,y)$投影到$x$轴上，符号和之前一样代表象限。
+
+```c++
+// R2, L1 to L2 projection on unit circle
+float PackUnitCircleSnorm(float2 v){
+    v /= fabsf(v.x) + fabsf(v.y);
+    return v.y >= EPS ? (v.x + 1.0f) * 0.5f : -(v.x + 1.0f) * 0.5f;
+}
+// R2, L2 to L1 projection on unit circle
+float2 UnpackUnitCircleSnorm(float v){
+    float x = fabsf(v) * 2.0f - 1.0f;
+    float y = 1.0f - fabsf(x);
+    return v >= 0.0f ? float2(x, y) : float2(x, -y);
+}
+```
+
+应用到tangent角度编码如下：
+
+```c++
+float3 b1, b2;
+BuildOrthonormalBasis(normal, b1, b2);
+// To octAngle
+float cosAngle = dot(tangent, b1), sinAngle = dot(tangent, b2);
+float octAngle = PackUnitCircleSnorm(float2(cosAngle, sinAngle));
+// From octAngle
+float2 octXY = UnpackUnitCircleSnorm(octAngle);
+outTangent = octXY.x * b1 + octXY.y * b2;
+```
+
+可见，编解码都很简单；且和之前一样，解码时仅仅设计乘法加法：优势很明显。而这将是我们用来存储夹角的方法。
+
+#### Bitangent 符号？
+
+按 [RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://advances.realtimerendering.com/s2020/RenderingDoomEternal.pdf) 的做法，量化布局如下：
+
+- $2$字节存储八面体投影nomral
+- $1$字节存储tangent角度
+- 没了。
+
+问题很显然：我们丢掉了手性(bitangent)信息。[Tangent Spaces and Diamond Encoding - jeremyong](https://www.jeremyong.com/graphics/2023/01/09/tangent-spaces-and-diamond-encoding/) 在实现同样idea的同时评论到，*或许*丢掉也是一种解决方案。
+
+> However, I would contend that the above approach is better today for a few reasons:
+>
+> 1. Not much content is mirrored anymore, since artists aren’t as memory constrained
+> 2. The extra draws aren’t relevant if you submit your draws as meshlets and GPU cull them anyways
+>
+> In short, I recommend dropping the orientation bit altogether, given that times have changed in terms of how content is authored. As a compromise, it’s possible to store the orientation bit per-meshlet, or at some other frequency.
+
+当然，这在mesh产生时就需要控制。遗憾地，对我们要读取的`glTF`格式而言，这并非一种选择。我们仍然需要存储这里的手性，具体packing会在下一节介绍。
+
+## 最终量化
+
+回顾我们一开始的完整vertex：
+
+```c++
+struct FVertex
+{
+    float3 position;
+    float3 normal;
+    float3 tangent;
+    float bitangentSign;
+    float2 uv;
+};
+static_assert(sizeof(FVertex) == 48);
+```
+
+结合前文所做的选择，以下是最终使用的**量化后**vertex结构：
+
+```c++
+struct FQVertex
+{
+    uint16_t position[4]; // quantized FP16 [xyz] padding [w]
+    uint32_t tbn32; // packed tangent frame
+    uint16_t uv[2]; // quantized UNORM16
+
+    static uint32_t PackTBN(const float3& normal, const float3& tangent, float bitangentSign);
+    static void UnpackTBN(uint32_t packed, float3& outNormal, float3& outTangent, float& outBitangentSign);
+
+    static FQVertex Pack(FVertex const& vertex);
+    static FVertex Unpack(FQVertex const& vertex);
+};
+static_assert(sizeof(FQVertex) == 16);
+```
+
+-  `position`最后存在2字节的填充$w$。目的在于让最后整个vertex的大小为$4$的倍数（$16$）——`meshoptmizer`也会利用$4$对齐的属性提供一些操作的SIMD加速。此外，GPU也会更喜欢$4$对齐的数据：这点以后再提。
+
+- `tbn32` 即为tangent frame，这里使用了$4$字节存储——实际仍为最后一种方案。bitfield格式如下：
+
+  ```
+  NormalX [12] NormalY [12] TangentAngle[7] BitangentSign[1]
+  ```
+  
+  可见TBN是被完整存储的。理由多余的精度空间，我们把他放在了法向量packing上：相对于四元数packing是个优势。
+  
+- `uv`以unorm格式量化到$16+16$位存储
+
+以下为完整量化C++部分实现：
+
+```c++
+constexpr float EPS = 1e-6;
+// Building an Orthonormal Basis from a 3D Unit Vector Without Normalization - Frisvad, 2012
+// https://backend.orbit.dtu.dk/ws/portalfiles/portal/126824972/onb_frisvad_jgt2012_v2.pdf
+inline void buildOrthonormalBasis(const float3 n, float3& b1, float3& b2)
+{
+    if (n.z < -0.9999999)
+    {
+        b1 = float3(0.0, -1.0, 0.0);
+        b2 = float3(-1.0, 0.0, 0.0);
+        return;
+    }
+    float a = 1.0 / (1.0 + n.z);
+    float b = -n.x * n.y * a;
+    b1 = float3(1.0 - n.x * n.x * a, b, -n.x);
+    b2 = float3(b, 1.0 - n.y * n.y * a, -n.y);
+}
+// Original formulation from: https://jcgt.org/published/0003/02/01/paper.pdf
+// R3, L2 to L1 projection on unit sphere
+float2 packUnitOctahedralSnorm(float3 v)
+{
+    v /= float3(fabsf(v.x) + fabsf(v.y) + fabsf(v.z));
+    return v.z >= EPS ? v.xy() : (float2(1.0f) - abs(float2(v.yx()))) * sign(float2(v.xy() + EPS));
+}
+// Original formulation from: https://jcgt.org/published/0003/02/01/paper.pdf
+// R3, L1 to L2 projection on unit sphere
+float3 unpackUnitOctahedralSnorm(float2 v)
+{
+    float3 nor = float3(v.xy(), 1.0f - fabsf(v.x) - fabsf(v.y));
+    float2 xy = nor.z >= EPS ? v.xy() : (float2(1.0f) - abs(float2(v.yx()))) * sign(float2(v.xy() + EPS));
+    return normalize(float3(xy.x, xy.y, nor.z));
+}
+// R2, L1 to L2 projection on unit circle
+float packUnitCircleSnorm(float2 v){
+    v /= fabsf(v.x) + fabsf(v.y);
+    return v.y >= EPS ? (v.x + 1.0f) * 0.5f : -(v.x + 1.0f) * 0.5f;
+}
+// R2, L2 to L1 projection on unit circle
+float2 unpackUnitCircleSnorm(float v){
+    float x = fabsf(v) * 2.0f - 1.0f;
+    float y = 1.0f - fabsf(x);
+    return v >= 0.0f ? float2(x, y) : float2(x, -y);
+}
+// Compact TBN frame packing
+// Tangent is derived from orthonormal basis around normal with a rotation angle
+// Similar to 3 BYTE TANGENT FRAMES from "Rendering the Hellscape of Doom Eternal - SIGGRAPH 2020" by Jorge Jimenez et
+// al.
+// Octahedral normal [10+10] + tangent rotation [10] + bitangent sign [2]
+// As a side effect - with tangent of length 0, a valid frame is still reconstructed
+uint32_t FQVertex::PackTBN(const float3& normal, const float3& tangent, float bitangentSign)
+{
+    float3 b1, b2;
+    buildOrthonormalBasis(normal, b1, b2);
+    float cosAngle = dot(tangent, b1), sinAngle = dot(tangent, b2);
+    float octAngle = packUnitCircleSnorm(float2(cosAngle, sinAngle));
+    float2 oct = packUnitOctahedralSnorm(normal);
+    uint32_t nX = quantizeSnormShifted(oct.x, 12), nY = quantizeSnormShifted(oct.y, 12);
+    uint32_t tA = quantizeSnormShifted(octAngle, 7);
+    uint32_t bS = bitangentSign >= 0.0f ? 1 : 0;
+    uint32_t tbn32 = 0;
+    tbn32 = bitfieldInsert(tbn32, nX, 0, 12);
+    tbn32 = bitfieldInsert(tbn32, nY, 12, 12);
+    tbn32 = bitfieldInsert(tbn32, tA, 24, 7);
+    tbn32 = bitfieldInsert(tbn32, bS, 31, 1);
+    return tbn32;
+}
+void FQVertex::UnpackTBN(uint32_t packed, float3& outNormal, float3& outTangent, float& outBitangentSign)
+{
+    uint32_t nX = bitfieldExtract(packed, 0, 12);
+    uint32_t nY = bitfieldExtract(packed, 12, 12);
+    uint32_t tA = bitfieldExtract(packed, 24, 7);
+    uint32_t bS = bitfieldExtract(packed, 31, 1);
+    float2 normalOct = float2(dequantizeSnormShifted(nX, 12), dequantizeSnormShifted(nY, 12));
+    outNormal = unpackUnitOctahedralSnorm(normalOct);
+    float octAngle = dequantizeSnormShifted(tA, 7);
+    float2 octXY = unpackUnitCircleSnorm(octAngle);
+    float3 b1, b2;
+    buildOrthonormalBasis(outNormal, b1, b2);
+    outTangent = octXY.x * b1 + octXY.y * b2;
+    outBitangentSign = bS == 1 ? 1.0f : -1.0f;
+}
+```
+
