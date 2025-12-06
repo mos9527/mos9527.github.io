@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T11:26:15.150515
+lastmod: 2025-12-06T11:31:00.185549
 title: Foundation 施工笔记 【4】- 网格数据量化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -155,7 +155,7 @@ result.uv[1] = quantizeUnorm(vertex.uv[1], 16);
 ```glsl
 // Original formulation from: https://jcgt.org/published/0003/02/01/paper.pdf
 // R3, L2 to L1 projection on unit sphere
-float2 PackUnitOctahedralSnorm(float3 v)
+float2 packUnitOctahedralSnorm(float3 v)
 {
     // Project the sphere onto the octahedron, and then onto the xy plane
     v /= float3(fabsf(v.x) + fabsf(v.y) + fabsf(v.z));
@@ -164,7 +164,7 @@ float2 PackUnitOctahedralSnorm(float3 v)
 }
 // Original formulation from: https://jcgt.org/published/0003/02/01/paper.pdf
 // R3, L1 to L2 projection on unit sphere
-float3 UnpackUnitOctahedralSnorm(float2 v)
+float3 unpackUnitOctahedralSnorm(float2 v)
 {
     float3 nor = float3(v.xy(), 1.0f - fabsf(v.x) - fabsf(v.y));
     float2 xy = nor.z >= EPS ? v.xy() : (float2(1.0f) - abs(float2(v.yx()))) * sign(float2(v.xy() + EPS));
@@ -290,7 +290,7 @@ idea来自[RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://adva
 
 最简单且快速的一种来自[Building an Orthonormal Basis from a 3D Unit Vector Without Normalization - Frisvad, 2012](https://backend.orbit.dtu.dk/ws/portalfiles/portal/126824972/onb_frisvad_jgt2012_v2.pdf)，他在 [UE](https://github.com/EpicGames/UnrealEngine/blob/684b4c133ed87e8050d1fdaa287242f0fe2c1153/Engine/Source/Runtime/MeshUtilitiesCommon/Public/MeshUtilitiesCommon.h#L102) 中也能见到。以下为简化实现：
 ```c++
-inline void BuildOrthonormalBasis(const float3 n, float3& b1, float3& b2)
+inline void buildOrthonormalBasis(const float3 n, float3& b1, float3& b2)
 {
     if (n.z < -0.9999999)
     {
@@ -313,7 +313,7 @@ inline void BuildOrthonormalBasis(const float3 n, float3& b1, float3& b2)
 
 ```c++
 float3 b1, b2;
-BuildOrthonormalBasis(normal, b1, b2);
+buildOrthonormalBasis(normal, b1, b2);
 // To angle
 float cosAngle = dot(tangent, b1), sinAngle = dot(tangent, b2);
 float angle = atan2(sinAngle, cosAngle) / pi<float>();
@@ -333,7 +333,7 @@ $$
 
 ```c++
 float3 b1, b2;
-BuildOrthonormalBasis(normal, b1, b2);
+buildOrthonormalBasis(normal, b1, b2);
 // To t
 float cosAngle = dot(tangent, b1), sinAngle = dot(tangent, b2);
 float t = sinAngle / (1 + cosAngle + EPS);
@@ -352,12 +352,12 @@ outTangent = cosAngle * b1 + sinAngle * b2;
 
 ```c++
 // R2, L1 to L2 projection on unit circle
-float PackUnitCircleSnorm(float2 v){
+float packUnitCircleSnorm(float2 v){
     v /= fabsf(v.x) + fabsf(v.y);
     return v.y >= EPS ? (v.x + 1.0f) * 0.5f : -(v.x + 1.0f) * 0.5f;
 }
 // R2, L2 to L1 projection on unit circle
-float2 UnpackUnitCircleSnorm(float v){
+float2 unpackUnitCircleSnorm(float v){
     float x = fabsf(v) * 2.0f - 1.0f;
     float y = 1.0f - fabsf(x);
     return v >= 0.0f ? float2(x, y) : float2(x, -y);
@@ -368,12 +368,12 @@ float2 UnpackUnitCircleSnorm(float v){
 
 ```c++
 float3 b1, b2;
-BuildOrthonormalBasis(normal, b1, b2);
+buildOrthonormalBasis(normal, b1, b2);
 // To octAngle
 float cosAngle = dot(tangent, b1), sinAngle = dot(tangent, b2);
-float octAngle = PackUnitCircleSnorm(float2(cosAngle, sinAngle));
+float octAngle = packUnitCircleSnorm(float2(cosAngle, sinAngle));
 // From octAngle
-float2 octXY = UnpackUnitCircleSnorm(octAngle);
+float2 octXY = unpackUnitCircleSnorm(octAngle);
 outTangent = octXY.x * b1 + octXY.y * b2;
 ```
 
