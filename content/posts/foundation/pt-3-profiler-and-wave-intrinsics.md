@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T08:22:55.097113
+lastmod: 2025-12-06T14:45:35.675678
 title: Foundation 施工笔记 【3】- Profiler 与 Wave Intrisics 实验
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -246,3 +246,24 @@ LDS和Wave实现的时序图如下，前后顺序对应。在自己的AMD硬件�
 
 ![image-20251203211120058](/image-foundation/image-20251203211120058.png)
 
+## References
+
+- [【技术精讲】AMD RDNA™ 显卡上的Mesh Shaders（二）：优化和最佳实践](https://zhuanlan.zhihu.com/p/691937933)
+- [NVIDIA Nsight Graphics](https://developer.nvidia.com/nsight-graphics)
+- [Radeon™ Developer Tool Suite](https://gpuopen.com/news/introducing-radeon-developer-tool-suite/)
+- [tracy profiler](https://github.com/wolfpld/tracy)
+- [Vulkan® 1.0.3 - A Specification by the Khronos Group - Queries](https://registry.khronos.org/vulkan/specs/latest/html/vkspec.html#queries)
+- [Timing (Direct3D 12)](https://learn.microsoft.com/en-us/windows/win32/direct3d12/timing)
+- [Foundation::RenderCore::Renderer Class Reference](https://mos9527.com/Foundation/classFoundation_1_1RenderCore_1_1Renderer.html)
+- [Vulkan Samples - Timestamp Queries](https://docs.vulkan.org/samples/latest/samples/api/hpp_timestamp_queries/README.html)
+- [Ensure Correct Vulkan Synchronization by Using Synchronization Validation](https://www.lunarg.com/wp-content/uploads/2021/08/Vulkan-Synchronization-SIGGRAPH-2021.pdf)
+- [Interval scheduling - Wikipedia](https://en.wikipedia.org/wiki/Interval_scheduling)
+- [最早截止时间优先调度 - 维基百科](https://zh.wikipedia.org/wiki/%E6%9C%80%E6%97%A9%E6%88%AA%E6%AD%A2%E6%97%B6%E9%97%B4%E4%BC%98%E5%85%88%E8%B0%83%E5%BA%A6)
+- [Wave Intrinsics](https://github.com/Microsoft/DirectXShaderCompiler/wiki/Wave-Intrinsics)
+- [GroupMemoryBarrierWithGroupSync function](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/groupmemorybarrierwithgroupsync)
+- [InterlockedAdd function](https://learn.microsoft.com/en-us/windows/win32/directdhlsl/interlockedadd)
+- [Driver will optimize away barriers in some cases - DirectX-Graphics-Samples Issue #140](https://github.com/microsoft/DirectX-Graphics-Samples/issues/140#issuecomment-211549126)
+- [RDNA Architecture - GPUOpen](https://gpuopen.com/download/RDNA_Architecture_public.pdf)
+- [DirectX-Specs - DispatchMesh](https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html#dispatchmesh-intrinsic)
+- [SPIR-V Specification - SubgroupSize](https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#BuiltIn:~:text=35-,SubgroupSize,-Indicates%20that%20this)
+- [Ten Years Of D3D12 - WaveSize - MJP](https://therealmjp.github.io/posts/ten-years-of-d3d12/#wavesize)

@@ -1,7 +1,7 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T11:43:12.398746
-title: Foundation 施工笔记 【4】- 网格数据量化
+lastmod: 2025-12-06T14:44:57.611309
+title: Foundation 施工笔记 【4】- 网格数据量化及压缩
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
 ShowToc: true
@@ -192,9 +192,11 @@ float3 unpackUnitOctahedralSnorm(float2 v)
 
 #### 四元数压缩
 
-其实直接间看矩阵形式：定义$\mathbf{TBN}$矩阵是个3x3的正交阵（一般如此，例外情况则需要正交化处理）——相当于旋转矩阵，这是可以直接用四元数表示的。在`glm`中可以直接利用`mat3_cast`和`quat_cast`相互转换。
+其实直接间看矩阵形式：我们定义$\mathbf{TBN}$矩阵是个3x3的正交阵——**当且仅当$det(M)=1$时**，这相当于**旋转矩阵**，这是可以**直接用四元数表示**的，在`glm`中可以直接利用`mat3_cast`和`quat_cast`相互转换。
 
-该操作在 [Bindless Texturing for Deferred Rendering and Decals - MJP](https://therealmjp.github.io/posts/bindless-texturing-for-deferred-rendering-and-decals), [压缩tangent frame - KlayGE](http://www.klayge.org/2012/09/21/%e5%8e%8b%e7%bc%a9tangent-frame/)中都有提及。不过注意，直接存储四元数$(xyzw)$也是很浪费的（$4*4=16$字节！)。不过值得注意的是，我们的四元数也是**单位**四元数，即$x^2+y^2+z^2+w^2=1$。两篇文章都提到了如何利用该性质$4$字节完成四元数存储的任务，接下来将介绍**四元数压缩**的一种高精度实现。
+**注意：** 对于$det(M)=-1$的**旋转反射矩阵**，四元数是无法表示的，这在bitanget手性不一致（即$\mathbf{n}  \mathbf{t} = -\mathbf{b}$）时会如此。接下来我们只对$det(TBN)=1$情况处理，其他情况正交化并以某种方式记录并确保手性即可。
+
+该操作在 [Bindless Texturing for Deferred Rendering and Decals - MJP](https://therealmjp.github.io/posts/bindless-texturing-for-deferred-rendering-and-decals), [压缩tangent frame - KlayGE](http://www.klayge.org/2012/09/21/%e5%8e%8b%e7%bc%a9tangent-frame/)中都有提及。不过注意，直接存储四元数$(xyzw)$也是很浪费的（$4*4=16$字节！)。不过值得注意的是，**单位**四元数，即$x^2+y^2+z^2+w^2=1$可以用来表示这里的变换。上面两篇文章也都提到了如何利用该性质$4$字节完成四元数存储的任务。接下来将介绍**四元数压缩**的一种高精度实现。
 
 KlayGE直接利用$RGB10A2$格式存储了$x,y,z$部分，最后$A$记录$w = \pm\sqrt{1-x^2-y^2-z^2}$的符号。不过，精度上的优化空间是可循的：MJP文章引用的[The BitSquid low level animation system](https://bitsquid.blogspot.com/2009/11/bitsquid-low-level-animation-system.html)用$A$去记录**四个分量中绝对值最大的分量【位置】**。原因引用原作者：
 
@@ -264,9 +266,11 @@ inline quat unpackQuaternionXYZPositionBit(float4 const& packed)
 }
 ```
 
-结合之前的定点量化和$RGB10A2$格式，我们能仅利用$4$字节做到完整的TBN存储。
+结合之前的定点量化和$RGB10A2$格式，我们能仅利用$4$字节做到完整的tangent frame存储。当然，还需要一个bit处理手性，故真正开销约莫为$33bits$
 
 ### 法向量 + 切向量旋转量
+
+**注：** 此为真正使用的压缩方法
 
 ![image-20251205173111991](/image-foundation/image-20251205173111991.png)
 
@@ -274,7 +278,26 @@ idea来自[RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://adva
 
 不妨在法线所在平面内构造**运行时**某种正交基，因为我们的$\mathbf{t}$一定和他们共面：知道t和其中一个基底的**夹角**之后，用这两个向量基底构建就好。
 
-这和四元数本身有异曲同工之妙——也是旋转轴+角度的表达。不过因为我们要的并非*真正的*四元数，这里没有对*四个*分量归一化的必要；后面也会提到这给压缩带来的更多好处。
+这和四元数本身有异曲同工之妙——也是旋转轴+角度的表达。不过因为我们要的并非*真正的*四元数，这里没有对*四个*分量归一化的必要，精度分配上会自由很多。
+
+#### Bitangent 符号
+
+按 [RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://advances.realtimerendering.com/s2020/RenderingDoomEternal.pdf) 的做法，量化布局如下：
+
+- $2$字节存储八面体投影nomral
+- $1$字节存储tangent角度
+- 没了。
+
+问题很显然：和四元数方法一样，我们丢掉了手性(bitangent)信息。[Tangent Spaces and Diamond Encoding - jeremyong](https://www.jeremyong.com/graphics/2023/01/09/tangent-spaces-and-diamond-encoding/) 在实现同样idea的评论到，*或许*丢掉也是一种解决方案。
+
+> However, I would contend that the above approach is better today for a few reasons:
+>
+> 1. Not much content is mirrored anymore, since artists aren’t as memory constrained
+> 2. The extra draws aren’t relevant if you submit your draws as meshlets and GPU cull them anyways
+>
+> In short, I recommend dropping the orientation bit altogether, given that times have changed in terms of how content is authored. As a compromise, it’s possible to store the orientation bit per-meshlet, or at some other frequency.
+
+当然，这在mesh产生时就需要控制。遗憾地，对我们要读取的`glTF`格式而言，这并非一种选择。我们仍然需要存储这里的手性——之后会在packing过程选择一个量塞进去。
 
 #### 在线构造正交基
 
@@ -344,7 +367,7 @@ outTangent = cosAngle * b1 + sinAngle * b2;
 
 ![image-20251206094116091](/image-foundation/image-20251206094116091.png)
 
-其实，回顾之前的八面体投影——我们不妨给$\mathbb{R^2}$的单位圆做同样的事情：$\mathbf{L_1}$下的单位圆即上图。实现如下，我们将单位圆上的坐标$(x,y)$投影到$x$轴上，符号和之前一样代表象限。
+其实，回顾之前的八面体投影——我们不妨给$\mathbb{R^2}$的单位圆做同样的事情：$\mathbf{L_1}$范式下的单位圆即上图。实现如下，我们将单位圆上的坐标$(x,y)$投影到$x$轴上，符号和之前一样代表象限。
 
 ```c++
 // R2, L1 to L2 projection on unit circle
@@ -375,24 +398,6 @@ outTangent = octXY.x * b1 + octXY.y * b2;
 
 可见，编解码都很简单；且和之前一样，解码时仅仅设计乘法加法：优势很明显。而这将是我们用来存储夹角的方法。
 
-#### Bitangent 符号？
-
-按 [RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://advances.realtimerendering.com/s2020/RenderingDoomEternal.pdf) 的做法，量化布局如下：
-
-- $2$字节存储八面体投影nomral
-- $1$字节存储tangent角度
-- 没了。
-
-问题很显然：我们丢掉了手性(bitangent)信息。[Tangent Spaces and Diamond Encoding - jeremyong](https://www.jeremyong.com/graphics/2023/01/09/tangent-spaces-and-diamond-encoding/) 在实现同样idea的同时评论到，*或许*丢掉也是一种解决方案。
-
-> However, I would contend that the above approach is better today for a few reasons:
->
-> 1. Not much content is mirrored anymore, since artists aren’t as memory constrained
-> 2. The extra draws aren’t relevant if you submit your draws as meshlets and GPU cull them anyways
->
-> In short, I recommend dropping the orientation bit altogether, given that times have changed in terms of how content is authored. As a compromise, it’s possible to store the orientation bit per-meshlet, or at some other frequency.
-
-当然，这在mesh产生时就需要控制。遗憾地，对我们要读取的`glTF`格式而言，这并非一种选择。我们仍然需要存储这里的手性，具体packing会在下一节介绍。
 
 ## 最终量化
 
@@ -430,19 +435,19 @@ static_assert(sizeof(FQVertex) == 16);
 
 -  `position`最后存在2字节的填充$w$。目的在于让最后整个vertex的大小为$4$的倍数（$16$）——`meshoptmizer`也会利用$4$对齐的属性提供一些操作的SIMD加速。此外，GPU也会更喜欢$4$对齐的数据：这点以后再提。
 
-- `tbn32` 即为tangent frame，这里使用了$4$字节存储。若选择最后一种方案。bitfield格式如下：
+- `tbn32` 即为tangent frame，这里使用了$4$字节存储与选择最后一种方案。bitfield格式如下：
 
   ```
   NormalX [12] NormalY [12] TangentAngle[7] BitangentSign[1]
   ```
   
-  可见TBN是被完整存储的。多余的精度空间，我们把他放在了法向量packing上：24位专门用于normal，相对于四元数packing是个优势。
-  
-  若使用四元数packing，这会更适合gbuffer存储（$RGB10A2$）；这点未来实现PBR光照时会再次提及。
+  可见TBN是被完整存储的（包括手性bit）。多余的精度空间，我们把他放在了法向量packing上：24位专门用于normal，相对于四元数方法是个优势。
   
 - `uv`以unorm格式量化到$16+16$位存储
 
-以下为最后一种方案下完整C++部分实现：
+**最后**：量化+压缩后的顶点格式是**原大小的$\frac{1}{4}$** - 做的更好是有可能的：比如使用更低的顶点bit数处理TBN和uv，这里就此折衷。此外，接下来实现光照部分时的GBuffer packing还将回顾这些手段。
+
+以下为完整C++部分实现：
 
 ```c++
 constexpr float EPS = 1e-6;
@@ -527,3 +532,49 @@ void FQVertex::UnpackTBN(uint32_t packed, float3& outNormal, float3& outTangent,
 }
 ```
 
+## 网格压缩
+
+在脱机存储上，局部量化以外，整体的数据压缩也是很有必要的。
+
+通用压缩方案如[LZ4](https://github.com/lz4/lz4)以外，[meshoptimizer](https://meshoptimizer.org/#mesh-compression) 也提供了专用于顶点/index的压缩算法。使用还请参考原链接——在Editor场景序列化中，这些也是被使用到的。
+
+## 效果
+
+测试场景为[Intel Sponza](https://github.com/mos9527/Scenes?tab=readme-ov-file#intel-gpu-research-samples---sponza) - 我们的格式仅保存几何数据。压缩前后磁盘存储大小如下。
+
+```
+mos9527@Sunrise:/mnt/Windows/Scenes » ls -altrh IntelSponza*.bin
+-rwxrwxrwx 1 mos9527 mos9527 334M Nov 28 11:28 IntelSponzaOld.bin
+-rwxrwxrwx 1 mos9527 mos9527 109M Dec  6 14:35 IntelSponza.bin
+```
+
+在GPU中上传后场景占用如下。
+
+![image-20251206144029344](/image-foundation/image-20251206143732696.png)
+
+## References
+
+- [glTF™ 2.0 Specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes)
+- [Vertex compression](https://docs.unity3d.com/6000.2/Documentation/Manual/types-of-mesh-data-compression.html#vertex-compression)
+- [C++23 - Fundamental types](https://en.cppreference.com/w/cpp/types/floating-point.html)
+- [meshoptimizer/src/quantization.cpp](https://github.com/zeux/meshoptimizer/blob/master/src/quantization.cpp)
+- [Compact Normal Storage for small G-Buffers - Aras Pranckevičius](https://aras-p.info/texts/CompactNormalStorage.html)
+- [A Survey of Efficient Representations for Independent Unit Vectors](https://jcgt.org/published/0003/02/01/)
+- [Normals Compression - Octahedron by iq](https://www.shadertoy.com/view/Mtfyzl)
+- [Tangent Space Normal Maps - Blender Wiki](https://archive.blender.org/wiki/2015/index.php/Dev:Shading/Tangent_Space_Normal_Maps/)
+- [MikkTSpace](http://www.mikktspace.com/)
+- [Bindless Texturing for Deferred Rendering and Decals - MJP](https://therealmjp.github.io/posts/bindless-texturing-for-deferred-rendering-and-decals)
+- [压缩tangent frame - KlayGE](http://www.klayge.org/2012/09/21/%e5%8e%8b%e7%bc%a9tangent-frame/)
+- [The BitSquid low level animation system](https://bitsquid.blogspot.com/2009/11/bitsquid-low-level-animation-system.html)
+- [TheRealMJP/DeferredTexturing - Quaternion.hlsl](https://github.com/TheRealMJP/DeferredTexturing/blob/master/SampleFramework12/v1.01/Shaders/Quaternion.hlsl)
+- [RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://advances.realtimerendering.com/s2020/RenderingDoomEternal.pdf)
+- [Tangent Spaces and Diamond Encoding - jeremyong](https://www.jeremyong.com/graphics/2023/01/09/tangent-spaces-and-diamond-encoding/)
+- [Followup: Normal Mapping Without Precomputed Tangents](http://www.thetenthplanet.de/archives/1180)
+- [Surface Gradient Bump Mapping Framework Overview](https://www.jeremyong.com/graphics/2023/12/16/surface-gradient-bump-mapping/)
+- [A Survey of Surface Gradient-Based Bump Mapping Frameworks](https://jcgt.org/published/0009/03/04/)
+- [Tangent-basis workflow for getting 100% correct normal-mapping #1252 - KhronosGroup/glTF](https://github.com/KhronosGroup/glTF/issues/1252)
+- [Building an Orthonormal Basis from a 3D Unit Vector Without Normalization - Frisvad, 2012](https://backend.orbit.dtu.dk/ws/portalfiles/portal/126824972/onb_frisvad_jgt2012_v2.pdf)
+- [Unreal Engine - MeshUtilitiesCommon.h](https://github.com/EpicGames/UnrealEngine/blob/684b4c133ed87e8050d1fdaa287242f0fe2c1153/Engine/Source/Runtime/MeshUtilitiesCommon/Public/MeshUtilitiesCommon.h#L102)
+- [LZ4 Compression Algorithm](https://github.com/lz4/lz4)
+- [meshoptimizer - Mesh Compression](https://meshoptimizer.org/#mesh-compression)
+- [Intel Sponza Scene](https://github.com/mos9527/Scenes?tab=readme-ov-file#intel-gpu-research-samples---sponza)
