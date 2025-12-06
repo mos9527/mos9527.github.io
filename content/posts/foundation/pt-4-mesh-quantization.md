@@ -1,8 +1,8 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T14:50:27.858752
+lastmod: 2025-12-06T18:32:40.072324
 title: Foundation 施工笔记 【4】- 网格数据量化及压缩
-tags: ["CG","Vulkan","Foundation"]
+tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
 ShowToc: true
 TocOpen: true
@@ -40,7 +40,7 @@ static_assert(sizeof(FVertex) == 48);
 
 ## FP16 量化
 
-现代硬件基本都有硬件级别的 FP16（半精度）支持。业界包括 Unity 在内在存储顶点数据时也提供了[烘焙部分通道（vertices/normals/...）为该精度](https://docs.unity3d.com/6000.2/Documentation/Manual/types-of-mesh-data-compression.html#vertex-compression)的选项，实现上这也比较简单。
+现代GPU基本都有硬件级别的 FP16（半精度）支持。业界包括 Unity 在内在存储顶点数据时也提供了[烘焙部分通道（vertices/normals/...）为该精度](https://docs.unity3d.com/6000.2/Documentation/Manual/types-of-mesh-data-compression.html#vertex-compression)的选项，实现上这也比较简单。
 
 CPU，或者C++侧对有限精度浮点数的支持一直以来并不友好 - 毕竟硬件级相关指令在AVX512才有。在[C++23](https://en.cppreference.com/w/cpp/types/floating-point.html)中才有了语言级别的`float16/float64/float128`甚至是`bfloat16`的支持——鉴于某M姓编译器对23标准的支持仍是draft，暂时不考虑升级标准支持这些特性。
 
@@ -324,11 +324,11 @@ inline void buildOrthonormalBasis(const float3 n, float3& b1, float3& b2)
 }
 ```
 
-不过，直接利用这些基底直接做bump map是不正确的——理由已在前文给出：法线贴图取决于烘焙到的tangent space，若要保持他们一致，则烘焙时和在线的结果也许一样：这很难做。但是知道**多**不正确，或者用他们如何**重构**$\mathbf{t}, \mathbf{b}$，则是很好做的一件事：$\mathbf{t}$投影算出**夹角**即可。
+不过，直接利用这些基底直接做bump map是不正确的——理由已在前文给出：法线贴图取决于烘焙到的tangent space，若要保持他们一致，则烘焙时和在线的结果也需一样：这很难做。但是知道**多**不正确，或者用他们如何**重构**$\mathbf{t}, \mathbf{b}$，则是很好做的一件事：$\mathbf{t}$投影算出**夹角**即可，手性计算和之前一致。
 
 #### 夹角：atan2 朴素实现
 
-直接向两个正交基投影可得单位圆上对应坐标，如下。这里存在`atan2,cos,sin`的使用。
+直接向两个正交基投影可得单位圆上对应坐标，实现如下。
 
 ```c++
 float3 b1, b2;
@@ -339,6 +339,10 @@ float angle = atan2(sinAngle, cosAngle) / pi<float>();
 // From angle
 tangent = cos(angle) * b1 + sin(angle) * b2;    
 ```
+
+注意这里存在`atan2,cos,sin`的使用。线代硬件跑这些函数“够快”——但是对值超大的输入会存在精度问题。其次，实时渲染中**几乎所有的操作**都可以用不需要**任何**超越函数的方法实现：还请参阅iq大佬的 [Avoiding trigonometry I](https://iquilezles.org/articles/noacos)，[Avoiding trigonometry II](https://iquilezles.org/articles/sincos)，[Avoiding trigonometry III](https://iquilezles.org/articles/noatan) 系列。
+
+接下来介绍两个在此不需要三角函数的实现方法。
 
 #### 夹角：万能公式实现
 
@@ -383,7 +387,7 @@ float2 unpackUnitCircleSnorm(float v){
 }
 ```
 
-应用到tangent角度编码如下：
+应用到tangent角度编码如下：https://seblagarde.wordpress.com/2014/12/01/inverse-trigonometric-functions-gpu-optimization-for-amd-gcn-architecture/
 
 ```c++
 float3 b1, b2;
@@ -396,7 +400,7 @@ float2 octXY = unpackUnitCircleSnorm(octAngle);
 outTangent = octXY.x * b1 + octXY.y * b2;
 ```
 
-可见，编解码都很简单；且和之前一样，解码时仅仅设计乘法加法：优势很明显。而这将是我们用来存储夹角的方法。
+可见，编解码都很简单；且和之前一样，解码时仅仅涉及乘法加法：优势很明显。这将是我们用来存储夹角的方法。
 
 
 ## 最终量化
@@ -433,7 +437,7 @@ struct FQVertex
 static_assert(sizeof(FQVertex) == 16);
 ```
 
--  `position`最后存在2字节的填充$w$。目的在于让最后整个vertex的大小为$4$的倍数（$16$）——`meshoptmizer`也会利用$4$对齐的属性提供一些操作的SIMD加速。此外，GPU也会更喜欢$4$对齐的数据：这点以后再提。
+-  `position`最后存在2字节的填充$w$。目的在于让最后整个vertex的大小为$4$的倍数（$16$）——`meshoptmizer`也会利用$4$对齐的属性提供一些操作（如下文提到的压缩）SIMD加速。此外，GPU也会更喜欢$4$对齐的数据：这点以后再提。
 
 - `tbn32` 即为tangent frame，这里使用了$4$字节存储与选择最后一种方案。bitfield格式如下：
 
@@ -445,7 +449,7 @@ static_assert(sizeof(FQVertex) == 16);
   
 - `uv`以unorm格式量化到$16+16$位存储
 
-**最后**：量化+压缩后的顶点格式是**原大小的$\frac{1}{4}$** - 做的更好是有可能的：比如使用更低的顶点bit数处理TBN和uv，这里就此折衷。此外，接下来实现光照部分时的GBuffer packing还将回顾这些手段。
+**最后**：量化+压缩后的顶点格式是**原大小的1/4** - 做的更好是有可能的：比如使用更低的顶点bit数处理TBN和uv，这里就此折衷。此外，接下来实现光照部分时的GBuffer packing还将回顾这些手段。
 
 以下为完整C++部分实现：
 
@@ -494,8 +498,7 @@ float2 unpackUnitCircleSnorm(float v){
 }
 // Compact TBN frame packing
 // Tangent is derived from orthonormal basis around normal with a rotation angle
-// Similar to 3 BYTE TANGENT FRAMES from "Rendering the Hellscape of Doom Eternal - SIGGRAPH 2020" by Jorge Jimenez et
-// al.
+// Similar to 3 BYTE TANGENT FRAMES from "Rendering the Hellscape of Doom Eternal - SIGGRAPH 2020" by Jorge Jimenez et al.
 // Octahedral normal [12+12] + tangent rotation [7] + bitangent sign [1]
 // As a side effect - with tangent of length 0, a valid frame is still reconstructed
 uint32_t FQVertex::PackTBN(const float3& normal, const float3& tangent, float bitangentSign)
@@ -570,6 +573,7 @@ mos9527@Sunrise:/mnt/Windows/Scenes » ls -altrh IntelSponza*.bin
 - [RENDERING THE HELLSCAPE OF DOOM ETERNAL - SIGGRAPH 2020](https://advances.realtimerendering.com/s2020/RenderingDoomEternal.pdf)
 - [Tangent Spaces and Diamond Encoding - jeremyong](https://www.jeremyong.com/graphics/2023/01/09/tangent-spaces-and-diamond-encoding/)
 - [Followup: Normal Mapping Without Precomputed Tangents](http://www.thetenthplanet.de/archives/1180)
+- [Avoiding trigonometry I](https://iquilezles.org/articles/noacos)，[Avoiding trigonometry II](https://iquilezles.org/articles/sincos)，[Avoiding trigonometry III](https://iquilezles.org/articles/noatan) 
 - [Surface Gradient Bump Mapping Framework Overview](https://www.jeremyong.com/graphics/2023/12/16/surface-gradient-bump-mapping/)
 - [A Survey of Surface Gradient-Based Bump Mapping Frameworks](https://jcgt.org/published/0009/03/04/)
 - [Tangent-basis workflow for getting 100% correct normal-mapping #1252 - KhronosGroup/glTF](https://github.com/KhronosGroup/glTF/issues/1252)
