@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T11:22:51.689796
+lastmod: 2025-12-06T11:23:32.253068
 title: Foundation 施工笔记 【4】- 网格数据量化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -493,7 +493,7 @@ float2 unpackUnitCircleSnorm(float v){
 // Tangent is derived from orthonormal basis around normal with a rotation angle
 // Similar to 3 BYTE TANGENT FRAMES from "Rendering the Hellscape of Doom Eternal - SIGGRAPH 2020" by Jorge Jimenez et
 // al.
-// Octahedral normal [10+10] + tangent rotation [10] + bitangent sign [2]
+// Octahedral normal [12+12] + tangent rotation [7] + bitangent sign [1]
 // As a side effect - with tangent of length 0, a valid frame is still reconstructed
 uint32_t FQVertex::PackTBN(const float3& normal, const float3& tangent, float bitangentSign)
 {
