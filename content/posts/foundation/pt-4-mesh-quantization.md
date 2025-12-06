@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T11:38:44.835949
+lastmod: 2025-12-06T11:43:12.398746
 title: Foundation 施工笔记 【4】- 网格数据量化
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -436,13 +436,13 @@ static_assert(sizeof(FQVertex) == 16);
   NormalX [12] NormalY [12] TangentAngle[7] BitangentSign[1]
   ```
   
-  可见TBN是被完整存储的。理由多余的精度空间，我们把他放在了法向量packing上：24位专门用于normal，相对于四元数packing是个优势。
+  可见TBN是被完整存储的。多余的精度空间，我们把他放在了法向量packing上：24位专门用于normal，相对于四元数packing是个优势。
   
   若使用四元数packing，这会更适合gbuffer存储（$RGB10A2$）；这点未来实现PBR光照时会再次提及。
   
 - `uv`以unorm格式量化到$16+16$位存储
 
-以下为完整量化C++部分实现：
+以下为最后一种方案下完整C++部分实现：
 
 ```c++
 constexpr float EPS = 1e-6;
