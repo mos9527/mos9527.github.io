@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T18:32:40.072324
+lastmod: 2025-12-06T18:34:14.970416
 title: Foundation 施工笔记 【4】- 网格数据量化及压缩
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -340,7 +340,7 @@ float angle = atan2(sinAngle, cosAngle) / pi<float>();
 tangent = cos(angle) * b1 + sin(angle) * b2;    
 ```
 
-注意这里存在`atan2,cos,sin`的使用。线代硬件跑这些函数“够快”——但是对值超大的输入会存在精度问题。其次，实时渲染中**几乎所有的操作**都可以用不需要**任何**超越函数的方法实现：还请参阅iq大佬的 [Avoiding trigonometry I](https://iquilezles.org/articles/noacos)，[Avoiding trigonometry II](https://iquilezles.org/articles/sincos)，[Avoiding trigonometry III](https://iquilezles.org/articles/noatan) 系列。
+注意这里存在`atan2,cos,sin`的使用。线代硬件跑这些函数“够快”——但是对值超大的输入会存在精度问题 ~~然后能省的FLOP为啥不省~~ 其次，实时渲染中**几乎所有的操作**都可以用不需要**任何**超越函数的方法实现：还请参阅iq大佬的 [Avoiding trigonometry I](https://iquilezles.org/articles/noacos)，[Avoiding trigonometry II](https://iquilezles.org/articles/sincos)，[Avoiding trigonometry III](https://iquilezles.org/articles/noatan) 系列。
 
 接下来介绍两个在此不需要三角函数的实现方法。
 
