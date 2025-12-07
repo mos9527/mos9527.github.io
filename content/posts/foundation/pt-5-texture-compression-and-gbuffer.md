@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T21:12:12.154973
+lastmod: 2025-12-07T18:04:12.895642
 title: Foundation 施工笔记 【5】- 纹理与 GBuffer 存储
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -12,6 +12,20 @@ typora-root-url: ../../../static/
 ## Preface
 
 现在为止，Editor还没有任何关于光照，甚至是texture map的相关实现。本篇文章将介绍纹理方面的*高效*存储及Editor GBuffer的布局，及PBR shading的初步测试。
+
+## 容器格式
+
+不看轮子和各种私有格式的话，常用的主要有[DDS](https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dx-graphics-dds-pguide)和最近的[KTX2](https://registry.khronos.org/KTX/specs/2.0/ktxspec.v2.html)。
+
+### KTX
+
+虽然[工具链很成熟](https://github.com/KhronosGroup/KTX-Software)，在新版[Vulkan Tutorial](https://docs.vulkan.org/tutorial/latest/15_GLTF_KTX2_Migration.html#_understanding_ktx2)中被绝赞推荐，但由于全平台支持，直接使用的话由于各种编码产生的依赖会多的离谱（`--depth=1` clone大小约莫~1GB！），这里没有选择。
+
+### DDS
+
+最后挑的还是DDS，因为容器本身很简单：[`"DXT " + DDS_HEADER + DDS_HEADER_DXT10`](https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header)后即为对应编码下linear tiled数据，可以分成layer/mip直接上传 GPU。至于为什么不应该(Linear Tiling)整个上传（或者，GPU上的纹理到存储方式为什么是硬件相关的），请参考 [Image Copies - Vulkan Documentation](https://docs.vulkan.org/guide/latest/image_copies.html)。
+
+实现上主要是读文档——部分结构直接从[DirectXTex - DDS.h](https://github.com/microsoft/DirectXTex/blob/main/DirectXTex/DDS.h) copy过来了。用DDS有一个好处就是能被第三方工具直接打开，同时，Editor序列化纹理也将如此存储。
 
 ## 纹理格式
 
@@ -31,31 +45,11 @@ typora-root-url: ../../../static/
 
 额外的，basisu也自带一层[哈夫曼编码](https://github.com/BinomialLLC/basis_universal/wiki/.basis-file-format-overview) - 这是在所有block处理完之后全局进行的，因此整体压缩率在相同平均bpp下也会比单纯的BCn等编码一般地会更高。
 
-## 容器格式
+### BC7
 
-不看轮子和各种私有格式的话，常用的主要有[DDS](https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dx-graphics-dds-pguide)和最近的[KTX2](https://registry.khronos.org/KTX/specs/2.0/ktxspec.v2.html)。
+最后在GPU和文件本身存储上还是采用了BC7 - Editor内置了来自crunch作者[Richard Geldreich](https://richg42.blogspot.com/) 的 [bc7enc](https://github.com/richgel999/bc7enc) 实现。这样也方便直接读取JPG/PNG存储的glTF模型纹理。
 
-### KTX
+集成上没有出现太多意外情况，这里就不多说了。和之前网格一样，优化（转码）/烘焙部分是可以离线的。以下是产生的DDS在[tacentview](https://github.com/bluescan/tacentview)预览效果：
 
-鉴于KTX2格式有官方的[KTX-Software](https://github.com/KhronosGroup/KTX-Software)和相关集成来完成读取、编解码等操作，以及在新版[Vulkan Tutorial](https://docs.vulkan.org/tutorial/latest/15_GLTF_KTX2_Migration.html#_understanding_ktx2)中被绝赞推荐，这里我们选择后者进行集成。依赖管理上我们继续使用CMake `FetchContent`完成。
-
-```cmake
-FetchContent_Declare(
-    KTX-Software
-    GIT_REPOSITORY https://github.com/KhronosGroup/KTX-Software
-    GIT_TAG v4.4.2
-    GIT_SHALLOW TRUE
-)
-...
-set(KTX_FEATURE_TESTS OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(KTX-Software)
-...
-target_link_libraries(
-    Editor_Assets PUBLIC
-    Foundation_Math
-    Foundation_Core
-    meshoptimizer
-    ktx
-)
-```
+![image-20251207180343608](/image-foundation/image-20251207180343608.png)
 
