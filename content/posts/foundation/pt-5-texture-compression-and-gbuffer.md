@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-07T18:04:12.895642
+lastmod: 2025-12-07T18:07:23.391837
 title: Foundation 施工笔记 【5】- 纹理与 GBuffer 存储
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -49,7 +49,7 @@ typora-root-url: ../../../static/
 
 最后在GPU和文件本身存储上还是采用了BC7 - Editor内置了来自crunch作者[Richard Geldreich](https://richg42.blogspot.com/) 的 [bc7enc](https://github.com/richgel999/bc7enc) 实现。这样也方便直接读取JPG/PNG存储的glTF模型纹理。
 
-集成上没有出现太多意外情况，这里就不多说了。和之前网格一样，优化（转码）/烘焙部分是可以离线的。以下是产生的DDS在[tacentview](https://github.com/bluescan/tacentview)预览效果：
+和之前网格一样，优化（转码）/烘焙部分是可以离线的。以下是结合mip生成以后产生的DDS在[tacentview](https://github.com/bluescan/tacentview)预览效果：具体实现细节太多，姑且就不贴在这里了。有兴趣可以[点这里](https://github.com/mos9527/Foundation/blob/vulkan/Editor/Texture.cpp)查看。
 
 ![image-20251207180343608](/image-foundation/image-20251207180343608.png)
 
