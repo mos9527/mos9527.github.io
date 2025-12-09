@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T19:05:48.672381
+lastmod: 2025-12-08T16:06:26.788019
 title: Foundation 施工笔记 【4】- 网格数据量化及压缩
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -121,14 +121,8 @@ inline float dequantizeSnormShifted(uint32_t q, int32_t Nbits)
 }
 ```
 
-应用上，UV坐标就属于UNORM的范畴。现在先不谈法向量(normal)，切向量(tagent)：他们（规范化为单位向量时）确实可以直接用SNORM表达，你也可以这么做！不过在此之前， 请阅读下一部分。
+应用上对于法向量(normal)，切向量(tagent)：他们（规范化为单位向量时）确实可以直接用SNORM表达，你也可以这么做！但是，更高效的法向量存储是存在的，请看下一节。
 
-```c++
-uint16_t uv[2]; // quantized UNORM16
-...
-result.uv[0] = quantizeUnorm(vertex.uv[0], 16);
-result.uv[1] = quantizeUnorm(vertex.uv[1], 16);
-```
 
 ## Tangent Frame 压缩
 
@@ -426,7 +420,7 @@ struct FQVertex
 {
     uint16_t position[4]; // quantized FP16 [xyz] padding [w]
     uint32_t tbn32; // packed tangent frame
-    uint16_t uv[2]; // quantized UNORM16
+    uint16_t uv[2]; // quantized FP16 [uv]
 
     static uint32_t PackTBN(const float3& normal, const float3& tangent, float bitangentSign);
     static void UnpackTBN(uint32_t packed, float3& outNormal, float3& outTangent, float& outBitangentSign);
@@ -447,9 +441,13 @@ static_assert(sizeof(FQVertex) == 16);
   
   可见TBN是被完整存储的（包括手性bit）。多余的精度空间，我们把他放在了法向量packing上：24位专门用于normal，相对于四元数方法是个优势。
   
-- `uv`以unorm格式量化到$16+16$位存储
+- `uv`以~~UNORM~~ FP16格式量化到$16+16$位存储。**注意：**虽然纹理本身空间是$[0,1]$，但UV本身是可以很大的，参考下图。
 
-**最后**：量化+压缩后的顶点格式是**原大小的1/4** - 做的更好是有可能的：比如使用更低的顶点bit数处理TBN和uv，这里就此折衷。此外，接下来实现光照部分时的GBuffer packing还将回顾这些手段。
+  ![image-20251208104343967](/image-foundation/image-20251208104343967.png)
+
+	这样可以达成tiling效果：~~开始写的时候还不知道~~ 因为值域无界，这里只能使用正经的FP16。
+
+**最后**：量化+压缩后的顶点格式是**原大小的1/4** - 做的更好是有可能的：比如使用更低的顶点bit数处理TBN，这里就此折衷。此外，接下来实现光照部分时的GBuffer packing还将回顾这些手段。
 
 以下为完整C++部分实现：
 
