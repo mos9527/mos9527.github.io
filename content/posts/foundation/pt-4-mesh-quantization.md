@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-08T16:06:26.788019
+lastmod: 2025-12-09T15:32:23.605357
 title: Foundation 施工笔记 【4】- 网格数据量化及压缩
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -377,7 +377,7 @@ float packUnitCircleSnorm(float2 v){
 float2 unpackUnitCircleSnorm(float v){
     float x = fabsf(v) * 2.0f - 1.0f;
     float y = 1.0f - fabsf(x);
-    return v >= 0.0f ? float2(x, y) : float2(x, -y);
+    return normalize(v >= 0.0f ? float2(x, y) : float2(x, -y));
 }
 ```
 

@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-09T12:28:51.062891
+lastmod: 2025-12-09T23:22:23.728833
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -73,9 +73,14 @@ Task/Mesh部分在前面已经讲得很详细，这里不再多说。接下来�
 | RT1    | Normal 投影 X [8] | Normal 投影 Y [8] | Tangent 夹角 [8] | Metallic [8]                 |
 | RT2    | Emissive R [8]    | Emissive G [8]    | Emissive B [8]   | Roughness [8]                |
 
-- BaseColor, Emissive 直接存储，各占一对RGB通道
+- BaseColor, Emissive 直接存储，各占一对RGB通道。
+
+  **注意**：glTF的BaseColor存储于sRGB格式，利用相关硬件材质格式(BC7Srgb/RGBA8Srgb)可以避免shader中额外转换而直接读取**解码后**线性色彩数据。
+
 - Tangent Frame是完整保留的，且只用3字节+1bit（RT1 RGB + RT0 A[1]）。后面实现PBR时可以用来实现各向异性效果。
+
 - Metallic, Roughness 各占一个通道
+
 - 此外RT0还有存一个Material ID，不过因为目前glTF只有一种材质模型，所以还用不到。
 
 ### GBuffer 生成
@@ -85,39 +90,27 @@ Task/Mesh部分在前面已经讲得很详细，这里不再多说。接下来�
 ![image-20251208200753938](/image-foundation/image-20251208200753938.png)
 ![image-20251208200901053](/image-foundation/image-20251208200901053.png)
 
-## 光照及线性 Workflow
+## 线性 Workflow
 
-正经实现 PBR 光照开始。[Physically Based Rendering in Filament](https://google.github.io/filament/Filament.md.html) ，PBRT/[Physically Based Rendering:From Theory To Implementation](https://pbr-book.org/) 和手头的 RTR4/[Real-Time Rendering 4th Edition](https://www.realtimerendering.com/) （尤其是第九章）将是我们主要的信息来源。
+正经实现 PBR 光照开始。[Physically Based Rendering in Filament](https://google.github.io/filament/Filament.md.html) ，PBRT/[Physically Based Rendering:From Theory To Implementation](https://pbr-book.org/)/[Kanition大佬v3翻译版](https://github.com/kanition/pbrtbook) 和手头的 RTR4/[Real-Time Rendering 4th Edition](https://www.realtimerendering.com/) （尤其是第九章）将是我们主要的信息来源。
 
-### BRDF	
 
-参考  [4.1 Standard model](https://google.github.io/filament/Filament.md.html#materialsystem/standardmodel) - 读者请自行完成相关阅读，这里将不在原理方面过多阐述。
+### 光照单元
 
-[4.6 Standard model summary](https://google.github.io/filament/Filament.md.html#materialsystem/standardmodelsummary) 包括实现GGX Specular和Lambert Diffuse所需的一切Listing。整理 [4.10.1 Anisotropic specular BRDF](https://google.github.io/filament/Filament.md.html#materialsystem/anisotropicmodel/anisotropicspecularbrdf) 内容，以下是我们将要在本demo使用的BRDF中$F$及支持各向异性的$D,V$函数。
+PBR要求我们使用真实的光照单元建模渲染。这里采用[Table 10 - Filament](https://google.github.io/filament/Filament.md.html#table_lighttypesunits)中的光照单元和光照类型关系：巧合的，这些单位与glTF扩展[KHR_lights_punctual](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_lights_punctual/README.md#light-types)一致。
 
-```glsl
-float D_GGX_Anisotropic(float NoH, const float3 h, const float3 t, const float3 b, float at, float ab) {
-    float ToH = dot(t, h);
-    float BoH = dot(b, h);
-    float a2 = at * ab;
-    float3 v = float3(ab * ToH, at * BoH, a2 * NoH);
-    float v2 = dot(v, v);
-    float w2 = a2 / v2;
-    return a2 * w2 * w2 * (1.0 / PI);
-}
-float3 F_Schlick(float u, float3 f0) {
-    return f0 + (float3(1.0) - f0) * pow(1.0 - u, 5.0);
-}
-float V_SmithGGXCorrelated_Anisotropic(float at, float ab, float ToV, float BoV,
-        float ToL, float BoL, float NoV, float NoL) {
-    float lambdaV = NoL * length(float3(at * ToV, ab * BoV, NoV));
-    float lambdaL = NoV * length(float3(at * ToL, ab * BoL, NoL));
-    float v = 0.5 / (lambdaV + lambdaL);
-    return saturate(v);
-}
-```
+- 对于**平行/太阳光**，其单位为$lx$（勒克斯，lux），或$\frac{lm}{m^2}$（每平方米流明）。
+- **点光源（包括聚光灯）**，其单位为$lm$（流明）。
 
-**注**：关于$a$ - 注意 [glTF Spec Appendix B.2.3. Microfacet Surfaces](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#microfacet-surfaces) 及   [Fliament 4.8.3 Remapping](https://google.github.io/filament/Filament.md.html#materialsystem/parameterization/remapping) 中也有提到。对roughness做$\alpha = \text{roughness}^2$的mapping是被推荐的。
+**附注：** Blender中的[GLTF导出](https://github.com/KhronosGroup/glTF-Blender-IO)会将[Blender内光源单位（皆为$W$）做转换](https://github.com/KhronosGroup/glTF-Blender-IO/blob/2aa5785d20f3143e4bed7c45f070de379914e3f0/addons/io_scene_gltf2/blender/com/conversion.py#L20)，过程即为乘以$683 \frac{lm}{W}$。数字来源请参考前链接。
+
+### 线性Workflow
+
+SDR仅仅只有$[0,1]$的空间是远远不够建模上述真实的光照单位的。（参考 [Table 12 - Filament](https://google.github.io/filament/Filament.md.html#table_sunskyilluminance)：可测量到太阳的直射可达$100000 lux$）
+
+HDR渲染不一定蕴含PBR，但反过来是一定的。同时，在线性空间渲染也需要更高精度的framebuffer格式——这里用了`B10G11R11`。
+
+最后，不论是输出到SDR还是HDR显示器，从线性空间出发的曝光，Tonemapping都是必要的。接下来介绍这两部分内容。
 
 ### PBR 相机
 
@@ -130,7 +123,7 @@ float V_SmithGGXCorrelated_Anisotropic(float at, float ab, float ToV, float BoV,
 
 #### EV100
 
-摘自 [EV与照明条件的关系 - 维基百科](https://zh.wikipedia.org/wiki/%E6%9B%9D%E5%85%89%E5%80%BC#EV%E4%B8%8E%E7%85%A7%E6%98%8E%E6%9D%A1%E4%BB%B6%E7%9A%84%E5%85%B3%E7%B3%BB)：
+曝光控制并不会直接从绝对辉度进行，一般由$EV$定义。摘自 [EV与照明条件的关系 - 维基百科](https://zh.wikipedia.org/wiki/%E6%9B%9D%E5%85%89%E5%80%BC#EV%E4%B8%8E%E7%85%A7%E6%98%8E%E6%9D%A1%E4%BB%B6%E7%9A%84%E5%85%B3%E7%B3%BB)：
 $$
 \mathrm {EV} =\log _{2}{\frac {LS}{K}}
 $$
@@ -141,11 +134,11 @@ EV_{100} = log_2{L\frac{100}{12.5}}
 $$
 EV是一个控制量。对于饱和相机传感器的辐照度$L_{max}$，[Moving Frostbite to Physically based rendering V3](https://seblagarde.wordpress.com/wp-content/uploads/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf) 及 [8.1 Physically based camera - Filament](https://google.github.io/filament/Filament.md.html#imagingpipeline/physicallybasedcamera) 都给出了以下式子：
 $$
-L_{max} &= 2^{EV_{100}} \frac{78}{q \cdot S} \\
+L_{max} = 2^{EV_{100}} \frac{78}{q \cdot S}
 $$
 代入常用$q=0.65$与$ISO=100$简化为：
 $$
-L_{max} &= 2^{EV_{100}} \times 1.2 = {L\frac{100}{12.5}} \times 1.2 = 9.6 \times L \\
+L_{max} = 2^{EV_{100}} \times 1.2 = {L\frac{100}{12.5}} \times 1.2 = 9.6 \times L
 $$
 曝光值$H$的定义为$H=\frac{1}{L_{max}}$ - 最后我们得到将场景辉度归一的完整式子，非常简单：
 $$
@@ -154,9 +147,9 @@ $$
 
 #### 测光
 
-Tonemapping需要知道场景辉度情况。朴素的，可以直接对最终lighting buffer进行mip chain生成：字面地求平均后取其最后$1\times1$ mip值的辉度值。不过问题也很明显。摘自[Automatic Exposure - Krzysztof Narkowicz](https://knarkowicz.wordpress.com/2016/01/09/automatic-exposure/)：当场景*大部份很暗*或存在*少数极亮*光源时，*整体*平均值会受到很大影响：相机对着的主体可能并看不清楚。
+Tonemapping需要知道场景辉度情况——我们想要的是**场景平均辉度**。朴素的，可以直接对最终lighting buffer进行mip chain生成：字面地求平均后取其最后$1\times1$ mip值的辉度值。不过问题也很明显。摘自[Automatic Exposure - Krzysztof Narkowicz](https://knarkowicz.wordpress.com/2016/01/09/automatic-exposure/)：当场景*大部份很暗*或存在*少数极亮*光源时，*整体*平均值会受到很大影响：相机对着的主体可能并看不清楚。
 
-利用直方图则可以忽略这些极值。实现上如下：我们将场景光照映射到一定曝光范围后去做binning，最后丢掉极值情况后加权取和得到**平均辉度**。完整实现如下：
+利用直方图则可以忽略这些极值。实现上如下：我们将场景光照映射到一定曝光范围（通过`globalParams.camMinEV, globalParams.camMaxEV`指定）后去做binning，最后丢掉极值情况后加权取和得到**场景平均辉度**。完整实现如下：
 
 ```glsl
 #include "ICommon.slang"
@@ -186,7 +179,7 @@ void main(uint2 tid: SV_DispatchThreadID, uint gid : SV_GroupIndex) {
 }
 ```
 
-加权平均部分沿用了之前wave intrinsic的求和trick，不再多说。实现如下：
+加权平均部分沿用了之前wave intrinsic的求和trick，不再多说。实现如下，注意只保留了$[2,48]$的bin，摈弃过明/暗样本：这里的上下界选择比较随意。
 
 ```glsl
 #include "ICommon.slang"
@@ -232,4 +225,242 @@ L_{avg} = L_{avg} + (L - L_{avg}) \times (1 - e^{-\Delta t \cdot \tau})
 $$
 借此可以产生“自适应”效果，同时规避场景变化可能带来辉度突变。
 
-### Tonemapping
+### Tonemapping 曲线
+
+归一化的$L'$并不一定回落在SDR的$[0,1]$区间。此外，对最终暗部、高光表现“修图”也是一个基操：这点常常用某种曲线完成。
+
+业内用的最多的或许是[ACES/Filmic](https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/)：用户包括[Unity](https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@7.1/manual/post-processing-tonemapping.html), [UE](https://dev.epicgames.com/documentation/en-us/unreal-engine/color-grading-and-the-filmic-tonemapper-in-unreal-engine#academycolorencodingsystem(aces)filmictonemapper) 及 Blender 等等。Blender在4.0以后开始默认使用[AgX](https://github.com/EaryChow/AgX)替代ACES曲线，原因出于（应用原文）：
+
+> This view transform provides better color handling in over-exposed areas compared to Filmic. In particular bright colors go towards white, similar to real cameras. Technical details and image comparisons can be found in [PR#106355](https://projects.blender.org/blender/blender/pulls/106355).
+
+...更写实？不清楚怎么回事。不过实现上，官方提供的仅有 ACES:[OCIO](https://github.com/colour-science/OpenColorIO-Configs), AgX:[OCIO](https://github.com/sobotka/AgX) profile：直接集成有些小题大做。此外，真正完整的曲线计算相当，*相当*复杂：参考[Unreal ACES](https://github.com/EpicGames/UnrealEngine/blob/684b4c133ed87e8050d1fdaa287242f0fe2c1153/Engine/Shaders/Private/ACES/ACES_v1.3.ush) 和 [ACES Overview - Wikipedia](https://en.wikipedia.org/wiki/Academy_Color_Encoding_System#System_overview)。
+
+一个偷懒但有效的方法即为构造LUT查表调色Tonemap之前的线性空间（如用Linear Rec 709表示），或者借更少数据点拟合曲线。以下为 [ACES Filmic Tone Mapping Curve - Krzysztof Narkowicz](https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/) 给出的ACES fit:
+
+```
+float3 ACESFilm(float3 x)
+{
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return saturate((x*(a*x+b))/(x*(c*x+d)+e));
+}
+```
+
+还有更多Fit参见[Tonemap operators incl. reinhard - Shadertoy by bruop](https://www.shadertoy.com/view/WdjSW3)；另外，[Shadertoy上还有不少Agx的实时实现](https://www.shadertoy.com/results?query=agx)，可供参考。
+
+### 显示器空间转换 （EOTF）
+
+到目前为止，我们的一切操作还都是在线性空间中完成的。对于SDR/HDR显示设备，信号还需要转换到他们能接受的格式：这个操作业也叫 EOTF（Electro-Optical Transfer Function)。参见 [Displays and Views - Blender Manual](https://docs.blender.org/manual/en/latest/render/color_management/displays_views.html#displays)
+
+![image-20251209202139517](/image-foundation/image-20251209202139517.png)
+
+~~因为没有正经HDR屏幕~~ 简单起见，我们在tonemapper最后做一次linear->gamma/sRGB的转换即可，最后到屏幕上的任务不是我们做的。
+
+最后，完整的Linear场景SDR呈现流程如下（节选），采用了最简单的ACES Fit和Gamma转换。
+
+```glsl
+float Lavg = sceneLuma.Load(0u);
+float3 Lpix = lighting.Load(coord).xyz;
+// Exposure
+float3 L = Lpix/(Lavg * 9.6f);
+// ACES
+L = ACESFilm(L);
+// Inverse Gamma EOTF
+L = pow(L, 1.0f/2.2f);
+return float4(L, 1.0f);
+```
+
+## BRDF	
+
+![image-20250118194315626](/image-shading-reverse/image-20250118194315626.png)
+
+参考  [4.1 Standard model](https://google.github.io/filament/Filament.md.html#materialsystem/standardmodel) - 读者请自行完成相关阅读，这里将不在原理方面过多阐述。图源RTR4，供向量名参考。
+
+### GGX + Lambert
+
+Filament [4.6 Standard model summary](https://google.github.io/filament/Filament.md.html#materialsystem/standardmodelsummary) 包括实现GGX Specular和Lambert Diffuse所需的一切Listing。方便参考，以下为Lambert Diffuse与GGX Specular的LaTEX形式。其中$\sigma$为“diffuse reflectance”，即我们的base color。
+$$
+F_{diffuse} = \frac{\sigma}{\pi} \newline
+F_{specular} = \frac{D(h, \alpha) G(v, l, \alpha) F(v, h, f0)}{4(n \cdot v)(n \cdot l)}
+$$
+$G(v,l,a)$常被简化为$V(n,v,l)$/Visbility，最后后面会见到的形式为：
+$$
+F_{diffuse} = \frac{\sigma}{\pi} \newline
+F_{specular} = D(h, \alpha) V(n, v, l) F(v,h,f0)
+$$
+
+
+整理 [4.10.1 Anisotropic specular BRDF](https://google.github.io/filament/Filament.md.html#materialsystem/anisotropicmodel/anisotropicspecularbrdf) 内容，以下是我们将要在本demo使用的BRDF中$F$估计形式及支持各向异性的$D,V$函数。这里额外还将需要完整的切空间与$at, ab$，这里将不在之前式子补充。
+
+```glsl
+float3 F_Schlick(float u, float3 f0) {
+    return f0 + (float3(1.0) - f0) * pow(1.0 - u, 5.0);
+}
+// float at = max(roughness * (1.0 + anisotropy), 0.001);
+// float ab = max(roughness * (1.0 - anisotropy), 0.001);
+float D_GGX_Anisotropic(float NoH, const float3 h, const float3 t, const float3 b, float at, float ab) {
+    float ToH = dot(t, h);
+    float BoH = dot(b, h);
+    float a2 = at * ab;
+    float3 v = float3(ab * ToH, at * BoH, a2 * NoH);
+    float v2 = dot(v, v);
+    float w2 = a2 / v2;
+    return a2 * w2 * w2 * (1.0 / PI);
+}
+
+float V_SmithGGXCorrelated_Anisotropic(float at, float ab, float ToV, float BoV,
+        float ToL, float BoL, float NoV, float NoL) {
+    float lambdaV = NoL * length(float3(at * ToV, ab * BoV, NoV));
+    float lambdaL = NoV * length(float3(at * ToL, ab * BoL, NoL));
+    float v = 0.5 / (lambdaV + lambdaL);
+    return saturate(v);
+}
+
+```
+
+**注**：关于$a$ - 注意 [glTF Spec Appendix B.2.3. Microfacet Surfaces](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#microfacet-surfaces) 及   [Fliament 4.8.3 Remapping](https://google.github.io/filament/Filament.md.html#materialsystem/parameterization/remapping) 中也有提到。对roughness做$\alpha = \text{roughness}^2$的mapping是被推荐的。
+
+### glTF Metal-Rough 模型
+
+Spec的要求基本上是[迪斯尼BRDF](https://github.com/wdas/brdf/blob/main/src/brdfs/disney.brdf#L135)的简化模型 - 仅包含`baseColor, metallic, roughness`层。不过 [其他的材质层（如Clearcoat）也基本有各种拓展加入](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_clearcoat/README.md)；这些以后再看。
+
+![pbr](/image-foundation/gltf-metal-rough-complete-model.svg)
+
+注意，[glTF 定义其 `specular_brdf` 为 $VD$](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metal-brdf-and-dielectric-brdf) - $F$反射值在后面参与。其中，`fresnel_mix` 的实现如下，参考[B.2.2. Dielectrics](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#dielectrics)
+
+```glsl
+float3 fresnel_mix(float cosAngle, float ior, float3 base, float3 layer) {
+  float F0 = ((1-ior)/(1+ior))^2;
+  float3 F = F_Schlick(cosAngle, float3(F0));
+  return lerp(base, layer, F)
+}
+```
+
+layer层可以直觉地认为：入射角靠近切平面时从视点看到的材质
+
+最后，官方上面采用$IOR=1.5$，代入即$F0=0.04$。综上，最后该模型完整的实现如下。$D,V$计算省略。
+
+```glsl
+#include "ICommon.slang"
+#include "IBRDF.slang"
+[[SpecializationConstant]] int flags;
+
+uniform UBO globalParams;
+Texture2D<float4> RT0;
+Texture2D<float4> RT1;
+Texture2D<float4> RT2;
+Texture2D<float> depth;
+RWTexture2D<float4> output;
+StructuredBuffer<GSMaterial> materials;
+
+[shader("compute")]
+[numthreads(16, 16, 1)]
+void main(uint2 tid: SV_DispatchThreadID) {
+    if (tid.x >= globalParams.fbWidth || tid.y >= globalParams.fbHeight) return;
+    float4 color0 = RT0.Load(uint3(tid,0));
+    float4 color1 = RT1.Load(uint3(tid,0));
+    float4 color2 = RT2.Load(uint3(tid,0));
+
+
+    float3 baseColor = color0.xyz;
+    uint32_t materialID = (uint)(color0.w * 255.0f), BSign;
+    BSign = bitfieldExtract(materialID, 7, 1);
+    materialID = bitfieldExtract(materialID, 0, 7);
+
+    float ndcDepth = depth.Load(uint3(tid,0));
+    if (ndcDepth <= EPS) {
+        // Infinite depth
+        output[tid] = float4(0);
+        return;
+    }
+
+    float4 ndcPosition = float4(tid.xy / float2(globalParams.fbWidth, globalParams.fbHeight), ndcDepth, 1.0f);
+    ndcPosition.y = 1 - ndcPosition.y;
+    ndcPosition.xy = ndcPosition.xy * 2.0f - 1.0f;
+    float4 wsPosition = mul(globalParams.inverseViewProj, ndcPosition);
+
+    float3 p = wsPosition.xyz / wsPosition.w;
+    float3 eye = globalParams.camPosition;
+
+    GSMaterial material = materials.Load(materialID  + globalParams.firstMaterial);
+    float3 n, t, b;
+    unpackTBN888(color1.xyz, n, t);
+    b = cross(n, t) * (BSign == 1 ? 1.0f : -1.0f);
+
+    float metallic = color1.w;
+    float roughness = color2.w;
+    float3 emissive = color2.xyz;
+
+    if (flags ... /* debug stuff */)
+    } else {
+        // PBR Lighting
+        if (flags & (kViewGBufferDiffuse | kViewGBufferSpecular)) // Lighting only
+            baseColor = float3(1);
+
+        float3 v = normalize(eye - p);
+        float3 l = -globalParams.sunDirection;
+        float3 h = normalize(v + l);
+        float NoH = saturate(dot(n,h));
+        float LoH = saturate(dot(l,h));
+        float ToV = saturate(dot(t,v));
+        float BoV = saturate(dot(b,v));
+        float ToL = saturate(dot(t,l));
+        float BoL = saturate(dot(b,l));
+        float NoV = abs(dot(n,v)) + EPS;
+        float NoL = saturate(dot(n,l));
+
+        float3 lighting = float3(NoL) * globalParams.sunIntensity + globalParams.ambientColor;
+
+        // Diffuse
+        // https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
+        float3 Fd = baseColor / PI;
+
+        // Specular
+        float anisotropy = material.anisotropy;
+        roughness = roughness * roughness;
+        float at = max(roughness * (1.0 + anisotropy), 0.001);
+        float ab = max(roughness * (1.0 - anisotropy), 0.001);
+        float D = D_GGX_Anisotropic(NoH, h, t, b, at, ab);
+        float V = V_SmithGGXCorrelated_Anisotropic(at, ab, ToV, BoV, ToL, BoL, NoV, NoL);
+
+        // glTF spec calls D*V the specular BRDF, F is introduced later.
+        float Fs = D * V;
+        // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metal-brdf-and-dielectric-brdf
+        float3 metalBRDF = Fs * F_Schlick(LoH, baseColor);
+        float3 dielectricBRDF = lerp(Fd, Fs, F_Schlick(LoH, float3(0.04)));
+        float3 material = lerp(dielectricBRDF, metalBRDF, metallic) * lighting;
+        // Final color
+        if (flags & kViewGBufferDiffuse) {
+            output[tid] = float4(Fd * lighting, 1.0f);
+            return;
+        } else if (flags & kViewGBufferSpecular) {
+            output[tid] = float4(float3(Fs) * lighting, 1.0f);
+            return;
+        } else {
+            output[tid] = float4(material + emissive, 1.0f);
+        }
+    }
+}
+
+```
+
+### 验证
+
+以下为[glTF-Sample-Assets - FlightHelmet](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/FlightHelmet)场景在Editor和Blender 5.0 EEVEE中渲染结果对比。
+
+**注意:** 在这里有做出以下限制：
+
+- 二者都仅有单个直接平行光源
+- 没有间接照明或环境光/AO
+- 没有任何形式的阴影实现
+
+此外，相机及光照各参数（角度，功率/lux）也已保证一致——至此可以认为我们的glTF材质模型是完全正确的。
+
+![image-20251209214314119](/image-foundation/image-20251209214314119.png)
+
+![image-20251209214321526](/image-foundation/image-20251209214321526.png)
+
+<h2 color="red"> --- 施工中 --- </h2>
