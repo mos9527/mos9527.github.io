@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-09T23:22:23.728833
+lastmod: 2025-12-10T08:02:25.777354
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -339,7 +339,7 @@ float3 fresnel_mix(float cosAngle, float ior, float3 base, float3 layer) {
 }
 ```
 
-layer层可以直觉地认为：入射角靠近切平面时从视点看到的材质
+layer层可以直觉地认为：入射角靠近切平面时从视点看到的材质。
 
 最后，官方上面采用$IOR=1.5$，代入即$F0=0.04$。综上，最后该模型完整的实现如下。$D,V$计算省略。
 
@@ -404,7 +404,7 @@ void main(uint2 tid: SV_DispatchThreadID) {
         float3 l = -globalParams.sunDirection;
         float3 h = normalize(v + l);
         float NoH = saturate(dot(n,h));
-        float LoH = saturate(dot(l,h));
+        float VoH = saturate(dot(v,h));
         float ToV = saturate(dot(t,v));
         float BoV = saturate(dot(b,v));
         float ToL = saturate(dot(t,l));
@@ -429,8 +429,8 @@ void main(uint2 tid: SV_DispatchThreadID) {
         // glTF spec calls D*V the specular BRDF, F is introduced later.
         float Fs = D * V;
         // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metal-brdf-and-dielectric-brdf
-        float3 metalBRDF = Fs * F_Schlick(LoH, baseColor);
-        float3 dielectricBRDF = lerp(Fd, Fs, F_Schlick(LoH, float3(0.04)));
+        float3 metalBRDF = Fs * F_Schlick(VoH, baseColor);
+        float3 dielectricBRDF = lerp(Fd, Fs, F_Schlick(VoH, float3(0.04)));
         float3 material = lerp(dielectricBRDF, metalBRDF, metallic) * lighting;
         // Final color
         if (flags & kViewGBufferDiffuse) {
@@ -441,6 +441,9 @@ void main(uint2 tid: SV_DispatchThreadID) {
             return;
         } else {
             output[tid] = float4(material + emissive, 1.0f);
+        }
+    }
+}    output[tid] = float4(material + emissive, 1.0f);
         }
     }
 }
@@ -457,7 +460,7 @@ void main(uint2 tid: SV_DispatchThreadID) {
 - 没有间接照明或环境光/AO
 - 没有任何形式的阴影实现
 
-此外，相机及光照各参数（角度，功率/lux）也已保证一致——至此可以认为我们的glTF材质模型是完全正确的。
+此外，相机及光照各参数（角度，功率/lux）也已保证一致，Blender中使用的tonemapper也为ACES1.3——至此可以认为我们的glTF材质模型是完全正确的。
 
 ![image-20251209214314119](/image-foundation/image-20251209214314119.png)
 
