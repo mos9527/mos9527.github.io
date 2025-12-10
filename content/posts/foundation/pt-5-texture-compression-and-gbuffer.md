@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-10T08:21:42.800958
+lastmod: 2025-12-10T21:51:26.039420
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -389,10 +389,98 @@ float3 material = lerp(dielectricBRDF, metalBRDF, metallic) * lighting;
 - 没有间接照明或环境光/AO
 - 没有任何形式的阴影实现
 
-此外，相机及光照各参数（角度，功率/lux）也已保证一致，Blender中使用的tonemapper也为ACES1.3——至此可以认为我们的glTF材质模型是完全正确的。
+此外，相机及光照各参数（角度，功率/lux）也已保证一致，Blender中使用的tonemapper也为ACES1.3——至此可以认为我们的glTF材质模型是基本正确的。
 
 ![image-20251209214314119](/image-foundation/image-20251209214314119.png)
 
 ![image-20251209214321526](/image-foundation/image-20251209214321526.png)
+
+## 阴影
+
+### 光线追踪初步
+
+现在即使集显（甚至移动端！比如苹果）也支持硬件光线追踪加速，我的本子也是如此。此外，Inline Raytacing的存在也让集成RT功能变得相当可观：比较反直觉地，利用Inline RT硬件做阴影会比传统的shadowmap简单不少（不需要额外shadow pass等等）。
+
+且对于（硬）阴影而言，RT结果是ground truth：不会存在各种shadowmap实现中可能存在的精度问题。接下来我们利用inline RT和Foundation最近添加的RT相关RHI更进我们的GPUScene。
+
+### GPU Scene API
+
+目前，我们做一个非常方便~~偷懒~~的限制：BLAS/TLAS加速结果构建完后不会更新。GPUScene中提供了这样的API:
+
+```c++
+void BuildBLASIncremental(ImmediateContext* ctx, Span<const GSMesh> meshes, Span<uint32_t> outBLASIndices, uint32_t& outPrimitiveCount);
+void BuildTLAS(ImmediateContext* ctx, Span<const GSInstance> instances, Span<const uint32_t> blasIndices, uint32_t primitiveCount);
+...
+[[nodiscard]] RHIAccelerationStructure* GetTLAS() const { return mTLAS.Get(); }
+
+```
+
+- BLAS/Submesh 提交可以分批进行，添加新BLAS会保留已有AS
+- TLAS有且仅有一个，更新即覆写。
+- 最后的到的TLAS可以绑定到shader管线直接inline，或者走SBT/Shader Binding Table利用。我们这里只用前者
+
+### Shader 反射
+
+首先，加入最小化inline RT实现硬阴影的Slang Shader仅需添加以下内容：
+
+```glsl
+RaytracingAccelerationStructure AS;
+
+bool shadow(float3 p, float3 l)
+{
+    RayDesc ray;
+    ray.Origin = p;
+    ray.Direction = l;
+    ray.TMin = EPS;
+    ray.TMax = 1e2;
+    RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
+    q.TraceRayInline(AS, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xFF, ray);
+    q.Proceed();
+    bool hit = q.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
+    return hit;
+}
+...
+float3 lighting = float3(NoL) * globalParams.sunIntensity + globalParams.ambientColor;
+lighting *= shadow(p, l);
+```
+
+在Renderer的Setup过程中，我们添加以下绑定API。注意目前不考虑RenderPass之间对AS的写操作，所以这里的绑定是局部的，且不会做任何Barrier。
+
+```c++
+r->BindAcceleartionStructureSRV(self, TLAS, RHIPipelineStageBits::ComputeShader, "AS");
+```
+
+在Vulkan后端，启用`VK_KHR_acceleration_structure`及`VK_KHR_ray_query`拓展并开启以下功能则允许这里的Ray Query被运行。以下是目前用到的extension chain：
+
+```c++
+vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
+                   vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features,
+                   vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT,
+                   vk::PhysicalDeviceMeshShaderFeaturesEXT,
+                   vk::PhysicalDeviceAccelerationStructureFeaturesKHR,
+                   vk::PhysicalDeviceRayQueryFeaturesKHR
+>
+...
+    {.accelerationStructure = true,}, // vk::PhysicalDeviceAccelerationStructureFeaturesKHR
+    {.rayQuery = true} // vk::PhysicalDeviceRayQueryFeaturesKHR
+};
+```
+
+### 调试及驱动切换
+
+有点蛋疼。之前Debug一直用的是 RenderDoc，但是人家现在[还不支持任何RT功能](https://renderdoc.org/docs/behind_scenes/raytracing.html)。这里只能用第一方工具。
+
+但是又因为目前用的RADV驱动：[AMD RDP](https://gpuopen.com/rdp/) 对其基本没有任何调试功能。部分功能，比如从[驱动导出 RGP Profile (MESA_VK_TRACE)](https://docs.mesa3d.org/envvars.html#radv-env-vars)是可能的，此外嘛...
+
+![image-20251210212952468](/image-foundation/image-20251210212952468.png)
+
+实在哈人。这里暂时换回旧官方带完整调试支持的驱动了。在我的Arch机器上可以这么做：
+
+- 安装`AMDPRO` Vulkan驱动：[vulkan-amdgpu-pro](https://aur.archlinux.org/packages/vulkan-amdgpu-pro)
+- 运行时可以利用 [amd-vulkan-prefixes](https://aur.archlinux.org/packages/amd-vulkan-prefixes) 切换
+- RADV: `vk_radv ...`
+- AMDPRO: `vk_pro ...`
+
+![image-20251210215101083](/image-foundation/image-20251210215101083.png)
 
 <h2 style="color:red"> --- 施工中 --- </h2>
