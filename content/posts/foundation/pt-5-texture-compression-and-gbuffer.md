@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-10T08:02:25.777354
+lastmod: 2025-12-10T08:08:33.415157
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -344,110 +344,39 @@ layer层可以直觉地认为：入射角靠近切平面时从视点看到的材
 最后，官方上面采用$IOR=1.5$，代入即$F0=0.04$。综上，最后该模型完整的实现如下。$D,V$计算省略。
 
 ```glsl
-#include "ICommon.slang"
-#include "IBRDF.slang"
-[[SpecializationConstant]] int flags;
+...
+float3 v = normalize(eye - p);
+float3 l = -globalParams.sunDirection;
+float3 h = normalize(v + l);
+float NoH = saturate(dot(n,h));
+float VoH = saturate(dot(v,h));
+float ToV = saturate(dot(t,v));
+float BoV = saturate(dot(b,v));
+float ToL = saturate(dot(t,l));
+float BoL = saturate(dot(b,l));
+float NoV = abs(dot(n,v)) + EPS;
+float NoL = saturate(dot(n,l));
 
-uniform UBO globalParams;
-Texture2D<float4> RT0;
-Texture2D<float4> RT1;
-Texture2D<float4> RT2;
-Texture2D<float> depth;
-RWTexture2D<float4> output;
-StructuredBuffer<GSMaterial> materials;
+float3 lighting = float3(NoL) * globalParams.sunIntensity + globalParams.ambientColor;
 
-[shader("compute")]
-[numthreads(16, 16, 1)]
-void main(uint2 tid: SV_DispatchThreadID) {
-    if (tid.x >= globalParams.fbWidth || tid.y >= globalParams.fbHeight) return;
-    float4 color0 = RT0.Load(uint3(tid,0));
-    float4 color1 = RT1.Load(uint3(tid,0));
-    float4 color2 = RT2.Load(uint3(tid,0));
+// Diffuse
+// https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
+float3 Fd = baseColor / PI;
 
+// Specular
+float anisotropy = material.anisotropy;
+roughness = roughness * roughness;
+float at = max(roughness * (1.0 + anisotropy), 0.001);
+float ab = max(roughness * (1.0 - anisotropy), 0.001);
+float D = D_GGX_Anisotropic(NoH, h, t, b, at, ab);
+float V = V_SmithGGXCorrelated_Anisotropic(at, ab, ToV, BoV, ToL, BoL, NoV, NoL);
 
-    float3 baseColor = color0.xyz;
-    uint32_t materialID = (uint)(color0.w * 255.0f), BSign;
-    BSign = bitfieldExtract(materialID, 7, 1);
-    materialID = bitfieldExtract(materialID, 0, 7);
-
-    float ndcDepth = depth.Load(uint3(tid,0));
-    if (ndcDepth <= EPS) {
-        // Infinite depth
-        output[tid] = float4(0);
-        return;
-    }
-
-    float4 ndcPosition = float4(tid.xy / float2(globalParams.fbWidth, globalParams.fbHeight), ndcDepth, 1.0f);
-    ndcPosition.y = 1 - ndcPosition.y;
-    ndcPosition.xy = ndcPosition.xy * 2.0f - 1.0f;
-    float4 wsPosition = mul(globalParams.inverseViewProj, ndcPosition);
-
-    float3 p = wsPosition.xyz / wsPosition.w;
-    float3 eye = globalParams.camPosition;
-
-    GSMaterial material = materials.Load(materialID  + globalParams.firstMaterial);
-    float3 n, t, b;
-    unpackTBN888(color1.xyz, n, t);
-    b = cross(n, t) * (BSign == 1 ? 1.0f : -1.0f);
-
-    float metallic = color1.w;
-    float roughness = color2.w;
-    float3 emissive = color2.xyz;
-
-    if (flags ... /* debug stuff */)
-    } else {
-        // PBR Lighting
-        if (flags & (kViewGBufferDiffuse | kViewGBufferSpecular)) // Lighting only
-            baseColor = float3(1);
-
-        float3 v = normalize(eye - p);
-        float3 l = -globalParams.sunDirection;
-        float3 h = normalize(v + l);
-        float NoH = saturate(dot(n,h));
-        float VoH = saturate(dot(v,h));
-        float ToV = saturate(dot(t,v));
-        float BoV = saturate(dot(b,v));
-        float ToL = saturate(dot(t,l));
-        float BoL = saturate(dot(b,l));
-        float NoV = abs(dot(n,v)) + EPS;
-        float NoL = saturate(dot(n,l));
-
-        float3 lighting = float3(NoL) * globalParams.sunIntensity + globalParams.ambientColor;
-
-        // Diffuse
-        // https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
-        float3 Fd = baseColor / PI;
-
-        // Specular
-        float anisotropy = material.anisotropy;
-        roughness = roughness * roughness;
-        float at = max(roughness * (1.0 + anisotropy), 0.001);
-        float ab = max(roughness * (1.0 - anisotropy), 0.001);
-        float D = D_GGX_Anisotropic(NoH, h, t, b, at, ab);
-        float V = V_SmithGGXCorrelated_Anisotropic(at, ab, ToV, BoV, ToL, BoL, NoV, NoL);
-
-        // glTF spec calls D*V the specular BRDF, F is introduced later.
-        float Fs = D * V;
-        // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metal-brdf-and-dielectric-brdf
-        float3 metalBRDF = Fs * F_Schlick(VoH, baseColor);
-        float3 dielectricBRDF = lerp(Fd, Fs, F_Schlick(VoH, float3(0.04)));
-        float3 material = lerp(dielectricBRDF, metalBRDF, metallic) * lighting;
-        // Final color
-        if (flags & kViewGBufferDiffuse) {
-            output[tid] = float4(Fd * lighting, 1.0f);
-            return;
-        } else if (flags & kViewGBufferSpecular) {
-            output[tid] = float4(float3(Fs) * lighting, 1.0f);
-            return;
-        } else {
-            output[tid] = float4(material + emissive, 1.0f);
-        }
-    }
-}    output[tid] = float4(material + emissive, 1.0f);
-        }
-    }
-}
-
+// glTF spec calls D*V the specular BRDF, F is introduced later.
+float Fs = D * V;
+// https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metal-brdf-and-dielectric-brdf
+float3 metalBRDF = Fs * F_Schlick(VoH, baseColor);
+float3 dielectricBRDF = lerp(Fd, Fs, F_Schlick(VoH, float3(0.04)));
+float3 material = lerp(dielectricBRDF, metalBRDF, metallic) * lighting;
 ```
 
 ### 验证
@@ -466,4 +395,4 @@ void main(uint2 tid: SV_DispatchThreadID) {
 
 ![image-20251209214321526](/image-foundation/image-20251209214321526.png)
 
-<h2 color="red"> --- 施工中 --- </h2>
+<h2 style="color:red"> --- 施工中 --- </h2>
