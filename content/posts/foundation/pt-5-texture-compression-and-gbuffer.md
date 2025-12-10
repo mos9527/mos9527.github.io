@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-10T08:17:37.885364
+lastmod: 2025-12-10T08:21:42.800958
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -273,7 +273,7 @@ L = pow(L, 1.0f/2.2f);
 return float4(L, 1.0f);
 ```
 
-## BRDF	
+## 原理化 BRDF	
 
 ![image-20250118194315626](/image-shading-reverse/image-20250118194315626.png)
 
@@ -325,7 +325,7 @@ float V_SmithGGXCorrelated_Anisotropic(float at, float ab, float ToV, float BoV,
 
 ### glTF Metal-Rough 模型
 
-Spec的要求基本上是[迪斯尼BRDF](https://github.com/wdas/brdf/blob/main/src/brdfs/disney.brdf#L135)的简化模型 - 仅包含`baseColor, metallic, roughness`层。不过 [其他的材质层（如Clearcoat）也基本有各种拓展加入](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_clearcoat/README.md)；这些以后再看。
+Spec的要求(Core)是[迪斯尼BRDF](https://github.com/wdas/brdf/blob/main/src/brdfs/disney.brdf#L135)的简化模型 - 仅包含`baseColor, metallic, roughness`层。不过 [其他的材质层（如Clearcoat）也基本有各种拓展加入](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_clearcoat/README.md)；这些以后再看。
 
 ![pbr](/image-foundation/gltf-metal-rough-complete-model.svg)
 
@@ -339,7 +339,7 @@ float3 fresnel_mix(float cosAngle, float ior, float3 base, float3 layer) {
 }
 ```
 
-**注：** `fresnel_mix`可以直觉地认为：入射角靠近切平面时，base层的光照多被反射，看得到的为之下的layer层。不过多层材质的真正叠加是很复杂的：[考虑多层之间也会有交互](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials)，复杂程度不亚于SSS。这里，利用Fresnel做线性组合的方案是一种简化：[Autodesk Standard Surface - 4.3 Layering Model](https://autodesk.github.io/standard-surface/#discussion/layeringmodel) 也有提及。
+**注：** `fresnel_mix`可以直觉地认为：入射角靠近切平面时，base层的光照多被反射，看得到的为之下的layer层。不过多层材质的真正叠加是很复杂的：[考虑多层之间也会有交互](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials)，复杂程度不亚于SSS。这里，利用Fresnel做线性组合的方案是一种简化：[Autodesk Standard Surface - 4.3 Layering Model](https://autodesk.github.io/standard-surface/#discussion/layeringmodel) 及 [OpenPBR 白皮书](https://academysoftwarefoundation.github.io/OpenPBR/#formalism/mixing) 中也有提及。
 
 最后，官方上面采用$IOR=1.5$，代入即$F0=0.04$。综上，最后该模型完整的实现如下。$D,V$计算省略。
 
