@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-10T21:51:26.039420
+lastmod: 2025-12-11T20:13:02.493583
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -466,13 +466,15 @@ vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Featur
 };
 ```
 
-### 调试及驱动切换
+### 调试
 
 有点蛋疼。之前Debug一直用的是 RenderDoc，但是人家现在[还不支持任何RT功能](https://renderdoc.org/docs/behind_scenes/raytracing.html)。这里只能用第一方工具。
 
 但是又因为目前用的RADV驱动：[AMD RDP](https://gpuopen.com/rdp/) 对其基本没有任何调试功能。部分功能，比如从[驱动导出 RGP Profile (MESA_VK_TRACE)](https://docs.mesa3d.org/envvars.html#radv-env-vars)是可能的，此外嘛...
 
 ![image-20251210212952468](/image-foundation/image-20251210212952468.png)
+
+#### 驱动切换？
 
 实在哈人。这里暂时换回旧官方带完整调试支持的驱动了。在我的Arch机器上可以这么做：
 
@@ -481,6 +483,16 @@ vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Featur
 - RADV: `vk_radv ...`
 - AMDPRO: `vk_pro ...`
 
+https://themaister.net/blog/2024/01/17/modernizing-granites-mesh-rendering/
+
 ![image-20251210215101083](/image-foundation/image-20251210215101083.png)
+
+![image-20251211135044444](/image-foundation/image-20251211135044444.png)
+
+![image-20251211160647863](/image-foundation/image-20251211160647863.png)
+
+Kill The Task Shader
+
+![image-20251211201244294](/image-foundation/image-20251211201244294.png)
 
 <h2 style="color:red"> --- 施工中 --- </h2>
