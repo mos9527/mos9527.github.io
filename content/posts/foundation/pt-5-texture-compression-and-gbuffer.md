@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-13T10:49:37.767733
+lastmod: 2025-12-13T16:39:59.818364
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -505,11 +505,9 @@ vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Featur
 
 这里，我用了单独的一次CS Dispatch来模拟Task Shader做的事：原来在TS做的Culling放到CS后，整理成连续的meshlet ID列表。实现上和`DispatchMesh`很像：不过不涉及LDS，并且我们在后面自己dispatch。
 
-MDI这次换成了[`VkDrawMeshTasksIndirectCountEXT`](https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdDrawMeshTasksIndirectCountEXT.html) - 允许我们分整个可能巨大的meshlet列表为驱动侧的多次dispatch。
-
 这下能跑了。在Linux下也能直接用RDP顺利抓到这里的Profile。
 
-![image-20251213104101252](/image-foundation/image-20251213104101252.png)
+![image-20251213163952781](/image-foundation/image-20251213163952781.png)
 
 ![image-20251213104336159](/image-foundation/image-20251213104336159.png)
 

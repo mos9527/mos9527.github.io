@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T21:19:17.490937
+lastmod: 2025-12-13T10:55:17.435234
 title: Foundation 施工笔记 【2】- GPU-Driven 管线与剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -159,6 +159,8 @@ inline mat4 viewMatrixRHReverseZ(vec3 pos, quat rot)
 - Radeon 780M Graphics （本子集显）
 
 包括 [官方 Sample 中的 mesh_shader_culling](https://github.com/KhronosGroup/Vulkan-Samples/tree/main/samples/extensions/mesh_shader_culling) 也可复现（= =||）。后续若能成功Debug将在此处更新——在此之前，后续测试都将在我的 Arch Linux 机器上运行。
+
+**UPD:** https://mos9527.com/posts/foundation/pt-5-texture-compression-and-gbuffer/#kill-the-task-shader
 
 ## GLTF Scene
 
