@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-11T20:13:02.493583
+lastmod: 2025-12-13T10:49:37.767733
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -405,7 +405,7 @@ float3 material = lerp(dielectricBRDF, metalBRDF, metallic) * lighting;
 
 ### GPU Scene API
 
-目前，我们做一个非常方便~~偷懒~~的限制：BLAS/TLAS加速结果构建完后不会更新。GPUScene中提供了这样的API:
+目前，我们做一个非常方便~~偷懒~~的限制：BLAS加速结果构建完后不会更新。GPUScene中提供了这样的API:
 
 ```c++
 void BuildBLASIncremental(ImmediateContext* ctx, Span<const GSMesh> meshes, Span<uint32_t> outBLASIndices, uint32_t& outPrimitiveCount);
@@ -416,7 +416,7 @@ void BuildTLAS(ImmediateContext* ctx, Span<const GSInstance> instances, Span<con
 ```
 
 - BLAS/Submesh 提交可以分批进行，添加新BLAS会保留已有AS
-- TLAS有且仅有一个，更新即覆写。
+- TLAS有且仅有一个，更新即覆写：每一帧都有更新的操作。
 - 最后的到的TLAS可以绑定到shader管线直接inline，或者走SBT/Shader Binding Table利用。我们这里只用前者
 
 ### Shader 反射
@@ -483,16 +483,36 @@ vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Featur
 - RADV: `vk_radv ...`
 - AMDPRO: `vk_pro ...`
 
-https://themaister.net/blog/2024/01/17/modernizing-granites-mesh-rendering/
-
 ![image-20251210215101083](/image-foundation/image-20251210215101083.png)
 
-![image-20251211135044444](/image-foundation/image-20251211135044444.png)
+不过不幸的是，在这里Task Shader - 至少在我的机器上仍然不能正常工作。Linux下会丢设备：用`RADV_DEBUG=hang`跟日志可以到这里
 
 ![image-20251211160647863](/image-foundation/image-20251211160647863.png)
 
-Kill The Task Shader
+在Mesh MDI找到了'last trace point'...不过说实话看不懂。
 
 ![image-20251211201244294](/image-foundation/image-20251211201244294.png)
+
+在Win下开启RGP会在这里产生AV - Crash Analysis 抓不到...
+
+![image-20251211135044444](/image-foundation/image-20251211135044444.png)
+
+[~~PTSD时间~~](https://mos9527.com/posts/foundation/pt-2-gpu-driven-pipeline-with-culling/#%E5%AE%9E%E4%BE%8B%E5%8C%96%E6%95%88%E6%9E%9C) 结合之前的实验，看起来这个feature确实没法用在_至少是_我的机器和AMD官方驱动上。
+
+#### Kill The Task Shader
+
+既然*有可能*出现这种spec允许但跑不起来的情况：除了希望官方修复（注：Linux AMDPRO驱动已经停止维护）之外，也只能另请高明...[Hans-Kristian Arntzen/The Maister 这篇](https://themaister.net/blog/2024/01/17/modernizing-granites-mesh-rendering/) mesh shader实践中也提到了task shader支持多烂：参考 "Task shader woes" 部分。也许“没有3A在用”也是能出问题的一个理由。
+
+这里，我用了单独的一次CS Dispatch来模拟Task Shader做的事：原来在TS做的Culling放到CS后，整理成连续的meshlet ID列表。实现上和`DispatchMesh`很像：不过不涉及LDS，并且我们在后面自己dispatch。
+
+MDI这次换成了[`VkDrawMeshTasksIndirectCountEXT`](https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdDrawMeshTasksIndirectCountEXT.html) - 允许我们分整个可能巨大的meshlet列表为驱动侧的多次dispatch。
+
+这下能跑了。在Linux下也能直接用RDP顺利抓到这里的Profile。
+
+![image-20251213104101252](/image-foundation/image-20251213104101252.png)
+
+![image-20251213104336159](/image-foundation/image-20251213104336159.png)
+
+...
 
 <h2 style="color:red"> --- 施工中 --- </h2>
