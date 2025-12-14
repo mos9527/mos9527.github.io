@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-13T16:39:59.818364
+lastmod: 2025-12-14T15:36:14.692744
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -431,14 +431,19 @@ bool shadow(float3 p, float3 l)
     RayDesc ray;
     ray.Origin = p;
     ray.Direction = l;
-    ray.TMin = EPS;
+    ray.TMin = 1e-2;
     ray.TMax = 1e2;
     RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
     q.TraceRayInline(AS, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xFF, ray);
-    q.Proceed();
+    while (q.Proceed()){
+        // Not alpha tested. A hit is a shadow.
+        q.CommitNonOpaqueTriangleHit();
+        break;
+    }
     bool hit = q.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
     return hit;
 }
+
 ...
 float3 lighting = float3(NoL) * globalParams.sunIntensity + globalParams.ambientColor;
 lighting *= shadow(p, l);
@@ -511,6 +516,18 @@ vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Featur
 
 ![image-20251213104336159](/image-foundation/image-20251213104336159.png)
 
-...
+同时，在 RGP 中也能捉到RT场景。
+
+![image-20251214152318953](/image-foundation/image-20251214152318953.png)
+
+### 效果
+
+如图：可见这里支架部分的硬阴影效果；注意到右侧TLAS更新是跑的Async Compute（绿色）。
+
+![image-20251214152212282](/image-foundation/image-20251214152212282.png)
+
+[更复杂的场景(glTF Sponza)](https://github.com/mos9527/Scenes?tab=readme-ov-file#gltf-sample-models---sponza)中效果如下。值得注意的是这里的环境有背景(Ambient)光源，强度为100Lux。
+
+![image-20251214153444906](/image-foundation/image-20251214153444906.png)
 
 <h2 style="color:red"> --- 施工中 --- </h2>
