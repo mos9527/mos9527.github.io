@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-14T15:36:14.692744
+lastmod: 2025-12-14T15:54:22.398973
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -526,8 +526,8 @@ vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Featur
 
 ![image-20251214152212282](/image-foundation/image-20251214152212282.png)
 
-[更复杂的场景(glTF Sponza)](https://github.com/mos9527/Scenes?tab=readme-ov-file#gltf-sample-models---sponza)中效果如下。值得注意的是这里的环境有背景(Ambient)光源，强度为100Lux。
+[更复杂的场景(glTF Sponza)](https://github.com/mos9527/Scenes?tab=readme-ov-file#gltf-sample-models---sponza)中效果如下。值得注意的是这里的环境有背景(Ambient)光源，强度为20000Lux。
 
-![image-20251214153444906](/image-foundation/image-20251214153444906.png)
+![image-20251214155418515](/image-foundation/image-20251214155418515.png)
 
 <h2 style="color:red"> --- 施工中 --- </h2>
