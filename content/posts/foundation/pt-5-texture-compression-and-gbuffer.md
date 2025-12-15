@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-14T21:55:00.702010
+lastmod: 2025-12-15T09:09:39.055980
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -63,7 +63,7 @@ Task/Mesh部分在前面已经讲得很详细，这里不再多说。接下来�
 
 ![image-20251208162456691](/image-foundation/image-20251208162456691.png)
 
-最终目标是能完整表现glTF的[Metallic-Roughness](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#materials)模型。除了Base Color/底色及法线贴图外，我们还有两个Metal/Rough参数是必须表现的，图中还有自发光材质。最后，可选的`occlusion`/预烘焙AO在此暂时不考虑。
+目前的最终目标是能完整表现glTF的[Metallic-Roughness](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#materials)模型。除了Base Color/底色及法线贴图外，我们还有两个Metal/Rough参数是必须表现的，图中还有自发光材质。最后，可选的`occlusion`/预烘焙AO在此暂时不考虑。
 
 结合上一篇介绍的一些packing和切空间压缩奇技淫巧，我们的GBuffer可以整理得很简洁，参见下表。所有RT格式皆为`R8G8B8A8Unorm`
 
@@ -253,11 +253,11 @@ float3 ACESFilm(float3 x)
 
 ### 显示器空间转换 （EOTF）
 
-到目前为止，我们的一切操作还都是在线性空间中完成的。对于SDR/HDR显示设备，信号还需要转换到他们能接受的格式：这个操作业也叫 EOTF（Electro-Optical Transfer Function)。参见 [Displays and Views - Blender Manual](https://docs.blender.org/manual/en/latest/render/color_management/displays_views.html#displays)
+到目前为止，我们的一切操作还都是在线性空间中完成的。对于SDR/HDR显示设备，信号还需要转换到他们能接受的格式：这个操作也也叫 EOTF（Electro-Optical Transfer Function)。参见 [Displays and Views - Blender Manual](https://docs.blender.org/manual/en/latest/render/color_management/displays_views.html#displays)
 
 ![image-20251209202139517](/image-foundation/image-20251209202139517.png)
 
-~~因为没有正经HDR屏幕~~ 简单起见，我们在tonemapper最后做一次linear->gamma/sRGB的转换即可，最后到屏幕上的任务不是我们做的。
+~~因为没有正经HDR屏幕~~ 简单起见，我们在tonemapper最后做一次linear->gamma/sRGB的转换即可。sRGB到显示器的过程不属于我们需要处理的范畴。
 
 最后，完整的Linear场景SDR呈现流程如下（节选），采用了最简单的ACES Fit和Gamma转换。
 
@@ -399,7 +399,7 @@ float3 material = lerp(dielectricBRDF, metalBRDF, metallic) * lighting;
 
 ### 光线追踪初步
 
-现在即使集显（甚至移动端！比如苹果）也支持硬件光线追踪加速，我的本子也是如此。此外，Inline Raytacing的存在也让集成RT功能变得相当可观：比较反直觉地，利用Inline RT硬件做阴影会比传统的shadowmap简单不少（不需要额外shadow pass等等）。
+现在即使集显及移动端也支持硬件光线追踪加速：我的本子也是如此。此外，Inline Raytacing的存在也让集成RT功能变得相当可观：比较反直觉地，利用Inline RT硬件做阴影会比传统的shadowmap简单不少（不需要额外shadow pass等等）。
 
 且对于（硬）阴影而言，RT结果是ground truth：不会存在各种shadowmap实现中可能存在的精度问题。接下来我们利用inline RT和Foundation最近添加的RT相关RHI更进我们的GPUScene。
 
@@ -408,16 +408,14 @@ float3 material = lerp(dielectricBRDF, metalBRDF, metallic) * lighting;
 目前，我们做一个非常方便~~偷懒~~的限制：BLAS加速结果构建完后不会更新。GPUScene中提供了这样的API:
 
 ```c++
-void BuildBLASIncremental(ImmediateContext* ctx, Span<const GSMesh> meshes, Span<uint32_t> outBLASIndices, uint32_t& outPrimitiveCount);
-void BuildTLAS(ImmediateContext* ctx, Span<const GSInstance> instances, Span<const uint32_t> blasIndices, uint32_t primitiveCount);
-...
-[[nodiscard]] RHIAccelerationStructure* GetTLAS() const { return mTLAS.Get(); }
+void BuildBLAS(ImmediateContext* ctx, Span<const GSMesh> meshes, Span<uint32_t> outBLASIndices);
+void BuildTLAS(RHICommandList* cmd, Span<const GSInstance> instances, Span<const uint32_t> blasIndices, bool update = false);
 
 ```
 
 - BLAS/Submesh 提交可以分批进行，添加新BLAS会保留已有AS
-- TLAS有且仅有一个，更新即覆写：每一帧都有更新的操作。
-- 最后的到的TLAS可以绑定到shader管线直接inline，或者走SBT/Shader Binding Table利用。我们这里只用前者
+- TLAS有且仅有一个，每一帧都有更新的操作。
+- 最后的到的TLAS可以绑定到shader管线直接inline，或者走SBT/Shader Binding Table利用。本篇只用前者。
 
 ### Shader 反射
 
@@ -449,10 +447,22 @@ float3 lighting = float3(NoL) * globalParams.sunIntensity + globalParams.ambient
 lighting *= shadow(p, l);
 ```
 
-在Renderer的Setup过程中，我们添加以下绑定API。注意目前不考虑RenderPass之间对AS的写操作，所以这里的绑定是局部的，且不会做任何Barrier。
+Renderer建图也加了对应的绑定API，SRV/ReadOnly和Write/AS Build/Update声明足矣。
 
 ```c++
 r->BindAcceleartionStructureSRV(self, TLAS, RHIPipelineStageBits::ComputeShader, "AS");
+...
+renderer->CreatePass(
+    "TLAS Update", RHIDeviceQueueType::Compute, 0u,
+    [=](PassHandle self, Renderer* r)
+    {
+        r->BindAccelerationStructureWrite(self, TLAS);
+    },
+    [=](PassHandle, Renderer* r, RHICommandList* cmd)
+    {
+        gpu->BuildTLAS(cmd, *scene.gsInstances, *scene.gsBLASes, true);
+    }
+);
 ```
 
 在Vulkan后端，启用`VK_KHR_acceleration_structure`及`VK_KHR_ray_query`拓展并开启以下功能则允许这里的Ray Query被运行。以下是目前用到的extension chain：
