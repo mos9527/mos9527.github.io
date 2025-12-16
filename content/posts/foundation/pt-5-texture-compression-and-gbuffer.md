@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-16T11:25:12.373318
+lastmod: 2025-12-16T19:00:35.097857
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -92,7 +92,7 @@ Task/Mesh部分在前面已经讲得很详细，这里不再多说。接下来�
 
 ## 线性 Workflow
 
-正经实现 PBR 光照开始。[Physically Based Rendering in Filament](https://google.github.io/filament/Filament.md.html) ，PBRT/[Physically Based Rendering:From Theory To Implementation](https://pbr-book.org/)/[Kanition大佬v3翻译版](https://github.com/kanition/pbrtbook) 和手头的 RTR4/[Real-Time Rendering 4th Edition](https://www.realtimerendering.com/) （尤其是第九章）将是我们主要的信息来源。
+正经实现 PBR 光照开始。[Physically Based Rendering in Filament](https://google.github.io/filament/Filament.md.html) 将是我们主要的信息来源。
 
 
 ### 光照单元
@@ -284,11 +284,13 @@ return float4(L, 1.0f);
 Filament [4.6 Standard model summary](https://google.github.io/filament/Filament.md.html#materialsystem/standardmodelsummary) 包括实现GGX Specular和Lambert Diffuse所需的一切Listing。方便参考，以下为Lambert Diffuse与GGX Specular的LaTEX形式。其中$\sigma$为“diffuse reflectance”，即我们的base color。
 $$
 F_{diffuse} = \frac{\sigma}{\pi} \newline
+
 F_{specular} = \frac{D(h, \alpha) G(v, l, \alpha) F(v, h, f0)}{4(n \cdot v)(n \cdot l)}
 $$
 $G(v,l,a)$常被简化为$V(n,v,l)$/Visbility，最后后面会见到的形式为：
 $$
 F_{diffuse} = \frac{\sigma}{\pi} \newline
+
 F_{specular} = D(h, \alpha) V(n, v, l) F(v,h,f0)
 $$
 
@@ -339,7 +341,7 @@ float3 fresnel_mix(float cosAngle, float ior, float3 base, float3 layer) {
 }
 ```
 
-**注：** `fresnel_mix`可以直觉地认为：入射角靠近切平面时，base层的光照多被反射，看得到的为之下的layer层。不过多层材质的真正叠加是很复杂的：[考虑多层之间也会有交互](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials)，复杂程度不亚于SSS。这里，利用Fresnel做线性组合的方案是一种简化：[Autodesk Standard Surface - 4.3 Layering Model](https://autodesk.github.io/standard-surface/#discussion/layeringmodel) 及 [OpenPBR 白皮书](https://academysoftwarefoundation.github.io/OpenPBR/#formalism/mixing) 中也有提及。
+**注：** `fresnel_mix`可以直觉地认为：入射角靠近切平面时，base层的光照多被反射，看得到的为之下的layer层。不过多层材质的真正叠加是很复杂的：[考虑多层之间也会有交互](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials)。这里，利用Fresnel做线性组合的方案是一种简化：[Autodesk Standard Surface - 4.3 Layering Model](https://autodesk.github.io/standard-surface/#discussion/layeringmodel) 及 [OpenPBR 白皮书](https://academysoftwarefoundation.github.io/OpenPBR/#formalism/mixing) 中也有提及。
 
 最后，官方上面采用$IOR=1.5$，代入即$F0=0.04$。综上，最后该模型完整的实现如下。$D,V$计算省略。
 
@@ -585,18 +587,20 @@ void csMain(uint3 WorkGroupId : SV_GroupID, uint LocalThreadIndex : SV_GroupInde
 
 ![image-20251216102601941](/image-foundation/image-20251216102601941.png)
 
-对FP16,SPD有支持，同时参考 [RDNA Performance Guide](https://gpuopen.com/learn/rdna-performance-guide/) - 使用`A_HALF`选择FP16操作可减轻寄存器压力。同时Copy部分分成另外一次dispatch：可见VGPR使用降低到了71,多跑了2个Wave。
+不过SPD有支持FP16，同时参考 [RDNA Performance Guide](https://gpuopen.com/learn/rdna-performance-guide/) - 使用`A_HALF`选择FP16操作可减轻寄存器压力。同时Copy部分分成另外一次dispatch：可见VGPR使用降低到了71,多跑了2个Wave。
 
 ![image-20251216095253706](/image-foundation/image-20251216095253706.png)
 
 最后，在此copy mip0本身意义并不大：half res的mip chain做剔除够用，而且APU带宽有限，不妨直接省略copy步骤？
 
-最后决定不动mip0；同时，Profiler时序干净了不少。但是性能上和多次dispatch mip chain相比差不多；在APU带宽受限（DDR）且暂时没有能够并行的GPU工作的情况下，看起来SPD优势并不是很明显。
+最后决定HIZ从half res (mip 1)开始少一步copy。Profiler时序干净了不少——但是性能上和多次dispatch mip chain相比差不多；在APU带宽受限（DDR）且暂时没有能够并行的GPU工作的情况下，看起来SPD优势并不是很明显。
 
 ![image-20251216111642345](/image-foundation/image-20251216111642345.png)
 
+**注：** 这里（Linux/Windows AMDPRO驱动）的timing相当地不准确——在RADV下时序是整齐的两条（Graphics+Async Compute），而且这里的数据和RDP里对不上。未来若有解决方案会在这里补充。
 
 ## References
+
 - [DDS - Microsoft Docs](https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dx-graphics-dds-pguide)
 - [KTX File Format Specification](https://registry.khronos.org/KTX/specs/2.0/ktxspec.v2.html)
 - [KhronosGroup/KTX-Software - GitHub](https://github.com/KhronosGroup/KTX-Software)
