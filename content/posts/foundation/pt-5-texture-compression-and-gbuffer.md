@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-15T09:09:39.055980
+lastmod: 2025-12-16T11:21:11.904591
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -540,4 +540,60 @@ vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Featur
 
 ![image-20251214215443658](/image-foundation/image-20251214215443658.png)
 
-<h2 style="color:red"> --- 施工中 --- </h2>
+## 花絮：FFXSPD 集成
+
+开始下一篇之前想把这个坑填了。同时在SPD Downsample完后方便起见做了一个Mip 0的copy，如下：
+
+```glsl
+[shader("compute")]
+[numthreads(256, 1, 1)]
+void csMain(uint3 WorkGroupId : SV_GroupID, uint LocalThreadIndex : SV_GroupIndex) {
+    SpdDownsample(
+        AU2(WorkGroupId.xy),
+        AU1(LocalThreadIndex),
+        AU1(pc.mips),
+        AU1(pc.numWorkGroups),
+        AU1(WorkGroupId.z),
+        AU2(0, 0));
+    // Needs a copy for MIP 0. We work on 64x64 tiles
+    if (!pc.sameSrcDst)
+    {
+        uint2 tile = WorkGroupId.xy;
+        uint2 tileOffset = tile * 64;
+        uint2 threadOffset = uint2(LocalThreadIndex % 16, LocalThreadIndex / 16) * 4;
+        uint2 pixelCoord = tileOffset + threadOffset;
+        for (uint y = 0; y < 4; ++y)
+        for (uint x = 0; x < 4; ++x)
+        {
+            uint2 coord = pixelCoord + uint2(x, y);
+            if (coord.x < pc.extents.x && coord.y < pc.extents.y)
+            {
+                float4 value = SpdLoadSourceImage(AF2(coord), AU1(WorkGroupId.z));
+                imgDst[0][uint3(coord, 0)] = value;
+            }
+        }
+    }
+}
+```
+不过有些意外，初步集成后的占有率仅在25%左右：
+
+![image-20251216092344619](/image-foundation/image-20251216092344619.png)
+
+在Pipeline state看得到VGPR使用量相当高（86个！）。Wave64模式下只跑了4个Wave...
+
+![image-20251216092508765](/image-foundation/image-20251216092508765.png)
+
+![image-20251216102601941](/image-foundation/image-20251216102601941.png)
+
+对FP16,SPD有支持，同时参考 [RDNA Performance Guide](https://gpuopen.com/learn/rdna-performance-guide/) - 使用`A_HALF`选择FP16操作可减轻寄存器压力。同时Copy部分分成另外一次dispatch：可见VGPR使用降低到了71,多跑了2个Wave。
+
+![image-20251216095253706](/image-foundation/image-20251216095253706.png)
+
+最后，在此copy mip0本身意义并不大：half res的mip chain做剔除够用，而且APU带宽有限，不妨直接省略copy步骤？
+
+最后决定不动mip0；同时，Profiler时序干净了不少。但是性能上和多次dispatch mip chain相比差不多；在APU带宽受限（DDR）且暂时没有能够并行的GPU工作的情况下，看起来SPD优势并不是很明显。
+
+![image-20251216111642345](/image-foundation/image-20251216111642345.png)
+
+
+## References
