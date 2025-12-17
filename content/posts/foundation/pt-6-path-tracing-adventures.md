@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-17T18:16:01.792777
+lastmod: 2025-12-17T22:40:43.592041
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -139,5 +139,120 @@ throughput *= baseColor * 1.0f;
 仅实现该BRDF效果如下——注意到墙壁色彩在其他物体上的间接影响。
 
 ![image-20251217180829346](/image-foundation/image-20251217180829346.png)
+
+#### 光泽反射 （GGX）
+
+回顾 RTR4 p337 - 微面（Microfacet）BRDF形式一般如下:
+$$
+F_{specular} = \frac{D(h, \alpha) G(v, l, \alpha) F(v, h, f0)}{4(n \cdot v)(n \cdot l)}
+$$
+参考 [Crash Course in BRDF Implementation - Jakub Boksansky's Blog](https://boksajak.github.io/files/CrashCourseBRDF.pdf) （同样的也是 Ray Tracing Gems 2 介绍的方法）,$D$采样使用[Sampling the GGX Distribution of Visible Normals - Eric Heitz](https://jcgt.org/published/0007/04/01/)的Listing；和Diffuse BRDF叠加使用了Fresnel做选择，这里在[上一篇](https://mos9527.com/posts/foundation/pt-5-texture-compression-and-gbuffer/#gltf-metal-rough-%E6%A8%A1%E5%9E%8B)也有提及。
+
+VNDF的PDF中的$D$可以被抵消掉，推导略；最后$PDF$残余的式子shader内记为`SampleGGXVNDFWeight`,如下：
+
+```glsl
+// Smith G1 term (masking function) further optimized for GGX distribution (by substituting G_a into G1_GGX)
+float G1_SmithGGX(float alpha, float alphaSq, float NoSsq) {
+	return 2.0f / (sqrt(((alphaSq * (1.0f - NoSsq)) + NoSsq) / NoSsq) + 1.0f);
+}
+// A fraction G2/G1 where G2 is height correlated can be expressed using only G1 terms
+// Source: "Implementing a Simple Anisotropic Rough Diffuse Material with Stochastic Evaluation", Appendix A by Heitz & Dupuy
+float G2_Over_G1_SmithHeightCorrelated(float alpha, float alphaSq, float NoL, float NoV) {
+	float G1V = G1_SmithGGX(alpha, alphaSq, NoV * NoV);
+	float G1L = G1_SmithGGX(alpha, alphaSq, NoL * NoL);
+	return G1L / (G1V + G1L - G1V * G1L);
+}
+...
+// https://jcgt.org/published/0007/04/01/
+// PDF is 'G1(NoV) * D'
+float3 SampleGGXVNDF(float3 Ve, float2 alpha2D, float2 u) {
+
+	// Section 3.2: transforming the view direction to the hemisphere configuration
+	float3 Vh = normalize(float3(alpha2D.x * Ve.x, alpha2D.y * Ve.y, Ve.z));
+
+	// Section 4.1: orthonormal basis (with special case if cross product is zero)
+	float lensq = Vh.x * Vh.x + Vh.y * Vh.y;
+	float3 T1 = lensq > 0.0f ? float3(-Vh.y, Vh.x, 0.0f) * rsqrt(lensq) : float3(1.0f, 0.0f, 0.0f);
+	float3 T2 = cross(Vh, T1);
+
+	// Section 4.2: parameterization of the projected area
+	float r = sqrt(u.x);
+	float phi = 2 * PI * u.y;
+	float t1 = r * cos(phi);
+	float t2 = r * sin(phi);
+	float s = 0.5f * (1.0f + Vh.z);
+	t2 = lerp(sqrt(1.0f - t1 * t1), t2, s);
+
+	// Section 4.3: reprojection onto hemisphere
+	float3 Nh = t1 * T1 + t2 * T2 + sqrt(max(0.0f, 1.0f - t1 * t1 - t2 * t2)) * Vh;
+
+	// Section 3.4: transforming the normal back to the ellipsoid configuration
+	return normalize(float3(alpha2D.x * Nh.x, alpha2D.y * Nh.y, max(0.0f, Nh.z)));
+}
+// This should have D_GGX canceled out
+float SampleGGXVNDFPdf(float alpha, float alphaSq, float NoH, float NoV, float LoH) {
+	NoH = max(EPS, NoH);
+	NoV = max(EPS, NoV);
+	return (D_GGX(max(EPS, alphaSq), NoH) * G1_SmithGGX(alpha, alphaSq, NoV * NoV)) / (4.0f * NoV);
+}
+float SampleGGXVNDFWeight(float alpha, float alphaSq, float NoL, float NoV) {
+    return G2_Over_G1_SmithHeightCorrelated(alpha, alphaSq, NoL, NoV);
+}
+```
+
+Diffuse/Specular选择来自Ray Tracing Gems 2,用fresnel做通过概率选择
+
+```glsl
+// Specular over specular+diffuse
+float EvalSpecularBRDFProbability(float3 baseColor, float metallic, float3 v, float3 n)
+{
+    float VoN = saturate(dot(v, n)); // Half-vector not known
+    float Fspec = dot(LUMINANCE_RGB, F_Schlick(VoN, SpecularF0(baseColor, metallic)));
+    float Fdiff = dot(LUMINANCE_RGB, DiffuseReflectance(baseColor, metallic)) * (1 - Fspec);
+    return clamp(Fspec / max(EPS, Fspec + Fdiff), 0.1f, 0.9f);
+}
+```
+
+最后RayGen中集成如下。附效果图：
+
+```glsl
+    float PspecIndirect = EvalSpecularBRDFProbability(baseColor, metallic, v, n);
+    float alpha = roughness * roughness;
+    if (rng.sample() < PspecIndirect){
+        // Specular
+        float3 hLocal;
+        if (alpha <= EPS)
+            hLocal = float3(0,0,1); // Perfect reflector
+        else
+            hLocal = SampleGGXVNDF(vLocal, float2(alpha), u);
+        float3 lLocal = reflect(-vLocal, hLocal);
+        float HoL = clamp(dot(hLocal, lLocal), EPS, 1.0f);
+        float NoL = clamp(dot(nLocal, lLocal), EPS, 1.0f);
+        float NoV = clamp(dot(nLocal, vLocal), EPS, 1.0f);
+        float NoH = clamp(dot(nLocal, hLocal), EPS, 1.0f);
+        float3 specularF0 = SpecularF0(baseColor, metallic);
+        float3 F = F_Schlick(HoL, specularF0);
+        rayLocal = lLocal;
+        throughput *= F * SampleGGXVNDFWeight(alpha, alpha * alpha, NoL, NoV) / PspecIndirect;
+    } else {
+        // Diffuse
+        rayLocal = SampleCosineHemisphere(u);
+        // ^^ Samping/BRDF PDF (1/pi) cancels each other out vv
+        throughput *= DiffuseReflectance(baseColor, metallic) / (1 - PspecIndirect);
+        // Weighted with Specular by fresnel mix
+        float3 hLocal = SampleGGXVNDF(vLocal, float2(alpha), u);
+        float VoH = clamp(dot(vLocal, hLocal), EPS, 1.0f);
+        float3 specularF0 = SpecularF0(baseColor, metallic);
+        float3 F = F_Schlick(VoH, specularF0);
+        throughput *= float3(1) - F;
+    }
+```
+
+
+
+![image-20251217223535486](/image-foundation/image-20251217223535486.png)
+
+值得注意的是反射面中的场景有变暗的情况（TBD）；此外，相机EV值有经过调整。
+
 
 <h1 style="color:red">--- 施工中 ---</h1>

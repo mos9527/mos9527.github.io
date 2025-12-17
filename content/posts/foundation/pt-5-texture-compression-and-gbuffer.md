@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-16T19:00:35.097857
+lastmod: 2025-12-17T19:57:48.752203
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -341,7 +341,7 @@ float3 fresnel_mix(float cosAngle, float ior, float3 base, float3 layer) {
 }
 ```
 
-**注：** `fresnel_mix`可以直觉地认为：入射角靠近切平面时，base层的光照多被反射，看得到的为之下的layer层。不过多层材质的真正叠加是很复杂的：[考虑多层之间也会有交互](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials)。这里，利用Fresnel做线性组合的方案是一种简化：[Autodesk Standard Surface - 4.3 Layering Model](https://autodesk.github.io/standard-surface/#discussion/layeringmodel) 及 [OpenPBR 白皮书](https://academysoftwarefoundation.github.io/OpenPBR/#formalism/mixing) 中也有提及。
+**注：** `fresnel_mix`可以直觉地认为：入射角靠近切平面时，base层的光照多被反射，看得到的为之下的layer层。不过多层材质的真正叠加是很复杂的：[考虑多层之间也会有交互](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials)。这里，利用Fresnel做线性组合的方案是一种简化：[Autodesk Standard Surface - 4.3 Layering Model](https://autodesk.github.io/standard-surface/#discussion/layeringmodel) 及 [OpenPBR 白皮书](https://academysoftwarefoundation.github.io/OpenPBR/#formalism/mixing) 中也有提及。更早可考证的来源是[Crash Course in BRDF Implementation - [Jakub Boksansky's Blog](https://boksajak.github.io/)](https://boksajak.github.io/files/CrashCourseBRDF.pdf)，在Ray Tracing Gem 2 Ch. 14有引用。
 
 最后，官方上面采用$IOR=1.5$，代入即$F0=0.04$。综上，最后该模型完整的实现如下。$D,V$计算省略。
 
