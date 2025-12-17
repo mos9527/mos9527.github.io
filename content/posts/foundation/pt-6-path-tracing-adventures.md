@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-17T18:09:41.181717
+lastmod: 2025-12-17T18:16:01.792777
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -11,9 +11,9 @@ typora-root-url: ../../../static/
 
 ## Preface
 
-Foundation现在(2025/12/16)也有了能用的RT相关API，Editor的GPUScene也有了BLAS上传/压缩(compact)与逐帧TLAS更新支持。到目前为止用rt做的只有inline query实现硬阴影——在做实时GI相关内容之前，不妨复习下采样/PBR/降噪相关知识——那就写个GPU Path Tracer吧？
+Foundation现在(2025/12/16)也有了能用的RT相关API，Editor的GPUScene也有了BLAS上传/压缩(compact)与逐帧TLAS更新支持。到目前为止用rt做的只有inline query实现硬阴影——在做实时GI相关内容之前，不妨复习下采样/PBR相关知识——那就写个GPU Path Tracer吧？
 
-PBRT/[Physically Based Rendering:From Theory To Implementation](https://pbr-book.org/)/[Kanition大佬v3翻译版](https://github.com/kanition/pbrtbook) 和手头的 RTR4/[Real-Time Rendering 4th Edition](https://www.realtimerendering.com/) （尤其是第九章）将是我们这里主要的信息来源。
+PBRT/[Physically Based Rendering:From Theory To Implementation](https://pbr-book.org/)/[Kanition大佬v3翻译版](https://github.com/kanition/pbrtbook)，[Ray Tracing Gems 2](https://www.realtimerendering.com/raytracinggems/rtg2/index.html), [nvpro-samples/vk_gltf_renderer](https://github.com/nvpro-samples/vk_gltf_renderer/blob/master/shaders/gltf_pathtrace.slang) 将是我们这里主要的信息来源。
 
 ### SBT (Shader Binding Table) 及管线 API
 
@@ -136,7 +136,7 @@ rayLocal = SampleCosineHemisphere(u);
 throughput *= baseColor * 1.0f;
 ```
 
-仅实现该BRDF效果如下——注意到墙壁色彩在其他物体上的简洁影响。
+仅实现该BRDF效果如下——注意到墙壁色彩在其他物体上的间接影响。
 
 ![image-20251217180829346](/image-foundation/image-20251217180829346.png)
 
