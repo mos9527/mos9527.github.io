@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-18T22:42:32.906514
+lastmod: 2025-12-18T23:01:11.810699
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -258,19 +258,23 @@ float EvalSpecularBRDFProbability(float3 baseColor, float metallic, float3 v, fl
 
 ![image-20251218081811968](/image-foundation/image-20251218081811968.png)
 
-这是之前用的Single Scattering模型的问题：高Roughness下没有反射出来的光线（被shadow）会被视作“消失”，但现实中是能继续反弹的：
+记得$G1$ Masking/Shadowing 函数表达的量：宏观面内沿某视角$\mathbf{v}$可见的微面比例。
 
-![walk-the-walk](/image-foundation/steps.svg)
+![img](/image-foundation/diagram_shadowing_masking.png)
 
-图源来自 Filament 引用之一的**ground truth**方法 [Multiple-Scattering Microfacet BSDFs with the Smith Model, Heitz 2016](https://eheitzresearch.wordpress.com/240-2/)。
+而现在所用的$G2 = G1(\mathbf{v,m}))G1(\mathbf{l,m})$属于Single Scattering模型——折射接触到的面贡献被忽略，但现实中是能继续反弹出来的：图源 [4.7.2 Energy loss in specular reflectance](https://google.github.io/filament/Filament.md.html#materialsystem/improvingthebrdfs/energylossinspecularreflectance)。Roughness越大，折射走的越多，能量损失越大，这可以解释“变暗”情况。
 
-不过，其实际实现的是**查表估计**方法，来自 [Practical multiple scattering compensation for microfacet models, Emmanuel 2019](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf) ——接下来将对两种方式进行复现。
+![img](/image-foundation/diagram_single_vs_multi_scatter.png)
+
+在完成微面内完整光路的**ground truth**方法由 [Multiple-Scattering Microfacet BSDFs with the Smith Model, Heitz 2016](https://eheitzresearch.wordpress.com/240-2/) 提出，不过，实践用的更多的是**查表估计**方法，包括Blender的实现来自 [Practical multiple scattering compensation for microfacet models, Emmanuel 2019](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf) —— 接下来将对两种方式进行复现。
 
 ###### Ground Truth Random Walk
 
 ![img](/image-foundation/multiplescatteringsmith_volumeanalogy1.png)
 
 进入微面/microfacet视‘高度’的层次为microflake，在这里walk采样frensel交互。在 [Blender 4.0 之前 (3.6.x)](https://projects.blender.org/blender/blender/src/tag/v3.6.20/intern/cycles/kernel/closure/bsdf_microfacet_multi.h) 也是其Multiscatter GGX的实现。
+
+![walk-the-walk](/image-foundation/steps.svg)
 
 ##### 预计算查表
 
