@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-18T08:19:38.631912
+lastmod: 2025-12-18T12:19:41.784298
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -252,9 +252,46 @@ float EvalSpecularBRDFProbability(float3 baseColor, float metallic, float3 v, fl
 
 ![image-20251217223535486](/image-foundation/image-20251217223535486.png)
 
-值得注意的是反射面中的场景有变暗的情况（TBD），进行Furnace Test：
+##### TODO
+
+值得注意的是反射面中的场景有变暗的情况，进行Furnace Test：
 
 ![image-20251218081811968](/image-foundation/image-20251218081811968.png)
 
+这是之前用的single-scatter ggx模型的问题：高roughness下没有反射出来的光线会被视作“消失”，但现实中是能继续反弹的。
+
+参考  [4.7.2 Energy loss in specular reflectance](https://google.github.io/filament/Filament.md.html#materialsystem/improvingthebrdfs/energylossinspecularreflectance) - 搞懂了再继续写。
+
+#### 直接照明
+
+![image-20251218093414866](/image-foundation/image-20251218093414866.png)
+
+在之前的光栅路径的东西完全能够复用。图源Ray Tracing Gems 2；这里同样只有一个太阳光，集成如下：
+
+```glsl
+// Direct - we only have a sun light for now
+{
+    float3 l = -globalParams.sunDirection;
+    if (!TraceShadowRay(p, l)){
+        float3 h = normalize(v + l);
+        float NoL = saturate(dot(n, l));
+        float NoH = saturate(dot(n, h));
+        float NoV = saturate(dot(n, v));
+        float VoH = saturate(dot(v, h));
+        float3 Fd = DiffuseReflectance(baseColor, metallic) / PI;
+        float D = D_GGX(alpha * alpha, NoH);
+        float V = V_SmithGGXCorrelated(NoV, NoL, roughness);
+        float Fs = D * V;
+        float3 metalBRDF = Fs * F_Schlick(VoH, baseColor);
+        float3 dielectricBRDF = lerp(Fd, Fs, F_Schlick(VoH, float3(0.04)));
+        float3 light = lerp(dielectricBRDF, metalBRDF, metallic);
+        radiance += throughput * light * float3(globalParams.sunIntensity) * NoL;
+    }
+}
+```
+
+在 Intel Sponza 效果如下；存在Firefly需要处理。
+
+![image-20251218121422042](/image-foundation/image-20251218121422042.png)
 
 <h1 style="color:red">--- 施工中 ---</h1>
