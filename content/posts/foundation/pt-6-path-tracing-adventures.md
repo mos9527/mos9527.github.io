@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-18T12:19:41.784298
+lastmod: 2025-12-18T22:13:15.474689
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -252,7 +252,7 @@ float EvalSpecularBRDFProbability(float3 baseColor, float metallic, float3 v, fl
 
 ![image-20251217223535486](/image-foundation/image-20251217223535486.png)
 
-##### TODO
+##### Multiscatter GGX
 
 值得注意的是反射面中的场景有变暗的情况，进行Furnace Test：
 
@@ -260,7 +260,13 @@ float EvalSpecularBRDFProbability(float3 baseColor, float metallic, float3 v, fl
 
 这是之前用的single-scatter ggx模型的问题：高roughness下没有反射出来的光线会被视作“消失”，但现实中是能继续反弹的。
 
-参考  [4.7.2 Energy loss in specular reflectance](https://google.github.io/filament/Filament.md.html#materialsystem/improvingthebrdfs/energylossinspecularreflectance) - 搞懂了再继续写。
+![walk-the-walk](/image-foundation/steps.svg)
+
+图源来自 Filament 引用的ground truth方法[Multiple-Scattering Microfacet BSDFs with the Smith Model, Heitz 2016](https://eheitzresearch.wordpress.com/240-2/)；但实际实现的是查表估计方法，来自 [Practical multiple scattering compensation for microfacet models, Emmanuel 2019](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf) 
+
+###### Ground Truth Random Walk
+
+TBD
 
 #### 直接照明
 
