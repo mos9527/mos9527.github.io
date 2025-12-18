@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-18T22:28:47.180895
+lastmod: 2025-12-18T22:42:32.906514
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -262,13 +262,19 @@ float EvalSpecularBRDFProbability(float3 baseColor, float metallic, float3 v, fl
 
 ![walk-the-walk](/image-foundation/steps.svg)
 
-图源来自 Filament 引用的ground truth方法[Multiple-Scattering Microfacet BSDFs with the Smith Model, Heitz 2016](https://eheitzresearch.wordpress.com/240-2/)；但实际实现的是查表估计方法，来自 [Practical multiple scattering compensation for microfacet models, Emmanuel 2019](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf) 
+图源来自 Filament 引用之一的**ground truth**方法 [Multiple-Scattering Microfacet BSDFs with the Smith Model, Heitz 2016](https://eheitzresearch.wordpress.com/240-2/)。
+
+不过，其实际实现的是**查表估计**方法，来自 [Practical multiple scattering compensation for microfacet models, Emmanuel 2019](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf) ——接下来将对两种方式进行复现。
 
 ###### Ground Truth Random Walk
 
 ![img](/image-foundation/multiplescatteringsmith_volumeanalogy1.png)
 
-也是 [Blender](https://github.com/dfelinto/blender/blob/master/intern/cycles/kernel/closure/bsdf_microfacet_multi.h) 的 Multiscatter GGX 做法：我们进入微面/microfacet视不同‘高度’的层次为microflake，在这里walk采样frensel交互
+进入微面/microfacet视‘高度’的层次为microflake，在这里walk采样frensel交互。在 [Blender 4.0 之前 (3.6.x)](https://projects.blender.org/blender/blender/src/tag/v3.6.20/intern/cycles/kernel/closure/bsdf_microfacet_multi.h) 也是其Multiscatter GGX的实现。
+
+##### 预计算查表
+
+[Blender 4.0 以后](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L862) 采用了该方法。
 
 TBD...明天还有考试
 
