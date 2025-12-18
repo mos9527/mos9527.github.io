@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-17T22:40:43.592041
+lastmod: 2025-12-18T08:19:38.631912
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -252,7 +252,9 @@ float EvalSpecularBRDFProbability(float3 baseColor, float metallic, float3 v, fl
 
 ![image-20251217223535486](/image-foundation/image-20251217223535486.png)
 
-值得注意的是反射面中的场景有变暗的情况（TBD）；此外，相机EV值有经过调整。
+值得注意的是反射面中的场景有变暗的情况（TBD），进行Furnace Test：
+
+![image-20251218081811968](/image-foundation/image-20251218081811968.png)
 
 
 <h1 style="color:red">--- 施工中 ---</h1>
