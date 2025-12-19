@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-19T18:03:10.046085
+lastmod: 2025-12-19T18:37:09.191784
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -102,7 +102,45 @@ float3 GeneratePrimaryRay(uint2 pixel, PCG rng)
 }
 ```
 
-### BRDF 采样
+### BRDF 函数
+
+接下来的实现以PBRT的风格完成；为此，我们定义以下结构及界面：
+
+```c++
+// -- BxDF Interface
+// https://www.pbr-book.org/4ed/Reflection_Models/BSDF_Representation
+public struct BSDFSample {
+    // Value of the BSDF
+    public float3 f;
+    // Incoming direction
+    public float3 wi;
+    // Sampler's PDF
+    public float pdf;
+
+    public __init(float3 f, float3 wi, float pdf) {
+        this.f = f;
+        this.wi = wi;
+        this.pdf = pdf;
+    }
+    public bool IsValid() {
+        return pdf >= 0.0;
+    }
+};
+typedef float3 SampledSpectrum; // RGB spectrum
+// https://www.pbr-book.org/4ed/Reflection_Models/BSDF_Representation#BxDFInterface
+// * wo, wi are in local space (+z is normal direction)
+public interface IBxDF {
+    // Value of the distribution function for given pair of directions
+    public float3 f(float3 wo, float3 wi);
+
+    // [Importance] Sample a direction wi given outgoing direction wo and 2D random, uniform
+    // samples uc and u.
+    public BSDFSample Sample_f(float3 wo, float uc, float2 u);
+
+    // Evaluates the PDF for a given pair of directions
+    public float PDF(float3 wo, float3 wi);
+};
+```
 
 #### 漫反射（朗伯反射）
 ![image-20251217172122062](/image-foundation/image-20251217172122062.png)

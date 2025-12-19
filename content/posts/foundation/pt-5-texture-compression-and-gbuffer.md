@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-17T19:57:48.752203
+lastmod: 2025-12-19T18:35:41.190307
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -281,49 +281,7 @@ return float4(L, 1.0f);
 
 ### GGX + Lambert
 
-Filament [4.6 Standard model summary](https://google.github.io/filament/Filament.md.html#materialsystem/standardmodelsummary) 包括实现GGX Specular和Lambert Diffuse所需的一切Listing。方便参考，以下为Lambert Diffuse与GGX Specular的LaTEX形式。其中$\sigma$为“diffuse reflectance”，即我们的base color。
-$$
-F_{diffuse} = \frac{\sigma}{\pi} \newline
-
-F_{specular} = \frac{D(h, \alpha) G(v, l, \alpha) F(v, h, f0)}{4(n \cdot v)(n \cdot l)}
-$$
-$G(v,l,a)$常被简化为$V(n,v,l)$/Visbility，最后后面会见到的形式为：
-$$
-F_{diffuse} = \frac{\sigma}{\pi} \newline
-
-F_{specular} = D(h, \alpha) V(n, v, l) F(v,h,f0)
-$$
-
-
-整理 [4.10.1 Anisotropic specular BRDF](https://google.github.io/filament/Filament.md.html#materialsystem/anisotropicmodel/anisotropicspecularbrdf) 内容，以下是我们将要在本demo使用的BRDF中$F$估计形式及支持各向异性的$D,V$函数。这里额外还将需要完整的切空间与$at, ab$，这里将不在之前式子补充。
-
-```glsl
-float3 F_Schlick(float u, float3 f0) {
-    return f0 + (float3(1.0) - f0) * pow(1.0 - u, 5.0);
-}
-// float at = max(roughness * (1.0 + anisotropy), 0.001);
-// float ab = max(roughness * (1.0 - anisotropy), 0.001);
-float D_GGX_Anisotropic(float NoH, const float3 h, const float3 t, const float3 b, float at, float ab) {
-    float ToH = dot(t, h);
-    float BoH = dot(b, h);
-    float a2 = at * ab;
-    float3 v = float3(ab * ToH, at * BoH, a2 * NoH);
-    float v2 = dot(v, v);
-    float w2 = a2 / v2;
-    return a2 * w2 * w2 * (1.0 / PI);
-}
-
-float V_SmithGGXCorrelated_Anisotropic(float at, float ab, float ToV, float BoV,
-        float ToL, float BoL, float NoV, float NoL) {
-    float lambdaV = NoL * length(float3(at * ToV, ab * BoV, NoV));
-    float lambdaL = NoV * length(float3(at * ToL, ab * BoL, NoL));
-    float v = 0.5 / (lambdaV + lambdaL);
-    return saturate(v);
-}
-
-```
-
-**注**：关于$a$ - 注意 [glTF Spec Appendix B.2.3. Microfacet Surfaces](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#microfacet-surfaces) 及   [Fliament 4.8.3 Remapping](https://google.github.io/filament/Filament.md.html#materialsystem/parameterization/remapping) 中也有提到。对roughness做$\alpha = \text{roughness}^2$的mapping是被推荐的。
+BRDF eval这里不讲（见下一篇）。接下来的实现部分也仅供参考：所用的lobe一致，但这不是我们最后使用的写法。
 
 ### glTF Metal-Rough 模型
 
@@ -362,7 +320,6 @@ float NoL = saturate(dot(n,l));
 float3 lighting = float3(NoL) * globalParams.sunIntensity + globalParams.ambientColor;
 
 // Diffuse
-// https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
 float3 Fd = baseColor / PI;
 
 // Specular
