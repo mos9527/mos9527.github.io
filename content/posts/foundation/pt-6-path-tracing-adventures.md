@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-21T18:45:47.581226
+lastmod: 2025-12-21T18:51:35.643942
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -127,7 +127,8 @@ $$
 L_o = \int_{H^2}{kR cos\theta d w_i} = kR \int_{H^2}{cos\theta d w_i} = R \newline
 k = \frac{1}{\int_{H^2}{cos\theta d w_i}} = \frac{1}{\pi}
 $$
-即$f_r = \frac{R}{\pi}$，对应PBRT界面中的`f()`实现。
+
+即 $f_r = \frac{R}{\pi}$，对应PBRT界面中的`f()`实现。
 
 ##### Sample_f/Sample
 
@@ -148,26 +149,19 @@ public float3 SampleCosineHemisphere(float2 u) {
 $$
 x^2 + y^2 = r^2 \newline
 z^2 = 1 - r^2 = cos^2{\theta} \newline
-sin^2\theta = r^2 \rarr sin \theta = r
+sin^2\theta = r^2 \newline
 $$
 
-接下来求变换$(r,\phi) \rarr (\theta,\phi)$的雅可比行列式：
+我们有$sin \theta = r$, 接下来求变换$(r,\phi) \to (\theta,\phi)$的雅可比行列式：
 
 $$
 J =
-\left|
-\frac{\partial(r, \phi)}{\partial(\theta, \phi)}
-\right|
-=
-\begin{vmatrix}
-\cos\theta & 0 \\
-0 & 1
-\end{vmatrix}
-=
-\cos\theta.
+\left|\frac{\partial(r, \phi)}{\partial(\theta, \phi)}\right |= 
+\begin{vmatrix} \cos\theta & 0 \newline 0 & 1 \end{vmatrix} = \cos\theta
 $$
 
-[我们知道圆盘上采样的PDF](https://pbr-book.org/4ed/Sampling_Algorithms/Sampling_Multidimensional_Functions#sec:unit-disk-sample)是 $\frac{r}{\pi}$；那么知道行列式后我们可以很轻松地得到该采样方式的PDF为$cos\theta \frac{r}{\pi} = \frac{cos\theta sin\theta}{\pi}$；这里的“权重”，$cos\theta$，也正是该采样方法名字/Cosine Weighted的来源。
+[我们知道圆盘上采样的PDF](https://pbr-book.org/4ed/Sampling_Algorithms/Sampling_Multidimensional_Functions#sec:unit-disk-sample)是 $ \frac{r}{\pi} $ 那么知道行列式后我们可以很轻松地得到该采样方式的PDF为 $ cos\theta \frac{r}{\pi} = \frac{cos\theta sin\theta}{\pi} $
+这里的“权重”，$cos\theta$，也正是该采样方法名字/Cosine Weighted的来源。
 
 注意PDF对应球面上的立体角/solid angle，即$dw = sin\theta d\theta d\phi$；这里的$sin\theta$消掉，即得到我们最后采样的PDF
 
