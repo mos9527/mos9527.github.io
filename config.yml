@@ -28,6 +28,10 @@ markup:
           - - $
             - $
         enable: true
+  tableOfContents:
+    endLevel: 39
+    ordered: false
+    startLevel: 2          
 params:
   math: true      
 giscus:
