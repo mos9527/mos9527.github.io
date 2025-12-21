@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-19T18:37:09.191784
+lastmod: 2025-12-21T13:12:32.943085
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -145,9 +145,106 @@ public interface IBxDF {
 #### 漫反射（朗伯反射）
 ![image-20251217172122062](/image-foundation/image-20251217172122062.png)
 
-先实现最简单的漫反射BRDF，也就是朗伯反射（Lambertian Diffuse）。此外若未提及，BRDF和之前在光栅路径中的选择会是一致的。图源Kanition翻译PBRTv3
+最简单的漫反射BRDF，也就是朗伯反射（Lambertian Diffuse）。图源Kanition翻译PBRTv3
 
-TBD - Revisit
+他的BRDF Lobe很简单：分布是一个半球面；从评估/Eva（已知入射出射）和采样/Sample（已知出射/相机入射未知）两个方向看：
+
+##### f/Eval
+
+回顾渲染公式：
+$$
+L_o(\mathbf{x}, \omega_o) = \int_{\Omega} f_r(\mathbf{x}, \omega_i, \omega_o) L_i(\mathbf{x}, \omega_i) \cos\theta \,d\omega_i
+$$
+朗伯反射的能量分布是无条件均匀的，那么设$f_r = kR$ 。保证能量守恒，$L_i = 1$积分有
+$$
+L_o = \int_{H^2}{kR cos\theta d w_i} = kR \int_{H^2}{cos\theta d w_i} = R \newline
+k = \frac{1}{\int_{H^2}{cos\theta d w_i}} = \frac{1}{\pi}
+$$
+即$f_r = \frac{R}{\pi}$.
+
+##### Sample_f/Sample
+
+PBRT中使用了[SampleCosineHemisphere](https://pbr-book.org/4ed/Sampling_Algorithms/Sampling_Multidimensional_Functions#Cosine-WeightedHemisphereSampling)做重要性采样。
+
+```c++
+public float3 SampleCosineHemisphere(float2 u) {
+    float2 d = SampleConcentricDisk(u);
+    float z = SafeSqrt(1.0 - Sqr(d.x) - Sqr(d.y));
+    return float3(d.x, d.y, z);
+}
+```
+
+采样PDF推导也很直接；这里$x^2 + y^2 + z^2 = 1$，若记ConcentricDisk上极坐标为$(r, \phi)$,最后单位球坐标为$(1, \theta, \phi)$则代入：
+$$
+x^2 + y^2 = r^2 \newline
+z^2 = 1 - r^2 = cos^2{\theta} \newline
+sin^2\theta = r^2 \rarr sin \theta = r
+$$
+接下来求变换$(r,\phi) \rarr (\theta,\phi)$的雅可比行列式：
+$$
+J =
+\left|
+\frac{\partial(r, \phi)}{\partial(\theta, \phi)}
+\right|
+=
+\begin{vmatrix}
+\cos\theta & 0 \\
+0 & 1
+\end{vmatrix}
+=
+\cos\theta.
+$$
+[我们知道圆盘$(r,\phi)$上采样的PDF](https://pbr-book.org/4ed/Sampling_Algorithms/Sampling_Multidimensional_Functions#sec:unit-disk-sample)是 $\frac{r}{\pi}$；那么知道行列式后我们可以很轻松地得到该采样方式的PDF为$cos\theta \frac{r}{\pi} = \frac{cos\theta sin\theta}{\pi}$
+
+注意PDF对应球面上的立体角/solid angle，即$dw = sin\theta d\theta d\phi$，$sin\theta$消掉，即得到我们最后采样的PDF
+
+```c++
+public float CosineHemispherePDF(float cosTheta) {
+    return cosTheta * InvPi;
+}
+```
+
+##### BxDF
+
+整理完毕如下。这里（和以后的）的`IBxDF`界面和PBRT书中介绍完全一致。
+
+```c++
+public struct DiffuseBxDF : IBxDF {
+    SampledSpectrum R;
+    public __init(SampledSpectrum R) {
+        this.R = R;
+    }
+    public BxDFFlags Flags(){
+        return BxDFFlags::DiffuseReflection;
+    }
+    // BRDF evaluation
+    // Constant reflection distribution where:
+    // \int_H^2 f(wo,wi) CosTheta(wi) dwi = R
+    public SampledSpectrum f(float3 wo, float3 wi, TransportMode) {
+        if (!SameHemisphere(wo, wi)) {
+            return float3(0.0, 0.0, 0.0);
+        }
+        return R * InvPi;
+    }
+    // Draw a sample from cosine-weighted hemisphere
+    public BSDFSample Sample_f(float3 wo, float uc, float2 u,TransportMode, BxDFReflTransFlags flags) {
+        if (!(flags & BxDFReflTransFlags::Reflection))
+            return BSDFSample();
+        float3 wi = SampleCosineHemisphere(u);
+        if (wo.z < 0.0) wi.z *= -1.0; // Ensure same hemisphere
+        float pdf = CosineHemispherePDF(AbsCosTheta(wi));
+        return BSDFSample(R * InvPi, wi, pdf, BxDFFlags::DiffuseReflection);
+    }
+    // Evaluated PDF for a pair of directions
+    public float PDF(float3 wo, float3 wi,TransportMode, BxDFReflTransFlags flags) {
+        if (!(flags & BxDFReflTransFlags::Reflection) || !SameHemisphere(wo, wi))
+            return 0.0;
+        return CosineHemispherePDF(AbsCosTheta(wi));
+    }
+};
+```
+
+
 
 #### 光泽反射 （GGX）
 

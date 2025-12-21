@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-19T18:35:41.190307
+lastmod: 2025-12-21T08:52:44.662745
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -285,7 +285,7 @@ BRDF eval这里不讲（见下一篇）。接下来的实现部分也仅供参�
 
 ### glTF Metal-Rough 模型
 
-Spec的要求(Core)是[迪斯尼BRDF](https://github.com/wdas/brdf/blob/main/src/brdfs/disney.brdf#L135)的简化模型 - 仅包含`baseColor, metallic, roughness`层。不过 [其他的材质层（如Clearcoat）也基本有各种拓展加入](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_clearcoat/README.md)；这些以后再看。
+Spec的要求(Core)是如下 - 仅包含`baseColor, metallic, roughness`层。不过 [其他的材质层（如Clearcoat）也基本有各种拓展加入](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_clearcoat/README.md)；这些以后再看。
 
 ![pbr](/image-foundation/gltf-metal-rough-complete-model.svg)
 
