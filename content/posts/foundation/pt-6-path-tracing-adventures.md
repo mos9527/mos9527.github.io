@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-21T18:51:35.643942
+lastmod: 2025-12-21T18:58:11.496394
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -237,7 +237,9 @@ Microfacet 理论中存在以下三种事件：（a）表现 **Masking**，即**
 
 两个重要的等式关系也将在后面推导VNDF采样中继续使用。GGX $D$, $G$本身的推导在此省略。
 
-##### VNDF 采样
+值得注意的是（c）情况在这里并未讨论，这里留了一个“问题”（伏笔）！最后在Multiscatter GGX中会再次提及。不过暂时，（c）情况先放一边...接下来则是更**重要**的一个问题
+
+##### GGX 重要性采样 （VNDF）
 
 ![image-20251221174044698](/image-foundation/image-20251221174044698.png)
 
