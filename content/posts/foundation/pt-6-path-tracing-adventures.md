@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-21T13:12:32.943085
+lastmod: 2025-12-21T18:25:01.243021
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -102,52 +102,19 @@ float3 GeneratePrimaryRay(uint2 pixel, PCG rng)
 }
 ```
 
-### BRDF 函数
+### BxDF 实现
 
-接下来的实现以PBRT的风格完成；为此，我们定义以下结构及界面：
+接下来的实现以PBRT的风格完成，以下将给出的结构及界面将同PBRT书中定义一致。此外，自己将尽力给出以下模型的原理推导。
 
-```c++
-// -- BxDF Interface
-// https://www.pbr-book.org/4ed/Reflection_Models/BSDF_Representation
-public struct BSDFSample {
-    // Value of the BSDF
-    public float3 f;
-    // Incoming direction
-    public float3 wi;
-    // Sampler's PDF
-    public float pdf;
-
-    public __init(float3 f, float3 wi, float pdf) {
-        this.f = f;
-        this.wi = wi;
-        this.pdf = pdf;
-    }
-    public bool IsValid() {
-        return pdf >= 0.0;
-    }
-};
-typedef float3 SampledSpectrum; // RGB spectrum
-// https://www.pbr-book.org/4ed/Reflection_Models/BSDF_Representation#BxDFInterface
-// * wo, wi are in local space (+z is normal direction)
-public interface IBxDF {
-    // Value of the distribution function for given pair of directions
-    public float3 f(float3 wo, float3 wi);
-
-    // [Importance] Sample a direction wi given outgoing direction wo and 2D random, uniform
-    // samples uc and u.
-    public BSDFSample Sample_f(float3 wo, float uc, float2 u);
-
-    // Evaluates the PDF for a given pair of directions
-    public float PDF(float3 wo, float3 wi);
-};
-```
+最后作为参考，还请参阅 [PBRT v4 - 9 Reflection Models](https://www.pbr-book.org/4ed/Reflection_Models.html) 以获取最权威信息；此外，这一部分在[Kanition PBRT v3翻译版](https://github.com/kanition/pbrtbook)中尚未完成，自己尝试的翻译和数学解释也许不够准确——如有错误还烦请指正！
 
 #### 漫反射（朗伯反射）
+
 ![image-20251217172122062](/image-foundation/image-20251217172122062.png)
 
 最简单的漫反射BRDF，也就是朗伯反射（Lambertian Diffuse）。图源Kanition翻译PBRTv3
 
-他的BRDF Lobe很简单：分布是一个半球面；从评估/Eva（已知入射出射）和采样/Sample（已知出射/相机入射未知）两个方向看：
+他的BRDF Lobe很简单：分布是一个半球面，而且能量均匀。我们从评估/Eval（已知入射出射方向）和采样/Sample（已知出射/相机入射未知）两个方向解读 PBRT 的实现。
 
 ##### f/Eval
 
@@ -160,11 +127,13 @@ $$
 L_o = \int_{H^2}{kR cos\theta d w_i} = kR \int_{H^2}{cos\theta d w_i} = R \newline
 k = \frac{1}{\int_{H^2}{cos\theta d w_i}} = \frac{1}{\pi}
 $$
-即$f_r = \frac{R}{\pi}$.
+即$f_r = \frac{R}{\pi}$，对应PBRT界面中的`f()`实现。
 
 ##### Sample_f/Sample
 
-PBRT中使用了[SampleCosineHemisphere](https://pbr-book.org/4ed/Sampling_Algorithms/Sampling_Multidimensional_Functions#Cosine-WeightedHemisphereSampling)做重要性采样。
+![image-20251221165710063](/image-foundation/image-20251221165710063.png)
+
+PBRT中使用了[SampleCosineHemisphere](https://pbr-book.org/4ed/Sampling_Algorithms/Sampling_Multidimensional_Functions#Cosine-WeightedHemisphereSampling)做重要性采样（如图），采样单位圆内点后直接投影在单位球面上。
 
 ```c++
 public float3 SampleCosineHemisphere(float2 u) {
@@ -194,9 +163,10 @@ J =
 =
 \cos\theta.
 $$
-[我们知道圆盘$(r,\phi)$上采样的PDF](https://pbr-book.org/4ed/Sampling_Algorithms/Sampling_Multidimensional_Functions#sec:unit-disk-sample)是 $\frac{r}{\pi}$；那么知道行列式后我们可以很轻松地得到该采样方式的PDF为$cos\theta \frac{r}{\pi} = \frac{cos\theta sin\theta}{\pi}$
 
-注意PDF对应球面上的立体角/solid angle，即$dw = sin\theta d\theta d\phi$，$sin\theta$消掉，即得到我们最后采样的PDF
+[我们知道圆盘$(r,\phi)$上采样的PDF](https://pbr-book.org/4ed/Sampling_Algorithms/Sampling_Multidimensional_Functions#sec:unit-disk-sample)是 $\frac{r}{\pi}$；那么知道行列式后我们可以很轻松地得到该采样方式的PDF为$cos\theta \frac{r}{\pi} = \frac{cos\theta sin\theta}{\pi}$；这里的“权重”，$cos\theta$，也正是该采样方法名字/Cosine Weighted的来源。
+
+注意PDF对应球面上的立体角/solid angle，即$dw = sin\theta d\theta d\phi$；这里的$sin\theta$消掉，即得到我们最后采样的PDF
 
 ```c++
 public float CosineHemispherePDF(float cosTheta) {
@@ -204,9 +174,9 @@ public float CosineHemispherePDF(float cosTheta) {
 }
 ```
 
-##### BxDF
+##### IBxDF 实现
 
-整理完毕如下。这里（和以后的）的`IBxDF`界面和PBRT书中介绍完全一致。
+整理完毕如下。这里（和以后的）的`IBxDF`界面和PBRT书中介绍将保证完全一致。
 
 ```c++
 public struct DiffuseBxDF : IBxDF {
@@ -244,7 +214,146 @@ public struct DiffuseBxDF : IBxDF {
 };
 ```
 
+ #### Microfacet（微面）建模
 
+在建模光泽反射之前，我们需要知道他是怎么【采样】光线的——不同于朗伯反射，材质本身也会影响Lobe的形状，而显得更“光滑”和“粗糙”。现代 PBR 建模会使用Microfacet（微面）理论描述这一情况。
+
+![image-20251221170507477](/image-foundation/image-20251221170507477.png)
+
+Microfacet 理论中存在以下三种事件：（a）表现 **Masking**，即**出射光**被微面遮挡，（b）表现 **Shadowing**，即**入射光**被微面遮挡，与（c）**内反射**，光路在微面内反射多次后来到视角。（图源 [9.6 Roughness Using Microfacet Theory](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory.html) -  "Three Important Geometric Effects to Consider with Microfacet Reflection Models"）
+
+从宏观角度建模微观事件的手段往往是统计学——PBRT中使用 Trowbridge-Reitz （GGX）分布来建模微面（Microfacet）理论。其中定义以下函数：
+
+- $D(w)$ - [Microfacet Distribution](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#TheMicrofacetDistribution)，代表宏观平面上一点从视角$w$观察，【指向视角$w$】的微面比例；直觉的，以下式子，也即从**所有视角**观察到的面积分，成立：
+  $$
+  \int_{H^2}{D(w_m)(w_m \cdot \mathbf n)dw_m} = 1
+  $$
+  
+- $G(w)$ - [Masking Function](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#TheMaskingFunction)，代表宏观平面上一点从视角$w$观察，可被【直接观察到】的微面比例；类比平面情况（如图），我们也可以找到球面上他的积分的含义：从**一定视角**，所能“看到”的面的比例
+	
+	![image-20251221172332451](/image-foundation/image-20251221172332451.png)
+	
+	在光滑平面下这是熟悉的$cos\theta = N\cdot L$；微面情景中，以下式子也应成立：
+	$$
+	\int_{H^2}{D(w_m)G(w,w_m)(w_m \cdot \mathbf n)dw_m} = w \cdot \mathbf{n} = \cos\theta
+	$$
+
+两个重要的等式关系也将在后面推导VNDF采样中继续使用。GGX $D$, $G$本身的推导在此省略。
+
+##### VNDF 采样
+
+![image-20251221174044698](/image-foundation/image-20251221174044698.png)
+
+PBRT 书中的方法来自 [Sampling the GGX Distribution of Visible Normals, Heitz 2018](https://jcgt.org/published/0007/04/01/paper.pdf)：采样GGX的Lobe，可以很直觉——在前面，我们已经很清楚怎么采样一个**均匀**的半球Lobe；不妨将GGX的Lobe也“变形”成半球的形状，做同样的事情！
+
+GGX的Lobe是个椭圆体：形状由我们提供的$\alpha$“粗糙度”决定。对各向异性情形则是$\alpha_x, \alpha_y$两个值，而将这个形状变回”圆“则很简单：平面本地切空间内表示($\mathbf n = (0,0,1)$)下，仅需一个缩放变换：
+$$
+A = \begin{bmatrix}a_x & 0 & 0 \newline 0 & a_y & 0 \newline 0 & 0 & 0\end{bmatrix}
+$$
+之后，用缩放后的$n$去采样，采样方法和之前几乎一致。但值得注意的是，不同于漫反射：这里的Lobe可能并不完全在正平面内：
+
+![image-20251221174613721](/image-foundation/image-20251221174613721.png)
+
+“裁切”掉这个情况并非难事：限制高度到$[cos\theta, 1]$即可。之后通过构造正交基就能把采样的向量投影做$A$的逆变换，回到正确的Lobe方向中
+
+最后，我们完整的GGX采样实现如下。这里的PDF正是我们之前提到的$D$。
+
+```c++
+// https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory
+// Trowbridge-Reitz (GGX) distribution/shadow-masking functions
+public struct TrowbridgeReitzDistribution {
+    float alpha_x;
+    float alpha_y;
+    public __init(float alpha_x, float alpha_y) {
+        this.alpha_x = alpha_x;
+        this.alpha_y = alpha_y;
+    }
+    // https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#eq:tr-d-function
+    // Distribution/percentage of microfacet normals at surface local point oriented towards wm
+    public float D(float3 wm) {
+        float tan2Theta = Tan2Theta(wm);
+        if (isinf(tan2Theta)) return 0;
+        float cos4Theta = Sqr(Cos2Theta(wm));
+        float e = tan2Theta * (Sqr(CosPhi(wm) / alpha_x) +
+                               Sqr(SinPhi(wm) / alpha_y));
+        return 1 / (Pi * alpha_x * alpha_y * cos4Theta * Sqr(1 + e));
+    }
+    // Fallback to perfectly smooth case where PDF is dirac delta when true
+    public bool EffectivelySmooth() {
+        return max(alpha_x, alpha_y) < 1e-3f;
+    }
+    // Lambda for G1 masking-shadowing function at incident direction w
+    public float Lambda(float3 w) {
+        float tan2Theta = Tan2Theta(w);
+        if (isinf(tan2Theta)) return 0;
+        float alpha2 = Sqr(CosPhi(w) * alpha_x) + Sqr(SinPhi(w) * alpha_y);
+        return (sqrt(1 + alpha2 * tan2Theta) - 1) / 2;
+    }
+    // Masking function for single incident direction
+    public float G1(float3 w) { return 1 / (1 + Lambda(w)); }
+    // Height-correlated Masking-Shadowing function (Smith G)
+    // ---
+    // * G1(wo)G1(wi) assumes independence - which is conservative and can lead to energy loss/darkening
+    // * This correlates height fields - assumed as a NDF - to reduce energy loss
+    public float G(float3 wo, float3 wi) {
+        return 1 / (1 + Lambda(wo) + Lambda(wi));
+    }
+    // Normalized Visible Normal Distribution/VNDF
+    // ---
+    // For visible microfacets viewed from wm:
+    //   \int_H^2 G1(w)G1(wm) max(0,w \cdot wm) dwm = w \cdot n = CosTheta(w) should hold
+    // Thus we can derive the PDF for sampling visible normals with respect to incident direction w:
+    //   D_w(wm) = \frac{G1(w)}{CosTheta(wm)} D(wm) max(0,w \cdot wm)
+    public float D(float3 w, float3 wm) {
+        return G1(w) / AbsCosTheta(w) * D(wm) * AbsDot(w, wm);
+    }
+    // Alias of D, the PDF for visible normal's importance sampling described below.
+    public float PDF(float3 w, float3 wm) { return D(w, wm); }
+    // Importance sampling of Visible Normals
+    // ---
+    // https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#SamplingtheDistributionofVisibleNormals
+    // See also "Sampling the GGX Distribution of Visible Normals" by Eric Heitz (https://jcgt.org/published/0007/04/01/paper.pdf)
+    public float3 Sample_wm(float3 w, float2 u) {
+        // 1. For anisotropic cases, transform the incident w back to a hemispherical configuration
+        //    so we'd always work with a isotropic case.
+        float3 wh = normalize(float3(alpha_x * w.x, alpha_y * w.y, w.z));
+        if (wh.z < 0) wh = -wh; // Ensure wh is in the upper hemisphere
+        // 2. Find a orthonormal basis around wh. This is PBRT's routine, though
+        //    buildOrthonormalBasis [Frisvad, 2012] could be also used w/o normalization.
+        float3 T1 = wh.z < 0.99999f ? normalize(cross(float3(0,0,1), wh)) : float3(1,0,0);
+        float3 T2 = cross(wh, T1);
+        // 3. Sample uniformly distributed point on a unit disk and project to clipped hemisphere
+        float2 p = SampleUniformDiskPolar(u);
+        float h = sqrt(1 - Sqr(p.x)); // Max height on hemisphere
+        float s = (1 + wh.z) / 2;
+        p.y = (1-s) * h + s * p.y; // Project to clipped hemisphere
+        float pz = sqrt(max(0, 1 - LengthSquared(p)));
+        float3 nh = p.x * T1 + p.y * T2 + pz * wh; // Apply TBN
+        // 4. Reverse the anisotropic scaling to get the sampled microfacet normal
+        return normalize(float3(alpha_x * nh.x, alpha_y * nh.y, max(1e-6f, nh.z)));
+    }
+}
+```
+
+注意几个细节：
+
+- PBRT提供了 `EffectivelySmooth` 方法：这里是为了镜面反射情况（roughness=0或很小）下的分布：回顾之前的Lobe图案，他只在唯一一个完美反射的方向有信号。
+
+  ![image-20251221181248305](/image-foundation/image-20251221181248305.png)
+
+  - PDF的表达将很困难。该情况概率本身是个狄拉克$\delta$函数：全域除原点都为$0$，而积分是$1$。那么PDF在该点上则会是无穷大！
+
+    PBRT的解决方案则是用$1$表达采样它的PDF；同时采样时在该case下特殊处理，入射光线直接取出射光线镜像，避免任何精度问题
+
+- 这里的$G$函数同时表达Shadowing-Masking。在很多实现（如英伟达 https://github.com/nvpro-samples/nvpro_core2）及RTR4介绍中，混合Shadowing和Masking往往写成：
+    $$
+    G_1(w_i)G_1(w_o)
+    $$
+    这蕴含着入射（shadowing）和出射（masking）事件不相关。[PBRT指出这是过于保守的（太低）](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#TheMasking-ShadowingFunction)，但相关性存在：试想一个很高的‘山封’：从入射/出射两个角度都看不到。最后的形式来自 [Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs, Heitz 2014](https://jcgt.org/published/0003/02/03/paper.pdf):
+
+    ![image-20251221182209229](/image-foundation/image-20251221182209229.png)
+
+    其中$\Lambda$已在实现中给出。
 
 #### 光泽反射 （GGX）
 
