@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-21T18:58:11.496394
+lastmod: 2025-12-21T19:07:45.939641
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -19,27 +19,39 @@ PBRT/[Physically Based Rendering:From Theory To Implementation](https://pbr-book
 
 之前用过了非常方便的Inline Ray Query - 从fragment/pixel，compute可以直接产生光线进行trace：从这里出发进行PT是可行的，这也是[nvpro-samples/vk_mini_path_tracer](https://nvpro-samples.github.io/vk_mini_path_tracer/extras.html#moresamples) 的教学式做法。
 
-不过完全利用硬件的RT管线会离不开[SBT/Shader Binding Table](https://docs.vulkan.org/spec/latest/chapters/raytracing.html#shader-binding-table)，即Shader绑定表。除了shader单体更小更快之外，调度也有由驱动优化的可能。此外RHI目前还没有SBT相关设施，借此一并处理。参考 [nvpro-samples/vk_raytracing_tutorial_KHR](https://nvpro-samples.github.io/vk_raytracing_tutorial_KHR/#step-43-create-basic-ray-tracing-pipeline-structure)
+不过*完全利用硬件*的RT管线会离不开[SBT/Shader Binding Table](https://docs.vulkan.org/spec/latest/chapters/raytracing.html#shader-binding-table)，即Shader绑定表。除了shader单体更小更快之外，调度也有由驱动优化的可能。
 
-...SBT API应该是Vulkan中最无语的一个设计了。在RHI里决定偷懒，在光追PSO创建过程中直接处理并分组SBT；最后实现完整PT所需的Renderer使用会很轻松，如下：
+实现上...初见确实给了不少震撼。庆幸自己选择了去写个RHI，不然Vulkan SBT方面API的繁文缛节实在是难受- -
+
+保持不特化shader（即shader内各种魔法宏 - 点名Unity，UE）的原则，以下是最后实践的shader绑定API。此外，整个路径追踪过程的C++部分也在此一览无余。
 
 ```c++
-...
 renderer->CreatePass(
     "Trace", RHIDeviceQueueType::Graphics, 0u,
     [=](PassHandle self, Renderer* r)
     {
-        r->BindBackbufferUAV(self, 1u);
         r->BindBufferUniform(self, GlobalUBO, RHIPipelineStageBits::RayTracingShader, "globalParams");
         r->BindAccelerationStructureSRV(self, TLAS, RHIPipelineStageBits::RayTracingShader, "AS");
-        r->BindShader(self, RHIShaderStageBits::RayGeneration, "RayGeneration", "data/shaders/ERTPathTracer.spv");
-        r->BindShader(self, RHIShaderStageBits::RayClosestHit, "RayClosestHit", "data/shaders/ERTPathTracer.spv");
-        r->BindShader(self, RHIShaderStageBits::RayMiss, "RayMiss", "data/shaders/ERTPathTracer.spv");
+        r->BindShader(self, RHIShaderStageBits::RayGeneration, "RayGeneration", "data/shaders/ERTPathTracer.spv",
+                      AsBytes(AsSpan(cfg.viewFlags)));
+        r->BindShader(self, RHIShaderStageBits::RayClosestHit, "RayClosestHit", "data/shaders/ERTPathTracer.spv",
+                      AsBytes(AsSpan(cfg.viewFlags)), /*hit group*/ 0);
+        r->BindShader(self, RHIShaderStageBits::RayAnyHit, "RayOpacityAnyHit", "data/shaders/ERTPathTracer.spv",
+          AsBytes(AsSpan(cfg.viewFlags)), /*hit group*/ 0);
+        r->BindShader(self, RHIShaderStageBits::RayMiss, "RayMiss", "data/shaders/ERTPathTracer.spv",
+                      AsBytes(AsSpan(cfg.viewFlags)));
+        r->BindShader(self, RHIShaderStageBits::RayAnyHit, "ShadowRayAnyHit", "data/shaders/ERTPathTracer.spv",
+                      AsBytes(AsSpan(cfg.viewFlags)), /*hit group*/ 1);
+        r->BindShader(self, RHIShaderStageBits::RayMiss, "ShadowRayMiss", "data/shaders/ERTPathTracer.spv",
+                      AsBytes(AsSpan(cfg.viewFlags)));
         r->BindBufferStorageRead(self, InstanceBuffer, RHIPipelineStageBits::ComputeShader, "instances");
         r->BindBufferStorageRead(self, PrimitiveBuffer, RHIPipelineStageBits::AllGraphics, "primitives");
         r->BindBufferStorageRead(self, MaterialBuffer, RHIPipelineStageBits::AllGraphics, "materials");
         r->BindTextureSampler(self, TexSampler, "textureSampler");
         r->BindDescriptorSet(self, "textures", gpu->GetTexturePool()->GetDescriptorSetLayout());
+        r->BindTextureUAV(self, AccumulatedBuffer, "accumulation", RHIPipelineStageBits::RayTracingShader,
+                          RHITextureViewDesc{.format = RHIResourceFormat::R16G16B16A16SignedFloat,
+                                             .range = RHITextureSubresourceRange::Create()});
 
     }, [=](PassHandle self, Renderer* r, RHICommandList* cmd)
     {
@@ -48,15 +60,9 @@ renderer->CreatePass(
         r->CmdBindDescriptorSet(self, cmd, "textures", gpu->GetTexturePool()->GetDescriptorSet());
         cmd->TraceRays(wh.x, wh.y, 1);
     });
-...
-
 ```
 
-Shader部分测试输出法线，也很简单。最终效果如下：
 
-![image-20251217085106615](/image-foundation/image-20251217085106615.png)
-
-CPU 部分的工作基本完成了。此外，后处理等（比如tonemapper）会在之后添加。
 
 ### 随机数生成及 Viewport 采样
 
@@ -102,7 +108,9 @@ float3 GeneratePrimaryRay(uint2 pixel, PCG rng)
 }
 ```
 
-### BxDF 实现
+### BxDF 解读
+
+重头戏。~~只会复制粘贴公式可使不得 （喂）~~ 
 
 接下来的实现以PBRT的风格完成，以下将给出的结构及界面将同PBRT书中定义一致。此外，自己将尽力给出以下模型的原理推导。
 
