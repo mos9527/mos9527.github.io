@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-22T17:06:27.444255
+lastmod: 2025-12-22T22:12:19.682136
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -298,7 +298,7 @@ For a given incident vector I and surface normal N reflect returns the reflectio
 
 Microfacet 理论中存在以下三种事件：（a）表现 **Masking**，即**出射光**被微面遮挡，（b）表现 **Shadowing**，即**入射光**被微面遮挡，与（c）**内反射**，光路在微面内反射多次后来到视角。（图源 [9.6 Roughness Using Microfacet Theory](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory.html) -  "Three Important Geometric Effects to Consider with Microfacet Reflection Models"）
 
-从宏观角度建模微观事件的手段往往是统计学——PBRT中使用 **Trowbridge-Reitz （GGX）**分布来建模微面（Microfacet）理论。其中定义以下函数：
+从宏观角度建模微观事件的手段往往是统计学——PBRT中使用 **Trowbridge-Reitz （GGX）** 分布来建模微面（Microfacet）理论。其中定义以下函数：
 
 - $D(w)$ - [Microfacet Distribution](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#TheMicrofacetDistribution)，代表宏观平面上一点从视角$w$观察，【指向视角$w$】的微面比例；直觉的，以下式子，也即从**所有视角**观察到的面积分，成立：
   $$
@@ -316,7 +316,7 @@ Microfacet 理论中存在以下三种事件：（a）表现 **Masking**，即**
 
 两个重要的等式关系也将在后面推导VNDF采样中继续使用。GGX $D$, $G$本身的推导在此省略。
 
-值得注意的是（c）情况在这里并未讨论，这里留了一个“问题”（伏笔）！之后在Multiscatter GGX中会再次提及...
+值得注意的是（c）情况在这里并未讨论，这里留了一个伏笔——之后在Multiscatter GGX中会再次提及...
 
 ##### VNDF
 
@@ -541,30 +541,132 @@ float3 fDiffuse = SchlickFresnel(1.0f - c_min_reflectance, 0.0f, VdotH) * (1.0f 
 `glTFBSDF`部分如下——这里并没有其他extension的存在，仅包含metallic-roughness模型。
 
 ```c++
-TBD
+// Adapted from nvpro_core2's bsdfSampleSimple, bsdfEvaluateSimple
+// Cheap LayeredBxDF alternative with glTF's metallic-roughness model
+// See also Appendix B. https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#material-structure
+public struct glTFBSDF : IBxDF {
+    float3 baseColor;
+    float metallic;
+    TrowbridgeReitzDistribution mfDistrib;
+    public __init(float3 baseColor, float metallic, float roughness) {
+        this.baseColor = baseColor;
+        this.metallic = metallic;
+        float alpha = roughness * roughness;
+        this.mfDistrib = TrowbridgeReitzDistribution(alpha, alpha);
+    }
+    public BxDFFlags Flags() {
+        return BxDFFlags::Reflection | BxDFFlags::Glossy;
+    }
+    public BSDFSample glTFEval(float3 wo, float3 wi){
+        if (wo.z <= 0 || wi.z <= 0) return BSDFSample(0); // Only mirror reflection.
+        float3 wm = normalize(wo + wi);
+        float NdotV = ClampedCosTheta(wo);
+        float NdotL = ClampedCosTheta(wi);
+        float NdotH = ClampedCosTheta(wm);
+        float VdotH = ClampedDot(wo, wm);
+        // We combine the metallic and specular lobes into a single glossy lobe.
+        // The metallic weight is     metallic *    fresnel(f0 = baseColor)
+        // ^^^ This is not directly expressed - F0 is mixed below ^^^
+        // The specular weight is (1-metallic) *    fresnel(f0 = c_min_reflectance)
+        // The diffuse weight is  (1-metallic) * (1-fresnel(f0 = c_min_reflectance)) * baseColor
+        float c_min_reflectance = 0.04f;
+        float3 f0 = lerp(float3(c_min_reflectance), baseColor, metallic);
+        float3 fGlossy = SchlickFresnel(f0, 1.0f, VdotH);
+        float3 fDiffuse = SchlickFresnel(1.0f - c_min_reflectance, 0.0f, VdotH) * (1.0f - metallic);
+        // Draw from microfacet distribution
+        // We don't use ConductorBxDF/DielectricBxDF as-is since our F0 is based on RGB values.
+        // Usage of FresnelFromF0 should be investigated
+        float diffusePDF = CosineHemispherePDF(NdotL);
+        SampledSpectrum diffuseBSDF = baseColor * fDiffuse * InvPi;
+        float probGlossy = glTFGlossyProb(NdotV, metallic);
+        if (mfDistrib.EffectivelySmooth()){
+            // PDF is dirac delta, which for eval is impossible to represent
+            // This is the specular case again, so eval has zero contribution - this
+            // path is NOT touched by Sample_f
+            return BSDFSample(diffuseBSDF, wi,
+                              diffusePDF * (1.0f - probGlossy),
+                              BxDFFlags::DiffuseReflection);
+        } else {
+            float specularPDF = mfDistrib.PDF(wo, wm) / (4 * VdotH);
+            SampledSpectrum specularBSDF = mfDistrib.D(wm) * fGlossy * mfDistrib.G(wo, wi) / (4 * NdotV * NdotL);
+            return BSDFSample(specularBSDF + diffuseBSDF,
+                              wi,
+                              lerp(diffusePDF, specularPDF, probGlossy),
+                              BxDFFlags::GlossyReflection);
+        }
+    }
+    public SampledSpectrum f(float3 wo, float3 wi, TransportMode) {
+        BSDFSample bs = glTFEval(wo, wi);
+        return bs.IsValid() ?  bs.f : SampledSpectrum(0);
+    }
+    public float PDF(float3 wo, float3 wi, TransportMode, BxDFReflTransFlags) {
+        BSDFSample bs = glTFEval(wo, wi);
+        return bs.pdf;
+    }
+    public BSDFSample Sample_f(float3 wo, float uc, float2 u, TransportMode, BxDFReflTransFlags) {
+        float c_min_reflectance = 0.04f;
+        float3 f0 = lerp(float3(c_min_reflectance), baseColor, metallic);
+        float3 wi;
+        float probGlossy = glTFGlossyProb(ClampedCosTheta(wo), metallic);
+        if (uc < probGlossy) {
+            // Sample Specular
+            if (mfDistrib.EffectivelySmooth()) {
+                // Dirac delta case
+                // Our metallic/glossy lobe can be considered merged into a single specular lobe here
+                // for this, and glTFEval since F0 is mixed (see glTFEval comments)
+                wi = float3(-wo.x, -wo.y, wo.z); // = wr
+                float3 f0 = lerp(float3(0.04f), baseColor, metallic);
+                float3 fGlossy = SchlickFresnel(f0, 1.0f, AbsCosTheta(wi));
+                return BSDFSample(fGlossy / AbsCosTheta(wi), wi, probGlossy, BxDFFlags::SpecularReflection);
+            } else {
+                float3 wm = mfDistrib.Sample_wm(wo, u);
+                wi = Reflect(wo, wm);
+            }
+        } else {
+            // Sample Diffuse
+            wi = SampleCosineHemisphere(u);
+        }
+        wi = FaceForward(wi, float3(0,0,1));
+        return glTFEval(wo, wi);
+    }
+};
+
 ```
 
 和nvpro实现有相似之处，不过注意：
 
 - 和PBRT IBxDF模型一致（而非nvpro写法），我们的`f()/Eval`**不包含** $cos\theta$
+- nvpro对metal层的做法是直接用F0表达：glTF用RGB表达F0。电介质的F0是IOR=1.5情况，金属则是baseColor。二者的BRDF又是一样的，那么与其最后mix算好的brdf，不如直接计算等效的$F_r$值；这也是为什么我们只用算两个（diffuse/specular) BRDF的原因。
 - 这里的$G$为改进，高度相关的形式；nvpro中为$G1G2$不相关形式
 - 此外，我们的计算再次和 PBRT 一致，全部在表面本地切空间进行；法线对应我们的$+Z (0,0,1)$轴
 
 `diffuseBSDF, diffusePDF` 及 `specularBSDF, specularPDF` 即我们之前介绍的式子，计算上只是写成shader而已。
 
-实现完毕。最后是虽迟但到的测试场景~~《Cornell Box 中的维纳斯》~~
+实现完毕。最后是虽迟但到的测试场景 ~~~《Cornell Box 中的维纳斯》 ~~~
 
 ![image-20251222110215674](/image-foundation/image-20251222110215674.png)
 
 ### 能量守恒改进
 
-值得注意的是反射面中的场景有变暗的情况。这不是巧合，进行白炉测试：
+值得注意的是反射面中的场景有变暗的情况。这不是巧合，进行白炉测试：粗糙度越高变得越暗...?
 
-![image-20251222112155620](/image-foundation/image-20251222112155620.png)
+![image-20251222220058034](/image-foundation/image-20251222220058034.png)
 
-### Multiscatter GGX
+我们的BRDF出问题了吗？并非。请看~~VCR~~ Blender中的同样场景：
 
-TBD - Revisit
+![image-20251222220439188](/image-foundation/image-20251222220439188.png)
+
+...消失了。Cycles通过白炉测试，但这是因为右下角的`Specular`选项使用的是`Multiscatter GGX`；若换成`GGX`：
+
+![image-20251222220353801](/image-foundation/image-20251222220353801.png)
+
+“问题”复现！还记得之前讨论微面情况（c）的内反射：GGX是不处理，而当作被“吸收”而显得更“暗”。真实材质确实可能吸收能量，但对我们目前的建模而言这不应该。这里在[glTF Spec](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coupling-diffuse-and-specular-reflection)中也有提及：
+
+> Microfacet models often do not consider multiple scattering. The shadowing term suppresses light that intersects the microsurface a second time. [Heitz et al. (2016)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#Heitz2016) extended the Smith-based microfacet models to include a multiple scattering component, which significantly improves accuracy of predictions of the model. We suggest to incorporate multiple scattering whenever possible, either by making use of the unbiased stochastic evaluation introduced by Heitz, or one of the approximations presented later, for example by [Kulla and Conty (2017)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#KullaConty2017) or [Turquin (2019)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#Turquin2019).
+
+接下来就这里的Hetiz及Turquin方法进行复现，“修复”这个问题。
+
+#### Heitz 2016 - Ground Truth Random Walk
 
 记得$G1$ Masking/Shadowing 函数表达的量：宏观面内沿某视角$\mathbf{v}$可见的微面比例。
 
@@ -576,7 +678,7 @@ TBD - Revisit
 
 在完成微面内完整光路的**ground truth**方法由 [Multiple-Scattering Microfacet BSDFs with the Smith Model, Heitz 2016](https://eheitzresearch.wordpress.com/240-2/) 提出，不过，实践用的更多的是**查表估计**方法，包括Blender的实现来自 [Practical multiple scattering compensation for microfacet models, Emmanuel 2019](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf) —— 接下来将对两种方式进行复现。
 
-###### Ground Truth Random Walk
+###### 
 
 ![img](/image-foundation/multiplescatteringsmith_volumeanalogy1.png)
 
@@ -586,7 +688,7 @@ TBD - Revisit
 
 TBD
 
-##### 预计算查表
+#### Turquin 2019 - 预计算查表
 
 [Blender 4.0 以后](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L862) 采用了该方法。
 
