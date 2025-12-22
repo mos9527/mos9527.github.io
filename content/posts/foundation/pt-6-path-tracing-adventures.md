@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-22T10:04:35.197799
+lastmod: 2025-12-22T11:22:02.185892
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -15,7 +15,9 @@ Foundation现在(2025/12/16)也有了能用的RT相关API，Editor的GPUScene也
 
 PBRT/[Physically Based Rendering:From Theory To Implementation](https://pbr-book.org/)/[Kanition大佬v3翻译版](https://github.com/kanition/pbrtbook)，[Ray Tracing Gems 2](https://www.realtimerendering.com/raytracinggems/rtg2/index.html), [nvpro-samples/vk_gltf_renderer](https://github.com/nvpro-samples/vk_gltf_renderer/blob/master/shaders/gltf_pathtrace.slang) 将是我们这里主要的信息来源。
 
-### SBT (Shader Binding Table) 及管线 API
+### 准备工作
+
+#### SBT (Shader Binding Table) 及管线 API
 
 之前用过了非常方便的Inline Ray Query - 从fragment/pixel，compute可以直接产生光线进行trace：从这里出发进行PT是可行的，这也是[nvpro-samples/vk_mini_path_tracer](https://nvpro-samples.github.io/vk_mini_path_tracer/extras.html#moresamples) 的教学式做法。
 
@@ -62,9 +64,7 @@ renderer->CreatePass(
     });
 ```
 
-
-
-### 随机数生成及 Viewport 采样
+#### 随机数生成及采样
 
 参考 [Ray Tracing Gems 2](https://www.realtimerendering.com/raytracinggems/rtg2/index.html) 的 [Reference Path Tracer](https://github.com/boksajak/referencePT/) - 随机数生成使用了书中介绍的 PCG4；参考实现中有个很有趣的hack，从uint32直接产生$[0,1)$区间的浮点数：这里贴出来。
 
@@ -219,9 +219,15 @@ public struct DiffuseBxDF : IBxDF {
 };
 ```
 
+#### 镜面反射
+
+https://www.pbr-book.org/4ed/Reflection_Models/Conductor_BRDF
+
+TBD。勘误glTFBxDF Sample_f镜面！！
+
  #### Microfacet（微面）建模
 
-在建模光泽反射之前，我们需要知道他是怎么【采样】光线的——不同于朗伯反射，材质本身也会影响Lobe的形状，而显得更“光滑”和“粗糙”。现代 PBR 建模会使用Microfacet（微面）理论描述这一情况。
+在建模光泽（粗糙“镜面”）反射之前，我们需要知道他是怎么【采样】光线的——不同于朗伯反射，材质本身也会影响Lobe的形状，而显得更“光滑”和“粗糙”。现代 PBR 建模会使用Microfacet（微面）理论描述这一情况。
 
 ![image-20251221170507477](/image-foundation/image-20251221170507477.png)
 
@@ -448,11 +454,56 @@ $$
 
 VNDF重要性采样和BRDF本身已经介绍过，这里用起来即可。代码将在之后实现glTF材质时给出。
 
+#### glTF 材质模型
+
+PBRT里介绍的 [9.4 Conductor BRDF](https://www.pbr-book.org/4ed/Reflection_Models/Conductor_BRDF.html), [9.5 Dielectric BSDF](https://www.pbr-book.org/4ed/Reflection_Models/Dielectric_BSDF.html)将不在本篇介绍。鉴于引擎目前实现的材质模型均为glTF标准，以下将利用这里有的数学工具在这里实现。
+
+![pbr](/image-foundation/gltf-metal-rough-complete-model.svg)
+
+##### 多重/Layered BRDF
+
+glTF对多层BRDF Lobe的混合仅做了简单的菲涅耳线性插值（fresnel_mix）——原理上这属于single-scattering模型：介面直接的光路可以多次反弹，但这里没有考虑。在 PBRT 中的建模为`LayeredBxDF`, 来自 [14.3 Scattering from Layered Materials](https://www.pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials.html)，其考虑了多重反射。不过因为还没有看，这里先只使用glTF给出的mix方法。
+
+加权部分参考英伟达 [nvpro_core/nvvkhl/shaders/bsdf_functions.h](https://github.com/nvpro-samples/nvpro_core/blob/ba24b73e3a918adfe6ca932a6bf749a1d874d9b0/nvvkhl/shaders/bsdf_functions.h#L1066) 如下——这里和上图 [glTF Appendix B](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#material-structure) 描述是完全一致的。
+
+```c++
+// We combine the metallic and specular lobes into a single glossy lobe.
+// The metallic weight is     metallic *    fresnel(f0 = baseColor)
+// The specular weight is (1-metallic) *    fresnel(f0 = c_min_reflectance)
+// The diffuse weight is  (1-metallic) * (1-fresnel(f0 = c_min_reflectance)) * baseColor
+float c_min_reflectance = 0.04f;
+float3 f0 = lerp(float3(c_min_reflectance), baseColor, metallic);
+float3 fGlossy = SchlickFresnel(f0, 1.0f, VdotH);
+float3 fDiffuse = SchlickFresnel(1.0f - c_min_reflectance, 0.0f, VdotH) * (1.0f - metallic);
+```
+
+##### 实现
+
+`glTFBSDF`部分如下——这里并没有其他extension的存在，仅包含metallic-roughness模型。
+
+```c++
+TBD
+```
+
+和nvpro实现有相似之处，不过注意：
+
+- 和PBRT IBxDF模型一致（而非nvpro写法），我们的`f()/Eval`**不包含** $cos\theta$
+- 这里的$G$为改进，高度相关的形式；nvpro中为$G1G2$不相关形式
+- 此外，我们的计算再次和 PBRT 一致，全部在表面本地切空间进行；法线对应我们的$+Z (0,0,1)$轴
+
+`diffuseBSDF, diffusePDF` 及 `specularBSDF, specularPDF` 即我们之前介绍的式子，计算上只是写成shader而已。
+
+实现完毕。最后是虽迟但到的测试场景~~《Cornell Box 中的维纳斯》~~
+
+![image-20251222110215674](/image-foundation/image-20251222110215674.png)
+
 ### 能量守恒改进
 
-##### Multiscatter GGX
+值得注意的是反射面中的场景有变暗的情况。这不是巧合，进行白炉测试：
 
-值得注意的是反射面中的场景有变暗的情况，进行Furnace Test：
+![image-20251222112155620](/image-foundation/image-20251222112155620.png)
+
+### Multiscatter GGX
 
 TBD - Revisit
 
