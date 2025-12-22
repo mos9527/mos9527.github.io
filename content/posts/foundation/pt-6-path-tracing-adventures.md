@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-21T19:07:45.939641
+lastmod: 2025-12-22T10:04:35.197799
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -108,7 +108,7 @@ float3 GeneratePrimaryRay(uint2 pixel, PCG rng)
 }
 ```
 
-### BxDF 解读
+### BxDF
 
 重头戏。~~只会复制粘贴公式可使不得 （喂）~~ 
 
@@ -227,7 +227,7 @@ public struct DiffuseBxDF : IBxDF {
 
 Microfacet 理论中存在以下三种事件：（a）表现 **Masking**，即**出射光**被微面遮挡，（b）表现 **Shadowing**，即**入射光**被微面遮挡，与（c）**内反射**，光路在微面内反射多次后来到视角。（图源 [9.6 Roughness Using Microfacet Theory](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory.html) -  "Three Important Geometric Effects to Consider with Microfacet Reflection Models"）
 
-从宏观角度建模微观事件的手段往往是统计学——PBRT中使用 Trowbridge-Reitz （GGX）分布来建模微面（Microfacet）理论。其中定义以下函数：
+从宏观角度建模微观事件的手段往往是统计学——PBRT中使用 **Trowbridge-Reitz （GGX）**分布来建模微面（Microfacet）理论。其中定义以下函数：
 
 - $D(w)$ - [Microfacet Distribution](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#TheMicrofacetDistribution)，代表宏观平面上一点从视角$w$观察，【指向视角$w$】的微面比例；直觉的，以下式子，也即从**所有视角**观察到的面积分，成立：
   $$
@@ -245,13 +245,27 @@ Microfacet 理论中存在以下三种事件：（a）表现 **Masking**，即**
 
 两个重要的等式关系也将在后面推导VNDF采样中继续使用。GGX $D$, $G$本身的推导在此省略。
 
-值得注意的是（c）情况在这里并未讨论，这里留了一个“问题”（伏笔）！最后在Multiscatter GGX中会再次提及。不过暂时，（c）情况先放一边...接下来则是更**重要**的一个问题
+值得注意的是（c）情况在这里并未讨论，这里留了一个“问题”（伏笔）！之后在Multiscatter GGX中会再次提及...
 
-##### GGX 重要性采样 （VNDF）
+##### VNDF
+
+采样/利用$D$直接表达分布确实可以，但是我们有更优的方法。
+
+回顾刚刚给出的第二个式子（往上划第一个）：在$w$视角观察下看得到的微观面比例为$cos \theta$。整理成以下形式：
+$$
+\int_{H^2} \frac{D(w_m)G(w,w_m)(w_m \cdot \mathbf n)}{\cos\theta}dw_m = 1
+$$
+左边的式子的积分是1！看起来是不是有PDF的感觉？而且这里“可见性”的概念也被$G$表达，实在方便。不妨拆出来记为$D_w(w_m)$：
+$$
+D_w(w_m) = \frac{D(w_m)G(w,w_m)(w_m \cdot \mathbf n)}{\cos\theta}
+$$
+而这个式子就是VNDF方法——**Visibile Normal Distribution Function**，或可见法线分布函数的所在：不必采样完整的$D$，从视角出发，有多少就采样多少。
+
+#####  重要性采样
 
 ![image-20251221174044698](/image-foundation/image-20251221174044698.png)
 
-PBRT 书中的方法来自 [Sampling the GGX Distribution of Visible Normals, Heitz 2018](https://jcgt.org/published/0007/04/01/paper.pdf)：采样GGX的Lobe，可以很直觉——在前面，我们已经很清楚怎么采样一个**均匀**的半球Lobe；不妨将GGX的Lobe也“变形”成半球的形状，做同样的事情！
+PBRT 书中的方法来自 [Sampling the GGX Distribution of Visible Normals, Heitz 2018](https://jcgt.org/published/0007/04/01/paper.pdf)：其实很直觉——在前面，我们已经很清楚怎么采样一个**均匀**的半球Lobe：圆面投影半球；不妨将GGX的Lobe也“变形”成半球的形状，做同样的事情。
 
 GGX的Lobe是个椭圆体：形状由我们提供的$\alpha$“粗糙度”决定。对各向异性情形则是$\alpha_x, \alpha_y$两个值，而将这个形状变回”圆“则很简单：平面本地切空间内表示($\mathbf n = (0,0,1)$)下，仅需一个缩放变换：
 $$
@@ -362,9 +376,79 @@ public struct TrowbridgeReitzDistribution {
 
     其中$\Lambda$已在实现中给出。
 
-#### 光泽反射 （GGX）
+#### 光泽反射 （Torrance-Sparrow）
 
-TBD - Revisit
+PBRT在介绍完漫反射后给出了ConductorBxDF及DieletricBxDF的定义——这里暂时不对他们进行直接介绍，但是其表达“粗糙度”的BRDF模型基础是一样的：来自 [Theory for Off-Specular Reflection From Roughened Surfaces, Torrance, Sparrow 1967](https://www.graphics.cornell.edu/~westin/pubs/TorranceSparrowJOSA1967.pdf)
+
+之前提过对完全镜面/Specular情况的特殊处理，我们先很快地给出他PDF的定义：**恒为0**（回忆他是狄拉克函数$\delta(wi-wr)$）。对应的，其BSDF Eval（f）**也为0**,理解成球面上只【无穷小】的一点能表现入射光的【所有】能量：很显然，要表达将又是个无穷大，而这是做不到的。
+
+##### 雅可比行列式
+
+![image-20251222083829083](/image-foundation/image-20251222083829083.png)
+
+图源RTR4 p337——建模微面BRDF时，利用half-vector （图中 $\mathbf h$，后面记为$w_m$） 建模微面的法线会很方便，这点之后也能见识到。
+
+不过去采样$w_m$有个问题：我们最后给【要的】是$w_i$。采样前者的话，二者并不在同一个空间内（绿色vs紫色）：
+![image-20251222084511331](/image-foundation/image-20251222084511331.png)
+
+图源 [PBRT](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#x5-TheHalf-DirectionTransform)。在（a）的平面情况，我们有简单的 $\theta_m = \frac{\theta_o + \theta_i}{2} $映射，他的雅可比行列式即$\frac{d\theta_m}{d\theta_i}=\frac{1}{2}$；而在(b),(c),(d)的球面中，平面角映射本身并不好找，但是他的雅可比行列式：
+$$
+\frac{dw_m}{dw_i} = \frac{sin \theta_m d\theta_m d\phi_m}{sin \theta_i d\theta_i d\phi_i}
+$$
+是显然的。而球面中：
+
+- $w_i$是反射向量，那么$w_o,w_m$夹角等于$w_i,w_m$夹角，即有$\theta_i = 2\theta_m$；因此也有 $cos \theta_m = w_i \cdot w_m = w_o \cdot w_m$ 。这里和（a）也可以感受到
+- $w_o,w_m,w_i$共面，既有$\phi_m = \phi_i$
+
+代入简化：
+$$
+\frac{dw_m}{dw_i} = \frac{sin \theta_m d\theta_m}{sin 2\theta_m d2\theta_m} \newline
+\frac{dw_m}{dw_i} = \frac{sin \theta_m}{2sin 2\theta_m} \newline
+$$
+倍角公式：
+$$
+\frac{dw_m}{dw_i} = \frac{sin \theta_m }{4sin \theta_m cos \theta_m} = \frac{1}{4 cos \theta_m} = \frac{1}{4 w_i \cdot w_m} = \frac{1}{4 w_o \cdot w_m} \newline
+$$
+
+我们得到了这个变换的雅可比！接下来用于PDF计算也将马上用到。
+
+##### f/Eval
+
+和之前的VNDF理论一致，我们的分布也只关心“可见”部分。他的分布已经给出，但是$D_w(w_m)$是在half-vector空间的：好在我们已经知道了他到入射角变换的雅可比！
+
+PDF $p_{(w_i)}$即为：
+$$
+p_{w_i} = D_w(w_m) \frac{dw_m}{dw_i} = \frac{D_{wo}(w_m)}{4(w_o\cdot w_m)}
+$$
+
+他的BRDF本身也很简单。同样回到渲染公式——引入单个样本蒙特卡洛的形式
+$$
+L_{\mathrm{o}}(\mathrm{p}, \omega_{\mathrm{o}}) = \int_{\mathrm{H}^2(\mathbf{n})} f_{\mathrm{r}}(\mathrm{p}, \omega_{\mathrm{o}}, \omega_{\mathrm{i}}) L_{\mathrm{i}}(\mathrm{p}, \omega_{\mathrm{i}}) |\cos \theta_{\mathrm{i}}| \, \mathrm{d}\omega_{\mathrm{i}} \approx \frac{f_{\mathrm{r}}(\mathrm{p}, \omega_{\mathrm{o}}, \omega_{\mathrm{i}}) L_{\mathrm{i}}(\mathrm{p}, \omega_{\mathrm{i}}) |\cos \theta_{\mathrm{i}}|}{p(\omega_{\mathrm{i}})}
+$$
+
+$w_o,w_i$已知的情况下是有解的：回顾之前$\cos\theta$和$G$的关系和菲涅耳公式表达的“反射率”，[书中给出了这样的恒等关系](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#eq:torrence-sparrow-step-1)：
+$$
+\frac{f_{\mathrm{r}}\left(\mathrm{p}, \omega_{\mathrm{o}}, \omega_{\mathrm{i}}\right) L_{\mathrm{i}}\left(\mathrm{p}, \omega_{\mathrm{i}}\right)\left|\cos \theta_{\mathrm{i}}\right|}{p\left(\omega_{\mathrm{i}}\right)} \stackrel{!}{=} F\left(\omega_{\mathrm{o}} \cdot \omega_{\mathrm{m}}\right) G_{1}\left(\omega_{\mathrm{i}}\right) L_{\mathrm{i}}\left(\mathrm{p}, \omega_{\mathrm{i}}\right)
+$$
+$p(w_i)$代入则有：
+$$
+f_{\mathrm{r}}\left(\mathrm{p}, \omega_{\mathrm{o}}, \omega_{\mathrm{i}}\right) = p(w_i)   F\left(\omega_{\mathrm{o}} \cdot \omega_{\mathrm{m}}\right) G_{1}\left(\omega_{\mathrm{i}}\right) = \frac{D_{wo}(w_m) F(w_o\cdot w_m)G_1(w_i)}{4(w_o\cdot w_m)}
+$$
+代入VNDF：
+$$
+f_{\mathrm{r}}\left(\mathrm{p}, \omega_{\mathrm{o}}, \omega_{\mathrm{i}}\right) = \frac{D(w_m) F(w_o\cdot w_m)G_1(w_i)G_1(w_o)}{4cos\theta_i cos \theta_o}
+$$
+回顾之前“细节”部分提到个高度相关$G(wi,wo)$，这里用上有：
+$$
+f_{\mathrm{r}}\left(\mathrm{p}, \omega_{\mathrm{o}}, \omega_{\mathrm{i}}\right) = \frac{D(w_m) F(w_o\cdot w_m)G(w_i, w_o)}{4cos\theta_i cos \theta_o}
+$$
+此即Torrance-Sparrow BRDF的现代形式。
+
+##### Sample_f/Sample
+
+VNDF重要性采样和BRDF本身已经介绍过，这里用起来即可。代码将在之后实现glTF材质时给出。
+
+### 能量守恒改进
 
 ##### Multiscatter GGX
 
