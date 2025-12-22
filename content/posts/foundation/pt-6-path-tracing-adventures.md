@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-22T11:22:02.185892
+lastmod: 2025-12-22T17:06:27.444255
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -219,13 +219,78 @@ public struct DiffuseBxDF : IBxDF {
 };
 ```
 
-#### 镜面反射
+#### 镜面反射（完美反射）
 
-https://www.pbr-book.org/4ed/Reflection_Models/Conductor_BRDF
+完美的镜面反射的BRDF Lobe是个“光线”——他的分布**在且仅在一个单独方向**上。这可以用狄拉克$\delta$函数表达：
 
-TBD。勘误glTFBxDF Sample_f镜面！！
+$$
+\int f(x)\, \delta(x - x_0)\, \mathrm{d}x = f(x_0)
+$$
+而在BRDF中积分后，渲染等式的以下恒等关系是应该成立的：出射能量等同$入射能量*菲涅耳反射量$
+$$
+L_o(\omega_o) =
+\int_{H^2(\mathbf{n})}
+f_r(\omega_o, \omega_i)\,
+L_i(\omega_i)\,
+\lvert \cos \theta_i \rvert\,
+\mathrm{d}\omega_i = F_r(\omega_r)\, L_i(\omega_r)
+$$
+一个直觉的想法就是直接用狄拉克表达$f_r$。但是这样积分完后会多出一个 $cos \theta_r$：
+$$
+f_r(\omega_o, \omega_i) = \delta(\omega_i - \omega_r)\, F_r(\omega_i) \newline
+L_o(\omega_o) =
+\int_{H^2(\mathbf{n})}
+\delta(\omega_i - \omega_r)\,
+F_r(\omega_i)\,
+L_i(\omega_i)\,
+\lvert \cos \theta_i \rvert\,
+\mathrm{d}\omega_i = F_r(\omega_r)\, L_i(\omega_r)\, \lvert \cos \theta_r \rvert
+$$
+...那么一个更直觉的做法就是把这个常数拆出来：要记得我们的反射方向是已知量。最后得到镜面BRDF的最终形式：
+$$
+f_r(\omega_o, \omega_i) = F_r(w_r)\frac{\delta(w_i-w_r)}{|cos\theta_r|}
+$$
 
- #### Microfacet（微面）建模
+##### f/Eval
+
+BRDF已经给出来了。不过处理他的PDF很棘手：这里是为了镜面反射情况（roughness=0或很小）下的分布：回顾之前的Lobe图案，他只在唯一一个完美反射的方向有信号。
+
+![image-20251221181248305](/image-foundation/image-20251221181248305.png)
+
+PDF的表达将很困难。该情况概率本身是个狄拉克$\delta$函数：全域除原点都为$0$，而积分是$1$。那么PDF在该点上则会是无穷大！
+
+PBRT在这里对所有方向姑且直接返回$0$。应为单点真去表达的话，你会得到一个无穷亮的像素（firefly）！
+
+##### Sample_f/Sample
+
+出射向量是易知的。我们在本地切空间计算，那么$n(0,0,1)$，$w_o(x,y,z)$围绕他的反射向量很简单，`Reflect()`后就是$w_r(-x,-y,z)$
+
+注：PBRT中的`Reflect(v,n)`和HLSL/GLSL中的`Reflect(v,n)`不一样：
+
+- ```c++
+  public float3 Reflect(float3 wo, float3 n) {
+      //     vvv wo is flipped (pointing away)
+      return -wo + 2 * dot(wo, n) * n;
+  }
+  ```
+
+- GLSL/HLSL中为
+
+```c++
+genType reflect(genType I, genType N);
+---
+For a given incident vector I and surface normal N reflect returns the reflection direction calculated as I - 2.0 * dot(N, I) * N.
+```
+
+他的“入射”向量是翻转的：理由嘛，就是我们在PBRT建模光路时是习惯从**相机到入射**的“反向”。
+
+最后，他的PDF仍旧是个狄拉克。但是采样积分继续用$0$表示会很难受：蒙特卡洛会除以这个PDF。PBRT在此规定让狄拉克PDF在采样中的值一直为$1$。
+
+##### IBxDF 实现
+
+没有，也不必要——这里的式子会在后面设计反射的BxDF反复利用...接下来介绍当反射面并非“完美”，而带粗糙度的情况。
+
+ #### Microfacet（微面）理论及建模
 
 在建模光泽（粗糙“镜面”）反射之前，我们需要知道他是怎么【采样】光线的——不同于朗伯反射，材质本身也会影响Lobe的形状，而显得更“光滑”和“粗糙”。现代 PBR 建模会使用Microfacet（微面）理论描述这一情况。
 
@@ -364,13 +429,7 @@ public struct TrowbridgeReitzDistribution {
 
 注意几个细节：
 
-- PBRT提供了 `EffectivelySmooth` 方法：这里是为了镜面反射情况（roughness=0或很小）下的分布：回顾之前的Lobe图案，他只在唯一一个完美反射的方向有信号。
-
-  ![image-20251221181248305](/image-foundation/image-20251221181248305.png)
-
-  - PDF的表达将很困难。该情况概率本身是个狄拉克$\delta$函数：全域除原点都为$0$，而积分是$1$。那么PDF在该点上则会是无穷大！
-
-    PBRT的解决方案则是用$1$表达采样它的PDF；同时采样时在该case下特殊处理，入射光线直接取出射光线镜像，避免任何精度问题
+- PBRT提供了 `EffectivelySmooth` 方法，引导实现用前文介绍的镜面反射情况处理以避免（一定会出现且严重的）浮点数精度问题
 
 - 这里的$G$函数同时表达Shadowing-Masking。在很多实现（如英伟达 https://github.com/nvpro-samples/nvpro_core2）及RTR4介绍中，混合Shadowing和Masking往往写成：
     $$
@@ -384,7 +443,7 @@ public struct TrowbridgeReitzDistribution {
 
 #### 光泽反射 （Torrance-Sparrow）
 
-PBRT在介绍完漫反射后给出了ConductorBxDF及DieletricBxDF的定义——这里暂时不对他们进行直接介绍，但是其表达“粗糙度”的BRDF模型基础是一样的：来自 [Theory for Off-Specular Reflection From Roughened Surfaces, Torrance, Sparrow 1967](https://www.graphics.cornell.edu/~westin/pubs/TorranceSparrowJOSA1967.pdf)
+PBRT在介绍完漫反射后给出了ConductorBxDF及DieletricBxDF的定义——这里暂时不对他们进行直接介绍，但是其表达“粗糙度”的BRDF模型基础是一样的：来自 [Theory for Off-Specular Reflection From Roughened Surfaces - Torrance, Sparrow 1967](https://www.graphics.cornell.edu/~westin/pubs/TorranceSparrowJOSA1967.pdf)
 
 之前提过对完全镜面/Specular情况的特殊处理，我们先很快地给出他PDF的定义：**恒为0**（回忆他是狄拉克函数$\delta(wi-wr)$）。对应的，其BSDF Eval（f）**也为0**,理解成球面上只【无穷小】的一点能表现入射光的【所有】能量：很显然，要表达将又是个无穷大，而这是做不到的。
 
@@ -397,7 +456,7 @@ PBRT在介绍完漫反射后给出了ConductorBxDF及DieletricBxDF的定义—�
 不过去采样$w_m$有个问题：我们最后给【要的】是$w_i$。采样前者的话，二者并不在同一个空间内（绿色vs紫色）：
 ![image-20251222084511331](/image-foundation/image-20251222084511331.png)
 
-图源 [PBRT](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#x5-TheHalf-DirectionTransform)。在（a）的平面情况，我们有简单的 $\theta_m = \frac{\theta_o + \theta_i}{2} $映射，他的雅可比行列式即$\frac{d\theta_m}{d\theta_i}=\frac{1}{2}$；而在(b),(c),(d)的球面中，平面角映射本身并不好找，但是他的雅可比行列式：
+图源 [PBRT](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#x5-TheHalf-DirectionTransform)。在（a）的平面情况，我们有简单的 $\theta_m = \frac{\theta_o + \theta_i}{2} $映射，他的雅可比行列式即$\frac{d\theta_m}{d\theta_i}=\frac{1}{2}$；而在(b),(c),(d)的球面中，立体角映射本身并不好找，但是他的雅可比行列式：
 $$
 \frac{dw_m}{dw_i} = \frac{sin \theta_m d\theta_m d\phi_m}{sin \theta_i d\theta_i d\phi_i}
 $$
@@ -454,13 +513,13 @@ $$
 
 VNDF重要性采样和BRDF本身已经介绍过，这里用起来即可。代码将在之后实现glTF材质时给出。
 
-#### glTF 材质模型
+### glTF 材质模型
 
 PBRT里介绍的 [9.4 Conductor BRDF](https://www.pbr-book.org/4ed/Reflection_Models/Conductor_BRDF.html), [9.5 Dielectric BSDF](https://www.pbr-book.org/4ed/Reflection_Models/Dielectric_BSDF.html)将不在本篇介绍。鉴于引擎目前实现的材质模型均为glTF标准，以下将利用这里有的数学工具在这里实现。
 
 ![pbr](/image-foundation/gltf-metal-rough-complete-model.svg)
 
-##### 多重/Layered BRDF
+#### 多重/Layered BRDF
 
 glTF对多层BRDF Lobe的混合仅做了简单的菲涅耳线性插值（fresnel_mix）——原理上这属于single-scattering模型：介面直接的光路可以多次反弹，但这里没有考虑。在 PBRT 中的建模为`LayeredBxDF`, 来自 [14.3 Scattering from Layered Materials](https://www.pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials.html)，其考虑了多重反射。不过因为还没有看，这里先只使用glTF给出的mix方法。
 
@@ -477,7 +536,7 @@ float3 fGlossy = SchlickFresnel(f0, 1.0f, VdotH);
 float3 fDiffuse = SchlickFresnel(1.0f - c_min_reflectance, 0.0f, VdotH) * (1.0f - metallic);
 ```
 
-##### 实现
+#### 实现
 
 `glTFBSDF`部分如下——这里并没有其他extension的存在，仅包含metallic-roughness模型。
 
