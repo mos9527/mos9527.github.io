@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-23T15:17:48.540232
+lastmod: 2025-12-23T16:47:47.821842
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -672,140 +672,103 @@ public void FresnelFromF0(float3 r /* baseColor */, float3 g /* specularTint */,
 }
 ```
 
+以上即为对电介质和导体反射率计算所需的一切工具。他们在接下来的材质建模会变得很方便！
 
+PBRT里介绍的 [9.4 Conductor BRDF](https://www.pbr-book.org/4ed/Reflection_Models/Conductor_BRDF.html), [9.5 Dielectric BSDF](https://www.pbr-book.org/4ed/Reflection_Models/Dielectric_BSDF.html)暂不直接记录：他们将间接地在接下来的模型中得到体现。
 
 ### glTF 材质模型
 
-PBRT里介绍的 [9.4 Conductor BRDF](https://www.pbr-book.org/4ed/Reflection_Models/Conductor_BRDF.html), [9.5 Dielectric BSDF](https://www.pbr-book.org/4ed/Reflection_Models/Dielectric_BSDF.html)将不在本篇介绍。鉴于引擎目前实现的材质模型均为glTF标准，以下将利用这里有的数学工具在这里实现。
+毕竟到目前为止，glTF是我们唯一的场景格式。要实现则需要把他的材质模型映射到我们目前PBRT风格的BxDF中。
 
 ![pbr](/image-foundation/gltf-metal-rough-complete-model.svg)
 
-#### 多重/Layered BRDF
+上图来自 [glTF 2.0 Spec Appendix B](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation)——glTF在**电介质**和**导体**间做线性插值，做法对应PBRT的 [MixMaterial](https://www.pbr-book.org/4ed/Textures_and_Materials/Material_Interface_and_Implementations#x1-MixMaterial)。对两者材质本身而言：
 
-glTF对多层BRDF Lobe的混合仅做了简单的菲涅耳线性插值（fresnel_mix）——原理上这属于single-scattering模型：介面直接的光路可以多次反弹，但这里没有考虑。在 PBRT 中的建模为`LayeredBxDF`, 来自 [14.3 Scattering from Layered Materials](https://www.pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials.html)，其考虑了多重反射。不过因为还没有看，这里先只使用glTF给出的mix方法。
+#### 电介质模型
 
-加权部分参考英伟达 [nvpro_core/nvvkhl/shaders/bsdf_functions.h](https://github.com/nvpro-samples/nvpro_core/blob/ba24b73e3a918adfe6ca932a6bf749a1d874d9b0/nvvkhl/shaders/bsdf_functions.h#L1066) 如下——这里和上图 [glTF Appendix B](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#material-structure) 描述是完全一致的。
+<img src="/image-foundation/image-20251223153046049.png" alt="image-20251223153046049" style="zoom:50%;" />
+
+glTF的该模型可以认为是和PBRT中的`DieletricBxDF`与`DiffuseBxDF`做的`LayeredBxDF`的“简化”版本：*上层光泽层反射+折射到下层漫反射再次反射出介面*。
+
+不过，注意图中x部分：这里的层次间叠加(`fresnel_mix`)**不考虑介面间的反射**，二次反射会直接被忽略，能量消失！
+
+再次地，这是一个single-scattering模型：所谓“简化”就是这个意思。PBRT中在介面**多次**NEE做Random Walk，还需考虑介面厚度及衰减问题...这是ground truth答案，虽然跑起来会很慢。在此，我们只做**一次** NEE——这不可避免地会产生能量损失，但这个问题可以留给未来的自己解决...
+
+#### 导体模型
+
+<img src="/image-foundation/image-20251223153124455.png" alt="image-20251223153124455" style="zoom:50%;" />
+
+不必担心，这里（假设metallic=1）的表现和`ConductorBxDF`是一致的。我们已经介绍过他的（复数）$F_r$，插入之前我们的光泽反射BSDF即可得到导体情况的BSDF。
+
+#### fresnel_mix 的由来
+
+可以看到，**电介质**材质有两个BRDF Lobe需要采样：光泽$w$和漫反射$w\prime$。BRDF间的混合并非加法：这样做很显然是能量不守恒的。但从采样的角度出发：在一个点上，这两个$w$都可能是被采样到的光线（参考上图）。如果知道这两者采样**【可能性】**的话，岂不是可以做任意选择而去逼近混合后的结果？
+
+这既是[LayeredBxDF中用到的NEE/Next Event Estimation（次事件估计）的思想](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials#fragment-SamplenexteventforlayeredBSDFevaluationrandomwalk-0)。而回顾我们之间讨论过的菲涅耳方程：我们很清楚有**【多少】**能量会到达下一层（然后反射），又有多少会被直接反射：_反射率_准确地表达了这样的比例！
+
+接下来采样中对两个Lobe的混合也将这么做。在此之前还有一个问题：导体/电介质二者的混合应该怎么做？再次根据`metallic`值NEE可取，但其实不必如此。
 
 ```c++
-// We combine the metallic and specular lobes into a single glossy lobe.
-// The metallic weight is     metallic *    fresnel(f0 = baseColor)
-// The specular weight is (1-metallic) *    fresnel(f0 = c_min_reflectance)
-// The diffuse weight is  (1-metallic) * (1-fresnel(f0 = c_min_reflectance)) * baseColor
-float c_min_reflectance = 0.04f;
-float3 f0 = lerp(float3(c_min_reflectance), baseColor, metallic);
-float3 fGlossy = SchlickFresnel(f0, 1.0f, VdotH);
-float3 fDiffuse = SchlickFresnel(1.0f - c_min_reflectance, 0.0f, VdotH) * (1.0f - metallic);
+// Fresnel eval approximation of layered materials
+// See https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#fresnel
+public float3 glTFFresnelMix(float VdotH, float3 bottom, float3 top, float ior = 1.5f){
+    float F0 = pow((ior - 1) / (ior + 1), 2);
+    float3 F = SchlickFresnel(F0, 1.0f, VdotH);
+    return lerp(bottom, top, F);
+}
 ```
 
-#### 实现
+#### 导体/电介质合并
 
-`glTFBSDF`部分如下——这里并没有其他extension的存在，仅包含metallic-roughness模型。
+不难发现，这两者都的光泽BRDF仅依赖一个**一样的**$\alpha$粗糙度：这意味着他们的不同，**在且仅在于他们的菲涅耳值**——从采样到PDF都是一样的。既然是比例混合，不妨直接**线性混合他们最终的菲涅耳项**，丢给同样的BRDF计算？
+
+这正是诸多glTF实现中的做法——如此，我们将电介质的lobe和导体lobe等效地合并成一个glossy lobe。这也是为什么在接下来的实现中，你只能看到一次NEE的原因。NEE概率采样如下：
 
 ```c++
-// Adapted from nvpro_core2's bsdfSampleSimple, bsdfEvaluateSimple
-// Cheap LayeredBxDF alternative with glTF's metallic-roughness model
-// See also Appendix B. https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#material-structure
-public struct glTFBSDF : IBxDF {
-    float3 baseColor;
-    float metallic;
-    TrowbridgeReitzDistribution mfDistrib;
-    public __init(float3 baseColor, float metallic, float roughness) {
-        this.baseColor = baseColor;
-        this.metallic = metallic;
-        float alpha = roughness * roughness;
-        this.mfDistrib = TrowbridgeReitzDistribution(alpha, alpha);
-    }
-    public BxDFFlags Flags() {
-        return BxDFFlags::Reflection | BxDFFlags::Glossy;
-    }
-    public BSDFSample glTFEval(float3 wo, float3 wi){
-        if (wo.z <= 0 || wi.z <= 0) return BSDFSample(0); // Only mirror reflection.
-        float3 wm = normalize(wo + wi);
-        float NdotV = ClampedCosTheta(wo);
-        float NdotL = ClampedCosTheta(wi);
-        float NdotH = ClampedCosTheta(wm);
-        float VdotH = ClampedDot(wo, wm);
-        // We combine the metallic and specular lobes into a single glossy lobe.
-        // The metallic weight is     metallic *    fresnel(f0 = baseColor)
-        // ^^^ This is not directly expressed - F0 is mixed below ^^^
-        // The specular weight is (1-metallic) *    fresnel(f0 = c_min_reflectance)
-        // The diffuse weight is  (1-metallic) * (1-fresnel(f0 = c_min_reflectance)) * baseColor
-        float c_min_reflectance = 0.04f;
-        float3 f0 = lerp(float3(c_min_reflectance), baseColor, metallic);
-        float3 fGlossy = SchlickFresnel(f0, 1.0f, VdotH);
-        float3 fDiffuse = SchlickFresnel(1.0f - c_min_reflectance, 0.0f, VdotH) * (1.0f - metallic);
-        // Draw from microfacet distribution
-        // We don't use ConductorBxDF/DielectricBxDF as-is since our F0 is based on RGB values.
-        // Usage of FresnelFromF0 should be investigated
-        float diffusePDF = CosineHemispherePDF(NdotL);
-        SampledSpectrum diffuseBSDF = baseColor * fDiffuse * InvPi;
-        float probGlossy = glTFGlossyProb(NdotV, metallic);
-        if (mfDistrib.EffectivelySmooth()){
-            // PDF is dirac delta, which for eval is impossible to represent
-            // This is the specular case again, so eval has zero contribution - this
-            // path is NOT touched by Sample_f
-            return BSDFSample(diffuseBSDF, wi,
-                              diffusePDF * (1.0f - probGlossy),
-                              BxDFFlags::DiffuseReflection);
-        } else {
-            float specularPDF = mfDistrib.PDF(wo, wm) / (4 * VdotH);
-            SampledSpectrum specularBSDF = mfDistrib.D(wm) * fGlossy * mfDistrib.G(wo, wi) / (4 * NdotV * NdotL);
-            return BSDFSample(specularBSDF + diffuseBSDF,
-                              wi,
-                              lerp(diffusePDF, specularPDF, probGlossy),
-                              BxDFFlags::GlossyReflection);
-        }
-    }
-    public SampledSpectrum f(float3 wo, float3 wi, TransportMode) {
-        BSDFSample bs = glTFEval(wo, wi);
-        return bs.IsValid() ?  bs.f : SampledSpectrum(0);
-    }
-    public float PDF(float3 wo, float3 wi, TransportMode, BxDFReflTransFlags) {
-        BSDFSample bs = glTFEval(wo, wi);
-        return bs.pdf;
-    }
-    public BSDFSample Sample_f(float3 wo, float uc, float2 u, TransportMode, BxDFReflTransFlags) {
-        float c_min_reflectance = 0.04f;
-        float3 f0 = lerp(float3(c_min_reflectance), baseColor, metallic);
-        float3 wi;
-        float probGlossy = glTFGlossyProb(ClampedCosTheta(wo), metallic);
-        if (uc < probGlossy) {
-            // Sample Specular
-            if (mfDistrib.EffectivelySmooth()) {
-                // Dirac delta case
-                // Our metallic/glossy lobe can be considered merged into a single specular lobe here
-                // for this, and glTFEval since F0 is mixed (see glTFEval comments)
-                wi = float3(-wo.x, -wo.y, wo.z); // = wr
-                float3 f0 = lerp(float3(0.04f), baseColor, metallic);
-                float3 fGlossy = SchlickFresnel(f0, 1.0f, AbsCosTheta(wi));
-                return BSDFSample(fGlossy / AbsCosTheta(wi), wi, probGlossy, BxDFFlags::SpecularReflection);
-            } else {
-                float3 wm = mfDistrib.Sample_wm(wo, u);
-                wi = Reflect(wo, wm);
-            }
-        } else {
-            // Sample Diffuse
-            wi = SampleCosineHemisphere(u);
-        }
-        wi = FaceForward(wi, float3(0,0,1));
-        return glTFEval(wo, wi);
-    }
-};
-
+// Fresnel sampling approximation of layered materials
+// This is glTFFresnelMix in a statistical form.
+public float glTFFresnelNEE(float NdotV, float ior = 1.5f)
+{
+    float F0 = pow((ior - 1) / (ior + 1), 2); // IOR=1.5->0.04
+    return SchlickFresnel(F0, 1.0f, NdotV);
+}
 ```
 
-和nvpro实现有相似之处，不过注意：
+但是这还不够：设想metallic=1的情况，完全金属——diffuse lobe会消失。毕竟是线性组合，我们对概率加权metallic即可：
 
-- 和PBRT IBxDF模型一致（而非nvpro写法），我们的`f()/Eval`**不包含** $cos\theta$
-- nvpro对metal层的做法是直接用F0表达：glTF用RGB表达F0。电介质的F0是IOR=1.5情况，金属则是baseColor。二者的BRDF又是一样的，那么与其最后mix算好的brdf，不如直接计算等效的$F_r$值；这也是为什么我们只用算两个（diffuse/specular) BRDF的原因。
-- 这里的$G$为改进，高度相关的形式；nvpro中为$G1G2$不相关形式
-- 此外，我们的计算再次和 PBRT 一致，全部在表面本地切空间进行；法线对应我们的$+Z (0,0,1)$轴
+```c++
+float probGlossy = glTFFresnelNEE(ClampedCosTheta(wo));
+probGlossy = lerp(probGlossy, 1.0f, metallic); // Fully metallic means there's no diffuse lobe
+```
 
-`diffuseBSDF, diffusePDF` 及 `specularBSDF, specularPDF` 即我们之前介绍的式子，计算上只是写成shader而已。
+#### 菲涅耳项估计
 
-实现完毕。最后是虽迟但到的测试场景 《~~~Cornell Box 中的维纳斯~~~》
+计算菲涅耳本身在之前介绍过——而前面用了`ShlickFresnel`。当然，mix `FrDieletric`和`FrConductor`在这里是正确的...但用到的三角函数是不是有些多？
 
-![image-20251222110215674](/image-foundation/image-20251222110215674.png)
+此外，glTF对导体BSDF的表达依赖于RGB BaseColor。我们确实*也*知道如何估计表现他的$n,k$折射率及消光系数（见前文）——但在此有无必要则值得思考。
+
+在各种glTF光栅器及实时渲染工具中，用到的并非之前从波向量出发的计算方式，而是以下估计形式，来自[An Inexpensive BRDF Model for Physically-based Rendering, Shlick 1994](https://web.archive.org/web/20200510114532/http://cs.virginia.edu/~jdl/bib/appearance/analytic%20models/schlick94b.pdf)
+$$
+{\displaystyle R(\theta )=R_{0}+(1-R_{0})(1-\cos \theta )^{5}} \newline
+{\displaystyle R_{0}=\left({\frac {n_{1}-n_{2}}{n_{1}+n_{2}}}\right)^{2}}
+$$
+用$n=\frac{n1}{n2}$表示
+$$
+R_0 = (\frac{n-1}{n+1})^2
+$$
+
+实现很简洁，如下：
+
+```c++
+public float SchlickFresnel(float F0, float F90, float VdotH)
+{
+  return F0 + (F90 - F0) * pow(1.0F - VdotH, 5.0F);
+}
+```
+
+#### glTFBSDF
+
+TBD
 
 ### 能量守恒改进
 
