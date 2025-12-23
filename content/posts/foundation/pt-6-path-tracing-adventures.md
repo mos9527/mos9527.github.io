@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-23T18:41:54.381202
+lastmod: 2025-12-23T19:14:48.635279
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -858,7 +858,7 @@ public struct glTFBSDF : IBxDF {
 
 ### 能量守恒改进
 
-进行白炉测试：粗糙度越高变得越暗...?
+进行白炉测试：粗糙度越高变得越暗...? 同时，球体边缘部分情况更严重。
 
 ![image-20251223183648108](/image-foundation/image-20251223183648108.png)
 
@@ -870,11 +870,26 @@ public struct glTFBSDF : IBxDF {
 
 ![image-20251222220353801](/image-foundation/image-20251222220353801.png)
 
-“问题”复现！还记得之前讨论微面情况（c）的内反射：GGX是不处理，而当作被“吸收”而显得更“暗”。真实材质确实可能吸收能量，但对我们目前的建模而言这不应该。这里在[glTF Spec](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coupling-diffuse-and-specular-reflection)中也有提及：
+变暗“问题”复现！还记得之前讨论微面情况（c）的内反射：GGX是不处理，而当作被“吸收”而显得更“暗”。真实材质确实可能吸收能量，但对我们目前的建模而言这不应该。这里在[glTF Spec](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coupling-diffuse-and-specular-reflection)中也有提及：
 
 > Microfacet models often do not consider multiple scattering. The shadowing term suppresses light that intersects the microsurface a second time. [Heitz et al. (2016)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#Heitz2016) extended the Smith-based microfacet models to include a multiple scattering component, which significantly improves accuracy of predictions of the model. We suggest to incorporate multiple scattering whenever possible, either by making use of the unbiased stochastic evaluation introduced by Heitz, or one of the approximations presented later, for example by [Kulla and Conty (2017)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#KullaConty2017) or [Turquin (2019)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#Turquin2019).
 
-接下来就这里的Hetiz及Turquin方法进行复现，“修复”这个问题。
+接下来就这里的Hetiz及Turquin方法进行复现。不过在此之前，对于边缘变暗的情况，我们可以提前处理。
+
+#### Fresnel 补偿
+
+记得之前提到【折射】出去时，仅仅看一次事件的话是只能传出$1-F_r$的能量的。但直觉和物理事实告诉我们，在这里并不吸收能量/转化成其他形式的模型中，多少传入就应该多少传出。
+
+TODO:
+$$
+\int_{H^2} F(\theta) cos\theta d\omega
+$$
+
+$$
+\int_{0}^{2\pi}{\int_{0}^{\frac{\pi}{2}}}{F(\theta)cos\theta d\omega}
+$$
+
+TBD
 
 #### Heitz 2016 - Ground Truth Random Walk
 
