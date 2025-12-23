@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-23T19:14:48.635279
+lastmod: 2025-12-23T19:15:46.406931
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -889,7 +889,7 @@ $$
 \int_{0}^{2\pi}{\int_{0}^{\frac{\pi}{2}}}{F(\theta)cos\theta d\omega}
 $$
 
-TBD
+TBD https://projects.blender.org/blender/blender/src/commit/91800d13ff20aa4aae5c0b767014fafbab383107/intern/cycles/kernel/closure/bsdf_microfacet.h#L862
 
 #### Heitz 2016 - Ground Truth Random Walk
 
