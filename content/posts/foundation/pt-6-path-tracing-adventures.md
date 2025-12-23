@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-22T22:12:19.682136
+lastmod: 2025-12-23T15:17:48.540232
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -511,7 +511,168 @@ $$
 
 ##### Sample_f/Sample
 
-VNDF重要性采样和BRDF本身已经介绍过，这里用起来即可。代码将在之后实现glTF材质时给出。
+VNDF重要性采样和BRDF本身已经介绍过，这里用起来即可。代码将在之后实现各x类BxDF时给出。
+
+### 反射与折射
+
+我们已经有了足够的数学工具建模光的【反射】概率模型。PBRT中，[9.3 Specular Reflection and Transmission](https://www.pbr-book.org/4ed/Reflection_Models/Specular_Reflection_and_Transmission.html) 被放在之前介绍，不过前面其实也只有一笔带过的菲涅耳$F$等很少的一部分需要这里的知识，索性~~拖到~~现在记笔记。
+
+#### 反射定律
+
+现实中不存在完美的镜面：【能量】在接触表面后多少会被吸收：至于“多少”，这里之后同折射部分一并介绍。
+
+不过就建模*光路*而言，满足入射角=出射角的情况一概归类于此：这里已在前面BxDF部分介绍过，不再多提。
+
+#### 折射定律
+
+![image-20251223140821247](/image-foundation/image-20251223140821247.png)
+
+初高中学过的光的折射：**斯涅尔定律（Snell's Law）**告诉我们，光的折射角和入射角有以下关系（即入射面1,出射面2）：
+$$
+{\displaystyle {\frac {\sin \theta _{i}}{\sin \theta _{t}}}=n_{1,2}={\frac {n_{1}}{n_{2}}}={\frac {v_{2}}{v_{1}}}}
+$$
+其中折射率(Index Of Refraction, IOR) 记为 $n = \frac{n_t}{n_i}$。向量计算参考以下PBRT实现：
+
+```c++
+// https://www.pbr-book.org/4ed/Reflection_Models/Specular_Reflection_and_Transmission#SnellrsquosLaw
+public bool Refract(float3 wi, float3 n, float eta /* IOR */, out float3 wt, out float etap){
+    float cosTheta_i = dot(n, wi);
+    if (cosTheta_i < 0) { // Inside an object?
+        eta = 1 / eta;
+        cosTheta_i = -cosTheta_i;
+        n = -n;
+    }
+    float sin2Theta_i = 1 - Sqr(cosTheta_i);
+    float sin2Theta_t = sin2Theta_i / Sqr(eta);
+    if (sin2Theta_t >= 1) // Total internal reflection - transmission impossible
+        return false;
+    float cosTheta_t = SafeSqrt(1 - sin2Theta_t);
+    wt = eta * -wi + (eta * cosTheta_i - cosTheta_t) * n;
+    etap = eta;
+    return true;
+}
+```
+
+几个细节：
+
+- 全反射情况下返回`false`，即光密到光疏的入射角$\theta_i > \theta_c = \sin^{-1}{\frac{1}{n}}$
+- `etap`接受假设介面为入射面时对应的折射率。计算即$\frac{1}{n}$
+
+#### 菲涅耳方程
+
+##### 实数折射率
+
+之前提到的$F_r$ - 菲涅耳定律给出了在光到材质上后，**反射与折射【能量】的关系**。计算本身涉及电磁相关波知识...大物好久没看也基本忘了，这里只给出形式
+
+- 垂直(s)偏振的反射比为：
+
+$$
+{\displaystyle R_{s}=\left({\frac {n_{1}\cos \theta _{i}-n_{2}\cos \theta _{t}}{n_{1}\cos \theta _{i}+n_{2}\cos \theta _{t}}}\right)^{2}}
+$$
+
+
+
+- 平行(p)偏振的反射比为：
+$$
+{\displaystyle R_{p}=\left({\frac {n_{1}\cos \theta _{t}-n_{2}\cos \theta _{i}}{n_{1}\cos \theta _{t}+n_{2}\cos \theta _{i}}}\right)^{2}}
+$$
+
+- s,p偏振等量（无偏振）时，入射光的反射比即为：
+
+$$
+{\displaystyle F_r={\frac {R_{s}+R_{p}}{2}}\,}
+$$
+
+- 折射比很直接
+  $$
+  F_t = 1 - F_r
+  $$
+
+- 
+
+$\theta_i$已知，$\theta_t$的计算利用折射定律。以下即实数折射率计算反射比的PBRT实现：
+
+```c++
+// https://www.pbr-book.org/4ed/Reflection_Models/Specular_Reflection_and_Transmission#TheFresnelEquations
+// Percentage of light reflected (or otherwise transmitted) at a dielectric interface
+// with respect of incident angle theta and IOR eta
+public float FrDielectric(float cosTheta_i, float eta) {
+    // vv Same snippet for calculating Snell's law
+    if (cosTheta_i < 0) { // Inside an object?
+        eta = 1 / eta;
+        cosTheta_i = -cosTheta_i;
+    }
+    float sin2Theta_i = 1 - Sqr(cosTheta_i);
+    float sin2Theta_t = sin2Theta_i / Sqr(eta);
+    if (sin2Theta_t >= 1) // Total internal reflection
+        return 1.0f; // All scattering is in the reflection, no transmission component
+    float cosTheta_t = SafeSqrt(1 - sin2Theta_t);
+    // ^^
+    float r_parl = (eta * cosTheta_i - cosTheta_t) /
+                   (eta * cosTheta_i + cosTheta_t);
+    float r_perp = (cosTheta_i - eta * cosTheta_t) /
+                   (cosTheta_i + eta * cosTheta_t);
+   return (Sqr(r_parl) + Sqr(r_perp)) / 2; // Power of both polarizations
+}
+```
+
+在电介质材料里，该式子足矣建模其反射/折射能量关系——但对于导体而言则不是如此。
+
+##### 复数折射率
+
+[9.3.6 The Fresnel Equations for Conductors](https://www.pbr-book.org/4ed/Reflection_Models/Specular_Reflection_and_Transmission#TheFresnelEquationsforConductors) 介绍了折射率为$n - ik$的复数形式时的计算。实现如下：
+
+```c++
+// https://www.pbr-book.org/4ed/Reflection_Models/Specular_Reflection_and_Transmission#TheFresnelEquationsforConductors
+// eta takes a complex form (IOR, k), where k is the absorption coefficient
+public float FrComplex(float cosTheta_i, complex eta){
+    cosTheta_i = clamp(cosTheta_i, 0, 1);
+    // ^^ Ignore the case of inside an object for conductors as it's attenuated rapidly
+    float sin2Theta_i = 1 - Sqr(cosTheta_i);
+    complex sin2Theta_t = complex(sin2Theta_i) / Sqr(eta);
+    complex cosTheta_t = sqrt(complex(1) - sin2Theta_t);
+    complex r_parl = (eta * complex(cosTheta_i) - cosTheta_t) /
+                     (eta * complex(cosTheta_i) + cosTheta_t);
+    complex r_perp = (complex(cosTheta_i) - eta * cosTheta_t) /
+                     (complex(cosTheta_i) + eta * cosTheta_t);
+    return (norm(r_parl) + norm(r_perp)) / 2; // Power of both polarizations
+}
+```
+
+$k$部分为[【消光系数】](https://en.wikipedia.org/wiki/Refractive_index#Complex_refractive_index)，再次是一个测量值——**金属的消光系数很大，以至于会对反射率产生不可忽略的影响**：吸收（折射）多到光线无法穿透而变得不透明！
+
+离线管线，和部分参考渲染器在建模金属时一般用的也是该形式：Blender也是如此。作为例子：
+
+这个值和IOR一样，这个值和入射波长也有关系。RGB光谱$\lambda = (630nm,532nm,465nm)$下在 https://refractiveindex.info/?shelf=main&page=Rakic查表：
+
+- 金子有$n=(0.18836,0.54836,1.3319), k=(3.4034,2.2309,1.8693)$ —— 插入 Blender 的 Metallic BSDF 中如下：
+
+![image-20251223145645767](/image-foundation/image-20251223145645767.png)
+
+- 铝则为$n=(1.4303,0.93878,0.68603), k=(7.5081,6.4195,5.6351)$，如下：
+
+![image-20251223150031876](/image-foundation/image-20251223150031876.png)
+
+###### n,k 估计
+
+输入这两个测量值很麻烦。[Artist Friendly Metallic Fresnel, Gulbrandsen 2014](https://jcgt.org/published/0003/04/03/paper.pdf) 给出了由两个RGB参数估计$n,k$的方法。这里只给出实现，来自 [Blender Cycles](https://projects.blender.org/blender/blender/src/commit/91800d13ff20aa4aae5c0b767014fafbab383107/intern/cycles/kernel/closure/bsdf_microfacet.h#L274)：
+
+```c++
+// Approx F0 to Complex Fresnel IOR terms
+// "Artist Friendly Metallic Fresnel", Gulbrandsen 2014, https://jcgt.org/published/0003/04/03/paper.pdf
+public void FresnelFromF0(float r /* baseColor */, float g /* specularTint */, out float n, out float k){
+    r = clamp(0.01, 0.99, r);
+    float sqrt_r = sqrt(r);
+    n = lerp((1.0f + sqrt_r) / (1.0f - sqrt_r), (1.0f - r) / (1.0f + r), g);
+    k = SafeSqrt((r * Sqr(n + 1) - Sqr(n - 1)) / (1.0f - r));
+}
+public void FresnelFromF0(float3 r /* baseColor */, float3 g /* specularTint */, out float3 n, out float3 k){
+    for (int i = 0; i < 3; i++)
+        FresnelFromF0(r[i], g[i], n[i], k[i]);
+}
+```
+
+
 
 ### glTF 材质模型
 
@@ -642,7 +803,7 @@ public struct glTFBSDF : IBxDF {
 
 `diffuseBSDF, diffusePDF` 及 `specularBSDF, specularPDF` 即我们之前介绍的式子，计算上只是写成shader而已。
 
-实现完毕。最后是虽迟但到的测试场景 ~~~《Cornell Box 中的维纳斯》 ~~~
+实现完毕。最后是虽迟但到的测试场景 《~~~Cornell Box 中的维纳斯~~~》
 
 ![image-20251222110215674](/image-foundation/image-20251222110215674.png)
 
@@ -677,8 +838,6 @@ public struct glTFBSDF : IBxDF {
 ![img](/image-foundation/diagram_single_vs_multi_scatter.png)
 
 在完成微面内完整光路的**ground truth**方法由 [Multiple-Scattering Microfacet BSDFs with the Smith Model, Heitz 2016](https://eheitzresearch.wordpress.com/240-2/) 提出，不过，实践用的更多的是**查表估计**方法，包括Blender的实现来自 [Practical multiple scattering compensation for microfacet models, Emmanuel 2019](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf) —— 接下来将对两种方式进行复现。
-
-###### 
 
 ![img](/image-foundation/multiplescatteringsmith_volumeanalogy1.png)
 
