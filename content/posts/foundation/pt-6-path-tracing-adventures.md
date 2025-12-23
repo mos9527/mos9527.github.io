@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-23T16:47:47.821842
+lastmod: 2025-12-23T17:56:50.739222
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -688,7 +688,7 @@ PBRT里介绍的 [9.4 Conductor BRDF](https://www.pbr-book.org/4ed/Reflection_Mo
 
 <img src="/image-foundation/image-20251223153046049.png" alt="image-20251223153046049" style="zoom:50%;" />
 
-glTF的该模型可以认为是和PBRT中的`DieletricBxDF`与`DiffuseBxDF`做的`LayeredBxDF`的“简化”版本：*上层光泽层反射+折射到下层漫反射再次反射出介面*。
+glTF的该模型可以认为是和PBRT中的`DieletricBxDF`与`DiffuseBxDF`做的`LayeredBxDF`的“简化”版本：*上层光泽层【反射]+【折射】到下层漫【反射】再次【折射】出介面*。
 
 不过，注意图中x部分：这里的层次间叠加(`fresnel_mix`)**不考虑介面间的反射**，二次反射会直接被忽略，能量消失！
 
@@ -768,11 +768,100 @@ public float SchlickFresnel(float F0, float F90, float VdotH)
 
 #### glTFBSDF
 
-TBD
+就此我们完成了整个 Single-scatter （单次反射）的glTF材质实现。Slang部分如下：
+
+```c++
+// Cheap LayeredBxDF alternative with glTF's metallic-roughness model
+// See also Appendix B. https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#material-structure
+public struct glTFBSDF : IBxDF {
+    float3 baseColor;
+    float metallic;
+    TrowbridgeReitzDistribution mfDistrib;
+    public __init(float3 baseColor, float metallic, float roughness) {
+        this.baseColor = baseColor;
+        this.metallic = metallic;
+        float alpha = roughness * roughness;
+        this.mfDistrib = TrowbridgeReitzDistribution(alpha, alpha);
+    }
+    public BxDFFlags Flags() {
+        return BxDFFlags::Reflection | BxDFFlags::Glossy;
+    }
+    public float NEEGlossyProb(float3 wo) {
+        float probGlossy = glTFFresnelNEE(ClampedCosTheta(wo));
+        return lerp(probGlossy, 1.0f, metallic); // Fully metallic means there's no diffuse lobe
+    }
+    public BSDFSample Sample_f(float3 wo, float uc, float2 u, TransportMode, BxDFReflTransFlags) {
+        float c_min_reflectance = 0.04f;
+        // Mixed Metallic/Dielectric Fresnel F0
+        float3 F0 = lerp(float3(c_min_reflectance), baseColor, metallic);
+        float3 wi;
+        float probGlossy = NEEGlossyProb(wo);
+        if (uc < probGlossy) {
+            // Sample Glossy
+            if (mfDistrib.EffectivelySmooth()) {
+                // Dirac delta case
+                wi = float3(-wo.x, -wo.y, wo.z); // = wr
+                float3 fGlossy = SchlickFresnel(F0, 1.0f, AbsCosTheta(wi));
+                return BSDFSample(fGlossy / AbsCosTheta(wi), wi, probGlossy, BxDFFlags::SpecularReflection);
+            } else {
+                float3 wm = mfDistrib.Sample_wm(wo, u);
+                // NEE weighting vvvvv
+                float pdf = probGlossy * mfDistrib.PDF(wo, wm) / (4 * AbsDot(wo, wm));
+                wi = Reflect(wo, wm);
+                wi = FaceForward(wi, float3(0,0,1));
+                float3 fGlossy = SchlickFresnel(F0, 1.0f, AbsCosTheta(wi));
+                float3 f = mfDistrib.D(wm) * fGlossy * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
+                return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
+            }
+        } else {
+            // Sample Diffuse
+            wi = SampleCosineHemisphere(u);
+            wi = FaceForward(wi, float3(0,0,1));
+            float3 wm = normalize(wi + wo);
+            // NEE weighting vvvvv
+            float pdf = CosineHemispherePDF(ClampedCosTheta(wi)) * (1 - probGlossy);
+            // Diffuse lobe is the bottom lobe. Exiting from the dielectric we have an IOR of 1/1.5,
+            // which very conveniently - still approx to a F0=0.04 for dielectrics.
+            // This time though - we want the transmittance (1-reflectance).
+            float fDiffuse = (1.0f - SchlickFresnel(c_min_reflectance, 1.0f, ClampedDot(wo, wm))) ;
+            return BSDFSample(baseColor * fDiffuse * (1.0f - metallic) * InvPi, wi, pdf, BxDFFlags::DiffuseReflection);
+        }
+    }
+    public SampledSpectrum f(float3 wo, float3 wi, TransportMode) {
+        if (wo.z <= 0 || wi.z <= 0) return 0; // Only mirror reflection.
+        float3 wm = normalize(wo + wi);
+        float c_min_reflectance = 0.04f;
+        float3 f0 = lerp(float3(c_min_reflectance), baseColor, metallic);
+        // Same fresnel terms as before.
+        float3 fGlossy = SchlickFresnel(f0, 1.0f, AbsCosTheta(wi));
+        float3 fDiffuse = (1.0f - SchlickFresnel(c_min_reflectance, 1.0f, ClampedDot(wo, wm))) ;
+        // The two lobes - remember NEE only affects the PDF in sampling, not the eval.
+        SampledSpectrum diffuseBSDF = baseColor * fDiffuse * (1.0f - metallic) * InvPi;
+        SampledSpectrum specularBSDF = mfDistrib.D(wm) * fGlossy * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
+        // NEE for the combined lobe
+        if (mfDistrib.EffectivelySmooth()){
+            // PDF is dirac delta, which for eval is impossible to represent
+            // This is the specular case again, so eval there has zero contribution
+            return diffuseBSDF;
+        } else {
+            return diffuseBSDF + specularBSDF;
+        }
+    }
+    public float PDF(float3 wo, float3 wi, TransportMode, BxDFReflTransFlags) {
+        float3 wm = normalize(wo + wi);
+        float diffusePDF = CosineHemispherePDF(ClampedCosTheta(wi));
+        float specularPDF = mfDistrib.PDF(wo, wm) / (4 * ClampedDot(wo, wm));
+        if (mfDistrib.EffectivelySmooth())
+            specularPDF = 0.0f;
+        return diffusePDF * (1 - NEEGlossyProb(wo)) + specularPDF * NEEGlossyProb(wo);
+    }
+};
+
+```
 
 ### 能量守恒改进
 
-值得注意的是反射面中的场景有变暗的情况。这不是巧合，进行白炉测试：粗糙度越高变得越暗...?
+进行白炉测试：粗糙度越高变得越暗...?
 
 ![image-20251222220058034](/image-foundation/image-20251222220058034.png)
 
