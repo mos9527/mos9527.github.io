@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-23T18:36:58.620654
+lastmod: 2025-12-23T18:41:54.381202
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -832,7 +832,7 @@ public struct glTFBSDF : IBxDF {
         float3 f0 = lerp(float3(c_min_reflectance), baseColor, metallic);
         // Same fresnel terms as before.
         float3 fGlossy = SchlickFresnel(f0, 1.0f, ClampedDot(wo, wm));
-        float3 fDiffuse = (1.0f - SchlickFresnel(c_min_reflectance, 1.0f, ClampedDot(wo, wm))) ;
+        float3 fDiffuse = (1.0f - SchlickFresnel(c_min_reflectance, 1.0f, AbsCosTheta(wo))) ;
         // The two lobes - remember NEE only affects the PDF in sampling, not the eval.
         SampledSpectrum diffuseBSDF = baseColor * fDiffuse * (1.0f - metallic) * InvPi;
         SampledSpectrum specularBSDF = mfDistrib.D(wm) * fGlossy * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
