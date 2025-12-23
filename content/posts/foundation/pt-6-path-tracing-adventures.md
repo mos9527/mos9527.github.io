@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-23T17:57:16.340410
+lastmod: 2025-12-23T18:00:32.085902
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -794,20 +794,21 @@ public struct glTFBSDF : IBxDF {
         float c_min_reflectance = 0.04f;
         // Mixed Metallic/Dielectric Fresnel F0
         float3 F0 = lerp(float3(c_min_reflectance), baseColor, metallic);
-        float3 wi;
         float probGlossy = NEEGlossyProb(wo);
         if (uc < probGlossy) {
             // Sample Glossy
             if (mfDistrib.EffectivelySmooth()) {
                 // Dirac delta case
-                wi = float3(-wo.x, -wo.y, wo.z); // = wr
+                float3 wi = float3(-wo.x, -wo.y, wo.z); // = wr
                 float3 fGlossy = SchlickFresnel(F0, 1.0f, AbsCosTheta(wi));
-                return BSDFSample(fGlossy / AbsCosTheta(wi), wi, probGlossy, BxDFFlags::SpecularReflection);
+                // Sampled PDF would be delta, but we represent them as 1s w/o weighting
+                // With NEE this is what you get:
+                return BSDFSample(fGlossy / AbsCosTheta(wi), wi, 1 * probGlossy, BxDFFlags::SpecularReflection);
             } else {
                 float3 wm = mfDistrib.Sample_wm(wo, u);
                 // NEE weighting vvvvv
                 float pdf = probGlossy * mfDistrib.PDF(wo, wm) / (4 * AbsDot(wo, wm));
-                wi = Reflect(wo, wm);
+                float3 wi = Reflect(wo, wm);
                 wi = FaceForward(wi, float3(0,0,1));
                 float3 fGlossy = SchlickFresnel(F0, 1.0f, AbsCosTheta(wi));
                 float3 f = mfDistrib.D(wm) * fGlossy * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
@@ -815,11 +816,11 @@ public struct glTFBSDF : IBxDF {
             }
         } else {
             // Sample Diffuse
-            wi = SampleCosineHemisphere(u);
+            float3 wi = SampleCosineHemisphere(u);
             wi = FaceForward(wi, float3(0,0,1));
             float3 wm = normalize(wi + wo);
-            // NEE weighting vvvvv
-            float pdf = CosineHemispherePDF(ClampedCosTheta(wi)) * (1 - probGlossy);
+            // NEE weighting vvvvvvvvvvv
+            float pdf = (1 - probGlossy) * CosineHemispherePDF(ClampedCosTheta(wi));
             // Diffuse lobe is the bottom lobe. Exiting from the dielectric we have an IOR of 1/1.5,
             // which very conveniently - still approx to a F0=0.04 for dielectrics.
             // This time though - we want the transmittance (1-reflectance).
