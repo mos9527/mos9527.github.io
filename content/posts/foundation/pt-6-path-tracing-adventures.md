@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-23T19:15:46.406931
+lastmod: 2025-12-23T21:03:07.177571
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -435,7 +435,7 @@ public struct TrowbridgeReitzDistribution {
     $$
     G_1(w_i)G_1(w_o)
     $$
-    这蕴含着入射（shadowing）和出射（masking）事件不相关。[PBRT指出这是过于保守的（太低）](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#TheMasking-ShadowingFunction)，但相关性存在：试想一个很高的‘山封’：从入射/出射两个角度都看不到。最后的形式来自 [Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs, Heitz 2014](https://jcgt.org/published/0003/02/03/paper.pdf):
+    这蕴含着入射（shadowing）和出射（masking）事件不相关。[PBRT指出这是过于保守的（太低）](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#TheMasking-ShadowingFunction)，但相关性存在：试想一个很高的‘山峰’：从入射/出射两个角度都看不到。最后的形式来自 [Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs, Heitz 2014](https://jcgt.org/published/0003/02/03/paper.pdf):
 
     ![image-20251221182209229](/image-foundation/image-20251221182209229.png)
 
@@ -764,134 +764,22 @@ public float SchlickFresnel(float F0, float F90, float cosTheta)
 }
 ```
 
-#### glTFBSDF
-
-就此我们完成了整个 Single-scatter （单次反射）的glTF材质实现。Slang部分如下：
-
-```c++
-// Cheap, single-scattering LayeredBxDF alternative with glTF's metallic-roughness model
-// See also Appendix B. https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#material-structure
-public struct glTFBSDF : IBxDF {
-    float3 baseColor;
-    float metallic;
-    TrowbridgeReitzDistribution mfDistrib;
-    public __init(float3 baseColor, float metallic, float roughness) {
-        this.baseColor = baseColor;
-        this.metallic = metallic;
-        float alpha = roughness * roughness;
-        this.mfDistrib = TrowbridgeReitzDistribution(alpha, alpha);
-    }
-    public BxDFFlags Flags() {
-        return BxDFFlags::Reflection | BxDFFlags::Glossy;
-    }
-    public float NEEGlossyProb(float3 wo) {
-        float probGlossy = glTFFresnelNEE(ClampedCosTheta(wo));
-        return lerp(probGlossy, 1.0f, metallic); // Fully metallic means there's no diffuse lobe
-    }
-    public BSDFSample Sample_f(float3 wo, float uc, float2 u, TransportMode, BxDFReflTransFlags) {
-        float c_min_reflectance = 0.04f;
-        // Mixed Metallic/Dielectric Fresnel F0
-        float3 F0 = lerp(float3(c_min_reflectance), baseColor, metallic);
-        float probGlossy = NEEGlossyProb(wo);
-        if (uc < probGlossy) {
-            // Sample Glossy
-            if (mfDistrib.EffectivelySmooth()) {
-                // Dirac delta case
-                float3 wi = float3(-wo.x, -wo.y, wo.z); // = wr
-                float3 fGlossy = SchlickFresnel(F0, 1.0f, AbsCosTheta(wi));
-                // Sampled PDF would be delta, but we represent them as 1s w/o weighting
-                // With NEE this is what you get:
-                return BSDFSample(fGlossy / AbsCosTheta(wi), wi, 1 * probGlossy, BxDFFlags::SpecularReflection);
-            } else {
-                float3 wm = mfDistrib.Sample_wm(wo, u);
-                // NEE weighting vvvvv
-                float pdf = probGlossy * mfDistrib.PDF(wo, wm) / (4 * AbsDot(wo, wm));
-                float3 wi = Reflect(wo, wm);
-                wi = FaceForward(wi, float3(0,0,1));
-                float3 fGlossy = SchlickFresnel(F0, 1.0f, ClampedDot(wo, wm));
-                float3 f = mfDistrib.D(wm) * fGlossy * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
-                return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
-            }
-        } else {
-            // Sample Diffuse
-            float3 wi = SampleCosineHemisphere(u);
-            wi = FaceForward(wi, float3(0,0,1));
-            // NEE weighting vvvvvvvvvvv
-            float pdf = (1 - probGlossy) * CosineHemispherePDF(ClampedCosTheta(wi));
-            // Diffuse lobe is the bottom lobe. Exiting from the dielectric we have an IOR of 1/1.5,
-            // which very conveniently - still approx to a F0=0.04 for dielectrics.
-            // This time though - we want the transmittance (1-reflectance).
-            float fDiffuse = (1.0f - SchlickFresnel(c_min_reflectance, 1.0f, AbsCosTheta(wo))) ;
-            return BSDFSample(baseColor * fDiffuse * (1.0f - metallic) * InvPi, wi, pdf, BxDFFlags::DiffuseReflection);
-        }
-    }
-    public SampledSpectrum f(float3 wo, float3 wi, TransportMode) {
-        if (wo.z <= 0 || wi.z <= 0) return 0; // Only mirror reflection.
-        float3 wm = normalize(wo + wi);
-        float c_min_reflectance = 0.04f;
-        float3 f0 = lerp(float3(c_min_reflectance), baseColor, metallic);
-        // Same fresnel terms as before.
-        float3 fGlossy = SchlickFresnel(f0, 1.0f, ClampedDot(wo, wm));
-        float3 fDiffuse = (1.0f - SchlickFresnel(c_min_reflectance, 1.0f, AbsCosTheta(wo))) ;
-        // The two lobes - remember NEE only affects the PDF in sampling, not the eval.
-        SampledSpectrum diffuseBSDF = baseColor * fDiffuse * (1.0f - metallic) * InvPi;
-        SampledSpectrum specularBSDF = mfDistrib.D(wm) * fGlossy * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
-        // NEE for the combined lobe
-        if (mfDistrib.EffectivelySmooth()){
-            // PDF is dirac delta, which for eval is impossible to represent
-            // This is the specular case again, so eval there has zero contribution
-            return diffuseBSDF;
-        } else {
-            return diffuseBSDF + specularBSDF;
-        }
-    }
-    public float PDF(float3 wo, float3 wi, TransportMode, BxDFReflTransFlags) {
-        float3 wm = normalize(wo + wi);
-        float diffusePDF = CosineHemispherePDF(ClampedCosTheta(wi));
-        float specularPDF = mfDistrib.PDF(wo, wm) / (4 * ClampedDot(wo, wm));
-        if (mfDistrib.EffectivelySmooth())
-            specularPDF = 0.0f;
-        return diffusePDF * (1 - NEEGlossyProb(wo)) + specularPDF * NEEGlossyProb(wo);
-    }
-};
-```
 
 ### 能量守恒改进
 
-进行白炉测试：粗糙度越高变得越暗...? 同时，球体边缘部分情况更严重。
+暂时不贴代码：进行白炉测试，可以发现：粗糙度越高球体变得越暗。 同时，球体边缘部分情况更严重。
 
 ![image-20251223183648108](/image-foundation/image-20251223183648108.png)
 
-我们的BRDF出问题了吗？并非。请看~~VCR~~ Blender中的同样场景：
+后者来自我们之前讨论过的到漫反射面的*单次折射*——这是非常保守的，以至于粗糙度变高时，无法一次折射大部分的光线会消失，边缘变暗。
 
-![image-20251222220439188](/image-foundation/image-20251222220439188.png)
-
-...消失了。Cycles通过白炉测试，但这是因为右下角的`Specular`选项使用的是`Multiscatter GGX`；若换成`GGX`：
-
-![image-20251222220353801](/image-foundation/image-20251222220353801.png)
-
-变暗“问题”复现！还记得之前讨论微面情况（c）的内反射：GGX是不处理，而当作被“吸收”而显得更“暗”。真实材质确实可能吸收能量，但对我们目前的建模而言这不应该。这里在[glTF Spec](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coupling-diffuse-and-specular-reflection)中也有提及：
+此外，还记得之前讨论微面情况（c）的内反射：GGX是不处理，而当作被“吸收”而显得更“暗”。真实材质确实可能吸收能量，但对我们目前的建模而言这不应该。这里在[glTF Spec](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coupling-diffuse-and-specular-reflection)中也有提及：
 
 > Microfacet models often do not consider multiple scattering. The shadowing term suppresses light that intersects the microsurface a second time. [Heitz et al. (2016)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#Heitz2016) extended the Smith-based microfacet models to include a multiple scattering component, which significantly improves accuracy of predictions of the model. We suggest to incorporate multiple scattering whenever possible, either by making use of the unbiased stochastic evaluation introduced by Heitz, or one of the approximations presented later, for example by [Kulla and Conty (2017)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#KullaConty2017) or [Turquin (2019)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#Turquin2019).
 
-接下来就这里的Hetiz及Turquin方法进行复现。不过在此之前，对于边缘变暗的情况，我们可以提前处理。
+接下来就Heitz方法简要介绍，并对这里的Turquin方法进行复现。
 
-#### Fresnel 补偿
-
-记得之前提到【折射】出去时，仅仅看一次事件的话是只能传出$1-F_r$的能量的。但直觉和物理事实告诉我们，在这里并不吸收能量/转化成其他形式的模型中，多少传入就应该多少传出。
-
-TODO:
-$$
-\int_{H^2} F(\theta) cos\theta d\omega
-$$
-
-$$
-\int_{0}^{2\pi}{\int_{0}^{\frac{\pi}{2}}}{F(\theta)cos\theta d\omega}
-$$
-
-TBD https://projects.blender.org/blender/blender/src/commit/91800d13ff20aa4aae5c0b767014fafbab383107/intern/cycles/kernel/closure/bsdf_microfacet.h#L862
-
-#### Heitz 2016 - Ground Truth Random Walk
+#### Heitz 2016 Random Walk
 
 记得$G1$ Masking/Shadowing 函数表达的量：宏观面内沿某视角$\mathbf{v}$可见的微面比例。
 
@@ -901,19 +789,51 @@ TBD https://projects.blender.org/blender/blender/src/commit/91800d13ff20aa4aae5c
 
 ![img](/image-foundation/diagram_single_vs_multi_scatter.png)
 
-在完成微面内完整光路的**ground truth**方法由 [Multiple-Scattering Microfacet BSDFs with the Smith Model, Heitz 2016](https://eheitzresearch.wordpress.com/240-2/) 提出，不过，实践用的更多的是**查表估计**方法，包括Blender的实现来自 [Practical multiple scattering compensation for microfacet models, Emmanuel 2019](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf) —— 接下来将对两种方式进行复现。
+在微面内完整光路的**ground truth**方法由 [Multiple-Scattering Microfacet BSDFs with the Smith Model, Heitz 2016](https://eheitzresearch.wordpress.com/240-2/) 提出，在 [Blender 4.0 之前 (3.6.x)](https://projects.blender.org/blender/blender/src/tag/v3.6.20/intern/cycles/kernel/closure/bsdf_microfacet_multi.h) 也是其Multiscatter GGX的实现。
 
 ![img](/image-foundation/multiplescatteringsmith_volumeanalogy1.png)
 
-进入微面/microfacet视‘高度’的层次为microflake，在这里walk采样frensel交互。在 [Blender 4.0 之前 (3.6.x)](https://projects.blender.org/blender/blender/src/tag/v3.6.20/intern/cycles/kernel/closure/bsdf_microfacet_multi.h) 也是其Multiscatter GGX的实现。
+概述如下：设微面高度分布为NDF/正态分布，从初始方向多次“walk”这些“峰”，并相应地反射，重复执行到轮盘赌或迭代上限达到位置。
 
-![walk-the-walk](/image-foundation/steps.svg)
+计算量...非常大。Random Walk方法在之前的LayeredBxDF中也见到过，我们因此也暂时没有用它。
 
-TBD
+未来有机会再尝试复现这里的RW手段。在此之前，实现上更为简单且出图方差更低（不需逼近）的手段即为以下查表方法。
 
-#### Turquin 2019 - 预计算查表
+#### Turquin 2019 LUT
 
-[Blender 4.0 以后](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L862) 采用了该方法。
+[Blender 4.0 以后](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L862) 采用了该方法。首先引入几个概念：
+
+##### 平均反射率
+
+首先，假设能量确实守恒的话，从一点到底能反射出多少光？**平均反射率**表述的就是这一点：在**没有任何遮蔽的情况下**（包括shadowing-masking），上半球余弦加权的反射率积分。形式如下：
+$$
+\int_{H^2} F(\theta) cos\theta d\omega
+$$
+立体角拆开来：
+$$
+\int_{0}^{2\pi}{\int_{0}^{\frac{\pi}{2}}}{F(\theta)cos\theta sin\theta d\theta d\phi}
+$$
+$\phi$无关，提出$2\pi$
+$$
+2\pi \int_{0}^{\frac{\pi}{2}}{F(\theta)cos\theta sin\theta d\theta}
+$$
+换元积分$u = cos\theta$
+$$
+2\pi \int_{0}^{1}{F(\theta)u du}
+$$
+$F(\theta)$的原形式积分很麻烦。这里 Blender 用了之前介绍的 Shlick 估计，代入有
+$$
+2\pi \int_{0}^{1}{ (R_{0}+(R_{90}-R_{0})(1-u )^{5}) u du}
+$$
+常数拆掉，不妨指数设为$n$：以下即为Blender Cycles中的形式：
+$$
+s = 2\pi \int_{0}^{1}{ (1-u)^{n} u du} = \frac{2}{(n+3)n + 2}
+$$
+带回得到平均反射率值。对，$n=5(Shlick)，s=2/(42)=1/21$
+$$
+F_{avg} = R_0 + s(R_{90} - R_0) = lerp(R_0, R_{90}, s)
+$$
+这是反射率的上限，接下来也将用到。
 
 TBD
 
