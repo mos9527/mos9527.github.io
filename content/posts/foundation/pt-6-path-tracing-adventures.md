@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-23T18:07:21.939869
+lastmod: 2025-12-23T18:36:58.620654
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -758,9 +758,9 @@ $$
 实现很简洁，如下：
 
 ```c++
-public float SchlickFresnel(float F0, float F90, float VdotH)
+public float SchlickFresnel(float F0, float F90, float cosTheta)
 {
-  return F0 + (F90 - F0) * pow(1.0F - VdotH, 5.0F);
+  return F0 + (F90 - F0) * pow(1.0F - cosTheta, 5.0F);
 }
 ```
 
@@ -798,8 +798,7 @@ public struct glTFBSDF : IBxDF {
             if (mfDistrib.EffectivelySmooth()) {
                 // Dirac delta case
                 float3 wi = float3(-wo.x, -wo.y, wo.z); // = wr
-                float3 wm = normalize(wi + wo);
-                float3 fGlossy = SchlickFresnel(F0, 1.0f, ClampedDot(wo, wm));
+                float3 fGlossy = SchlickFresnel(F0, 1.0f, AbsCosTheta(wi));
                 // Sampled PDF would be delta, but we represent them as 1s w/o weighting
                 // With NEE this is what you get:
                 return BSDFSample(fGlossy / AbsCosTheta(wi), wi, 1 * probGlossy, BxDFFlags::SpecularReflection);
@@ -817,13 +816,12 @@ public struct glTFBSDF : IBxDF {
             // Sample Diffuse
             float3 wi = SampleCosineHemisphere(u);
             wi = FaceForward(wi, float3(0,0,1));
-            float3 wm = normalize(wi + wo);
             // NEE weighting vvvvvvvvvvv
             float pdf = (1 - probGlossy) * CosineHemispherePDF(ClampedCosTheta(wi));
             // Diffuse lobe is the bottom lobe. Exiting from the dielectric we have an IOR of 1/1.5,
             // which very conveniently - still approx to a F0=0.04 for dielectrics.
             // This time though - we want the transmittance (1-reflectance).
-            float fDiffuse = (1.0f - SchlickFresnel(c_min_reflectance, 1.0f, ClampedDot(wo, wm))) ;
+            float fDiffuse = (1.0f - SchlickFresnel(c_min_reflectance, 1.0f, AbsCosTheta(wo))) ;
             return BSDFSample(baseColor * fDiffuse * (1.0f - metallic) * InvPi, wi, pdf, BxDFFlags::DiffuseReflection);
         }
     }
@@ -856,14 +854,13 @@ public struct glTFBSDF : IBxDF {
         return diffusePDF * (1 - NEEGlossyProb(wo)) + specularPDF * NEEGlossyProb(wo);
     }
 };
-
 ```
 
 ### 能量守恒改进
 
 进行白炉测试：粗糙度越高变得越暗...?
 
-![image-20251222220058034](/image-foundation/image-20251222220058034.png)
+![image-20251223183648108](/image-foundation/image-20251223183648108.png)
 
 我们的BRDF出问题了吗？并非。请看~~VCR~~ Blender中的同样场景：
 
