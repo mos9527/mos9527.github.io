@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-23T17:56:50.739222
+lastmod: 2025-12-23T17:57:16.340410
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -771,7 +771,7 @@ public float SchlickFresnel(float F0, float F90, float VdotH)
 就此我们完成了整个 Single-scatter （单次反射）的glTF材质实现。Slang部分如下：
 
 ```c++
-// Cheap LayeredBxDF alternative with glTF's metallic-roughness model
+// Cheap, single-scattering LayeredBxDF alternative with glTF's metallic-roughness model
 // See also Appendix B. https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#material-structure
 public struct glTFBSDF : IBxDF {
     float3 baseColor;
