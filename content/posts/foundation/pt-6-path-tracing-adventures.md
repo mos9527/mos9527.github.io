@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-24T18:50:26.811849
+lastmod: 2025-12-24T21:51:25.457881
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -77,20 +77,16 @@ float uintToFloat(uint x) {
 
 下面PT本身做的蒙特卡洛和各种重要性采样之外，Viewport采样也值得一提——产生图像的并非逐帧刷新，而存在积累过程。
 
-毕竟，我们的随机数种子也是由帧序号初始化的——这样做可以将多帧，可能不同但趋近最终积分的结过积累以逼近。利用UAV实现这一点很容易：
+毕竟，我们的随机数种子也是由帧序号初始化的——这样做可以将多帧，可能不同但趋近最终积分的结过积累以逼近。小记积累部分的更新：
 
 ```glsl
-RWTexture2D<float4> accumulation;
-RWTexture2D<float4> output;
-// ...
-float4 previous = accumulation[pix];
-// Reset when accumlated frame resets, e.g. through camera movement
-if (globalParams.ptAccumualatedFrames == 0)
-    previous = float4(0);
-float4 current = previous + float4(radiance, 0);
-accumulation[pix] = current;
-float4 average = current / float(globalParams.ptAccumualatedFrames + 1);
-output[pix] = float4(average.xyz, 1.0f);
+// Accumulation
+float3 output = L;
+float frameCount = float(globalParams.ptAccumualatedFrames + 1);
+float3 prevAvg = (globalParams.ptAccumualatedFrames == 0) ? float3(0) : accumulation[pix].xyz;
+// Welford mean update
+float3 newAvg = prevAvg + (output - prevAvg) / frameCount;
+accumulation[pix] = float4(newAvg, 1.0);
 ```
 
 还有一个好处是：因为是多帧平均采样，若对镜头做jitter，这里就是一种 ~~五毛钱~~ TAA/Temporal抗锯齿的实现。Primiary Ray生成如下：
@@ -920,20 +916,20 @@ $$
 
 ```c++
 // Reference: https://projects.blender.org/blender/blender/src/commit/00546eb2f34cc95976a640d268deb371b7ca9210/intern/cycles/app/cycles_precompute.cpp
-import IMath;
-import IBRDF;
+import "../Editor/Shaders/IMath";
+import "../Editor/Shaders/IBRDF";
+RWStructuredBuffer<float> output : register(u0);
 
-RWTexture2D<float> output;
-
-float sampleGGX_E(float alpha, float cosTheta, float uc, float2 u){
+float sampleGGX_E(float rough, float cosTheta, float uc, float2 u){
+    float alpha = Sqr(rough);
     TrowbridgeReitzDistribution mfDistrib = TrowbridgeReitzDistribution(alpha, alpha);
     if (mfDistrib.EffectivelySmooth())
-        return 0.0f;
+        return 1.0f; // Dirac delta - though we're conuting energy, so return 1
     float3 wo = float3(sqrt(1.0 - cosTheta * cosTheta), 0.0, cosTheta);
     float3 wm = mfDistrib.Sample_wm(wo, u);
-    float3 wi = Reflect(wo, wm);
+    float3 wi = Reflect(wo, wm);    
     if (!SameHemisphere(wo, wi))
-        return 0.0f;
+        return 0.0f; // Absorbtion
     float pdf = mfDistrib.PDF(wo, wm) / (4 * AbsDot(wo, wm));
     float f = mfDistrib.D(wm)  * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
     return f * AbsCosTheta(wi) / pdf;
@@ -943,44 +939,80 @@ float sampleGGX_E(float alpha, float cosTheta, float uc, float2 u){
 [numthreads(32,32,1)]
 void integrateGGX_E(uint2 p : SV_DispatchThreadID)
 {
-    static const uint kSamples = 1024;
+    static const uint kSamples = 1 << 12;
     float sum = 0.0f, samples = 0.0f;
     float u = (float(p.x) + 0.5f) / 32.0f, v = (float(p.y) + 0.5f) / 32.0f;
     PCG rng = PCG(uint4(p, 0, 0));
     for (uint i = 0; i < kSamples;i++) {
-        float alpha = Sqr(clamp(u, 1e-2, 1.0f));
-        float cosTheta = clamp(v, 0.0f, 1.0f);
-        sum += sampleGGX_E(alpha, cosTheta, rng.sample(), rng.sample2D());
-        samples += 1.0f;
+        float cosTheta = clamp(u, 1e-4, 1.0f);
+        float rough = clamp(v, 1e-4, 1.0f);  
+        sum += 1 - sampleGGX_E(rough, cosTheta, rng.sample(), rng.sample2D());
+        samples += 1.0f;        
     }
-    output[p] = sum / samples;
+    output[dot(p, uint2(1, 32))] = sum / samples;
 }
 
 [shader("compute")]
 [numthreads(32,1,1)]
 void integrateGGX_Eavg(uint2 p : SV_DispatchThreadID)
 {
-    static const uint kSamples = 1024;
+    static const uint kSamples = 1 << 14;
     float sum = 0.0f, samples = 0.0f;
     float u = (float(p.x) + 0.5f) / 32.0f;
     PCG rng = PCG(uint4(p, 0, 0));
-    for (uint i = 0; i < kSamples;i++) {
-        float alpha = Sqr(clamp(u, 1e-2, 1.0f));
+    for (uint i = 0; i < kSamples;i++) {        
         float cosTheta = rng.sample();
-        sum += 2 * cosTheta * sampleGGX_E(alpha, cosTheta, rng.sample(), rng.sample2D());
-        samples += 1.0f;
+        float rough = clamp(u, 1e-4, 1.0f);  
+        sum += 2 * cosTheta * sampleGGX_E(rough, cosTheta, rng.sample(), rng.sample2D());
+        samples += 1.0f;        
     }
-    output[p] = sum / samples;
+    output[dot(p, uint2(1, 32))] = sum / samples;
 }
+
 ```
 
-###### slang 直接运行
+###### Slang 直接运行
 
-其实，Foundation 现在还没有给这种one-shot运行出结果的CS搭脚手架。这当然很有用，不过这并非我们【渲染】引擎的特长~~都是借口~~
+Foundation 现在还没有给这种one-shot运行出结果的CS搭脚手架。这当然很有用，不过这并非我们【渲染】引擎想去解决的问题。
 
-值得注意的是，Slang可以直接从shader代码生成可以跑出结果的二进制——可选的在CPU/CUDA/Vulkan等各种后端用自带脚手架运行！
+我们用的Shader语言Slang为【科学计算】提供了不是奇技淫巧：支持自动微分，多架构CPU/GPU执行：而且是write once, run everywhere那种！
 
+利用[`slangpy`](https://github.com/shader-slang/slangpy) ——你甚至可以用Jupyter Notebook跑HLSL/GLSL做kernel，并且可选地带GPU加速！~~学术性游戏开发~~ 
 
+不过要是有的选大家还是会用CUDA吧...
+
+以下演示产生查表LUT的Notebook。Python利用`slangpy`代码部分非常简单，大致如下：
+
+```python
+import slangpy
+device = slangpy.create_device(slangpy.DeviceType.vulkan)
+program = (cwd / "CSPrecompute.slang").as_posix()    
+
+integrateGGX_E = device.create_compute_kernel(device.load_program(program, ["integrateGGX_E"]))    
+integrateGGX_Eavg = device.create_compute_kernel(device.load_program(program, ["integrateGGX_Eavg"]))
+
+ggx_E = device.create_buffer(element_count=32*32, struct_size=4, format=slangpy.Format.r32_float, usage=slangpy.BufferUsage.unordered_access)
+ggx_Eavg = device.create_buffer(element_count=32, struct_size=4, format=slangpy.Format.r32_float, usage=slangpy.BufferUsage.unordered_access)
+
+integrateGGX_E.dispatch(thread_count=[1,1,1],vars={"output": ggx_E})
+integrateGGX_Eavg.dispatch(thread_count=[1,1,1],vars={"output": ggx_Eavg})
+```
+
+在Notebook中的输出如下。注意这里显示的并非$E$，而为$1-E$的积分：这是为了和Kulla的演示对比。
+
+| Kulla, Conty                                                 | 复现                                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| ![image-20251224214311249](/image-foundation/image-20251224214311249.png) | ![image-20251224214213967](/image-foundation/image-20251224214213967.png) |
+
+类似的，可以计算$E_{avg}$的值。见下图：$x$ 轴为$rough$，可见到最后能量的丢失高达60%!
+
+![image-20251224214548993](/image-foundation/image-20251224214548993.png)
+
+幸运的是，这个值是值得相信的。在[Practical multiple scattering compensation for microfacet models - Turquin 2019](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf) 中，作者对几个microfacet模型的能量损失提了一笔：的确，不考虑$F$项的GGX在此时确实会有如此之大的能量损失！
+
+![image-20251224214711762](/image-foundation/image-20251224214711762.png)
+
+就此，我们给出的几个积分计算完毕。
 
 ##### $f_{ms}$ 补偿 Lobe
 
