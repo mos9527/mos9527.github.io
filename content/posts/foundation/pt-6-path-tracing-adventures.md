@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-24T21:51:25.457881
+lastmod: 2025-12-24T21:53:51.814915
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -901,12 +901,12 @@ $$
 
 $E$的蒙特卡洛形式为：
 $$
-E(\mu_0) = \int_{0}^{2\pi}{d\phi}\int_{0}^{1}f(\mu_0, \mu_i)\mu_id\mu_i = \frac{1}{N}\sum \frac{f(\mu_0, \mu_i)\mu_i}{p(\mu_i)}
+E(\mu_0) = \int_{0}^{2\pi}{d\phi}\int_{0}^{1}f(\mu_0, \mu_i)\mu_id\mu_i = \frac{1}{N}\sum \frac{f(\mu_o, \mu_i)\mu_i}{p(\mu_i)}
 $$
 
 同样的，对于$E_{avg}$，直接代入上面$E$的单个样本形式：
 $$
-E_{avg} = 2\int_{0}^{1}{\mu d\mu \times  E(\mu)  } = \frac{1}{N}\sum \frac{2\mu_o \times f(\mu_0, \mu_i)\mu_i}{p(\mu_i)}
+E_{avg} = 2\int_{0}^{1}{\mu d\mu \times  E(\mu)  } = \frac{1}{N}\sum \frac{2\mu_o \times f(\mu_o, \mu_i)\mu_i}{p(\mu_i)}
 $$
 无视仰角$\phi$，我们的$\mu$到$\omega$为简单的半圆面关系：
 $$
@@ -975,7 +975,7 @@ void integrateGGX_Eavg(uint2 p : SV_DispatchThreadID)
 
 Foundation 现在还没有给这种one-shot运行出结果的CS搭脚手架。这当然很有用，不过这并非我们【渲染】引擎想去解决的问题。
 
-我们用的Shader语言Slang为【科学计算】提供了不是奇技淫巧：支持自动微分，多架构CPU/GPU执行：而且是write once, run everywhere那种！
+我们用的Shader语言Slang为【科学计算】提供了不少奇技淫巧：支持自动微分，多架构CPU/GPU执行：而且是write once, run everywhere那种！
 
 利用[`slangpy`](https://github.com/shader-slang/slangpy) ——你甚至可以用Jupyter Notebook跑HLSL/GLSL做kernel，并且可选地带GPU加速！~~学术性游戏开发~~ 
 
