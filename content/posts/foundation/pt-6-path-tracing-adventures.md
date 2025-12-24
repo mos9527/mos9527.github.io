@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-24T21:54:55.065019
+lastmod: 2025-12-24T21:55:38.826384
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -961,7 +961,7 @@ void integrateGGX_Eavg(uint2 p : SV_DispatchThreadID)
 
 ```
 
-###### Slang 直接运行
+###### Slang 写 Kernel？
 
 Foundation 现在还没有给这种one-shot运行出结果的CS搭脚手架。这当然很有用，不过这并非我们【渲染】引擎想去解决的问题。
 
