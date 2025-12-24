@@ -4,12 +4,8 @@ defaultContentLanguage: cn
 theme: PaperMod
 enableGitInfo: true 
 languages:
-  en:
-    languageName: English
-    weight: 10
   cn:
-    languageName: 简体中文
-    weight: 20
+    languageName: 简体中文    
 markup:
   goldmark:
     renderer:
@@ -66,12 +62,12 @@ params:
         cn: "简体中文"
 
   socialIcons:
-    - name: Codeforces
-      url: "https://codeforces.com/profile/mos9527"
     - name: Github
       url: "https://github.com/mos9527"
     - name: Bilibili
       url: "https://space.bilibili.com/3546693849058014"
+    - name: Codeforces
+      url: "https://codeforces.com/profile/mos9527"      
     - name: Steam
       url: "https://steamcommunity.com/id/mos9527"
 

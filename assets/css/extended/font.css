@@ -1,5 +1,8 @@
-p,a,div {
-    font-family: monospace, serif;
+body, body>* {
+    font-family: serif;
+}
+code, code>* {
+    font-family: monospace, sans-serif !important;
 }
 @keyframes blink {
     from, to {
