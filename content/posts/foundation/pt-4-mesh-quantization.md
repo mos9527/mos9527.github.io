@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-14T22:15:12.240119
+lastmod: 2025-12-24T22:14:48.425045
 title: Foundation 施工笔记 【4】- 网格数据量化及压缩
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -192,7 +192,7 @@ float3 unpackUnitOctahedralSnorm(float2 v)
 
 该操作在 [Bindless Texturing for Deferred Rendering and Decals - MJP](https://therealmjp.github.io/posts/bindless-texturing-for-deferred-rendering-and-decals), [压缩tangent frame - KlayGE](http://www.klayge.org/2012/09/21/%e5%8e%8b%e7%bc%a9tangent-frame/)中都有提及。不过注意，直接存储四元数$(xyzw)$也是很浪费的（$4*4=16$字节！)。不过值得注意的是，**单位**四元数，即$x^2+y^2+z^2+w^2=1$可以用来表示这里的变换。上面两篇文章也都提到了如何利用该性质$4$字节完成四元数存储的任务。接下来将介绍**四元数压缩**的一种高精度实现。
 
-KlayGE直接利用$RGB10A2$格式存储了$x,y,z$部分，最后$A$记录$w = \pm\sqrt{1-x^2-y^2-z^2}$的符号。不过，精度上的优化空间是可循的：MJP文章引用的[The BitSquid low level animation system](https://bitsquid.blogspot.com/2009/11/bitsquid-low-level-animation-system.html)用$A$去记录**四个分量中绝对值最大的分量【位置】**。原因引用原作者：
+KlayGE直接利用$RGB10A2$格式存储了$x,y,z$部分，最后$A$记录$w = \pm\sqrt{1-x^2-y^2-z^2}$的符号。不过，精度上的优化空间是可循的：MJP文章引用的[The BitSquid low level animation system](https://bitsquid.blogspot.com/2009/11/bitsquid-low-level-animation-system.html)用$A$去记录**四个分量中绝对值最大的分量「位置」**。原因引用原作者：
 
 > ...You could use arithmetic encoding to store x, y and z using 10.67 bits per component for the range -1, 1 and this would give you slightly better precision for these values.
 > The problem comes when you want to reconstruct w using sqrt(1-x^2-y^2-z^2) because that function is numerically unstable for small w.

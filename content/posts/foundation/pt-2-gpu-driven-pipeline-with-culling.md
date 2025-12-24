@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-13T10:55:17.435234
+lastmod: 2025-12-24T22:14:36.907421
 title: Foundation 施工笔记 【2】- GPU-Driven 管线与剔除
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -441,10 +441,10 @@ CPU 上的剔除暂不讨论 - 毕竟目前为止还不包括场景上Editor内�
 
 直接利用bounding box在**屏幕空间**的投影直接对zbuffer逐像素比较可以完成对其剔除的任务，但这是极为昂贵的，同时不必要。假设zbuffer近1远0，深度远值更小，我们做出以下断言：
 
-- 直觉的，**REJECT**的充分条件是**zbuffer该区域的深度中，【全体】比bbox屏幕空间内的最大深度【更大】**。
-- 取反则为：**PASS**的必要条件是，**zbuffer该区域的深度中，【存在】比bbox屏幕空间内的最大深度【小于等于】的值**
+- 直觉的，**REJECT**的充分条件是**zbuffer该区域的深度中，「全体」比bbox屏幕空间内的最大深度「更大」**。
+- 取反则为：**PASS**的必要条件是，**zbuffer该区域的深度中，「存在」比bbox屏幕空间内的最大深度「小于等于」的值**
 
-~~想必不用latex也看得懂~~ 那么，**PASS**前提即可化简为**区域内【最小值，小于等于】bbox【最大深度】**。
+~~想必不用latex也看得懂~~ 那么，**PASS**前提即可化简为**区域内「最小值，小于等于」bbox「最大深度」**。
 
 区域内快速（$O(1)$）求最小值正是HZB在这里的目的。转RTR4 p848：mip一共$n$级，投影后的bbox**最长边像素大小**（在HZB Mip 0中）为$l$，我们采样的mip为:
 $$
@@ -620,4 +620,3 @@ Cone Culling 部分来自[`meshoptimizer`](https://meshoptimizer.org/)，以下�
 - [More (Robust) Frustum Culling - Bruno Opsenica](https://bruop.github.io/improved_frustum_culling/)
 - [fixing frustum culling - 2013 - Inigo Quilez](https://iquilezles.org/articles/frustumcorrect/)
 - [Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix](https://www.gamedevs.org/uploads/fast-extraction-viewing-frustum-planes-from-world-view-projection-matrix.pdf)
-

@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-05T12:55:25.542835
+lastmod: 2025-12-24T22:14:32.981549
 title: Foundation 施工笔记 【1】- Mesh Shader 自适应 LOD
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]
@@ -308,7 +308,7 @@ static_assert(sizeof(FLODGroup) == 24);
 - 选定一个阈值$t$，错误低于者**PASS**
 - 当且仅当$u > t, v <= t$，渲染**当前组**
 
-可以发现，这样可以做到选择 **【且仅选择】满足阈值的【上界】的节点**，找到图中"cut"所交的LOD Group，这正为我们想要的。而且很显然，这个**任意**操作本质**并行**，在Compute/Task Shader实现也将十分容易。
+可以发现，这样可以做到选择 **「且仅选择」满足阈值的「上界」的节点**，找到图中"cut"所交的LOD Group，这正为我们想要的。而且很显然，这个**任意**操作本质**并行**，在Compute/Task Shader实现也将十分容易。
 
 #### 正式建图
 
@@ -499,4 +499,3 @@ if (meshlet.refined != ~0u){
 - [2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere (Michael Mara, Morgan McGuire)](https://jcgt.org/published/0002/02/05/)
 - [Approximate projected bounds - Arseny Kapoulkine](https://zeux.io/2023/01/12/approximate-projected-bounds/)
 - [clusterlod.h demo](https://github.com/zeux/meshoptimizer/blob/19bb5e6fa8da4ba9c333fc6a265d776363c06b39/demo/nanite.cpp#L27)
-

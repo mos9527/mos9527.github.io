@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-06T14:45:35.675678
+lastmod: 2025-12-24T22:14:41.591268
 title: Foundation 施工笔记 【3】- Profiler 与 Wave Intrisics 实验
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]

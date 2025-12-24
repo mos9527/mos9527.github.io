@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-24T21:55:38.826384
+lastmod: 2025-12-24T22:14:57.506750
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -288,7 +288,7 @@ For a given incident vector I and surface normal N reflect returns the reflectio
 
  #### Microfacet（微面）理论及建模
 
-在建模光泽（粗糙“镜面”）反射之前，我们需要知道他是怎么【采样】光线的——不同于朗伯反射，材质本身也会影响Lobe的形状，而显得更“光滑”和“粗糙”。现代 PBR 建模会使用Microfacet（微面）理论描述这一情况。
+在建模光泽（粗糙“镜面”）反射之前，我们需要知道他是怎么「采样」光线的——不同于朗伯反射，材质本身也会影响Lobe的形状，而显得更“光滑”和“粗糙”。现代 PBR 建模会使用Microfacet（微面）理论描述这一情况。
 
 ![image-20251221170507477](/image-foundation/image-20251221170507477.png)
 
@@ -296,12 +296,12 @@ Microfacet 理论中存在以下三种事件：（a）表现 **Masking**，即**
 
 从宏观角度建模微观事件的手段往往是统计学——PBRT中使用 **Trowbridge-Reitz （GGX）** 分布来建模微面（Microfacet）理论。其中定义以下函数：
 
-- $D(w)$ - [Microfacet Distribution](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#TheMicrofacetDistribution)，代表宏观平面上一点从视角$w$观察，【指向视角$w$】的微面比例；直觉的，以下式子，也即从**所有视角**观察到的面积分，成立：
+- $D(w)$ - [Microfacet Distribution](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#TheMicrofacetDistribution)，代表宏观平面上一点从视角$w$观察，「指向视角$w$」的微面比例；直觉的，以下式子，也即从**所有视角**观察到的面积分，成立：
   $$
   \int_{H^2}{D(w_m)(w_m \cdot \mathbf n)dw_m} = 1
   $$
   
-- $G(w)$ - [Masking Function](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#TheMaskingFunction)，代表宏观平面上一点从视角$w$观察，可被【直接观察到】的微面比例；类比平面情况（如图），我们也可以找到球面上他的积分的含义：从**一定视角**，所能“看到”的面的比例
+- $G(w)$ - [Masking Function](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#TheMaskingFunction)，代表宏观平面上一点从视角$w$观察，可被「直接观察到」的微面比例；类比平面情况（如图），我们也可以找到球面上他的积分的含义：从**一定视角**，所能“看到”的面的比例
 	
 	![image-20251221172332451](/image-foundation/image-20251221172332451.png)
 	
@@ -441,7 +441,7 @@ public struct TrowbridgeReitzDistribution {
 
 PBRT在介绍完漫反射后给出了ConductorBxDF及DieletricBxDF的定义——这里暂时不对他们进行直接介绍，但是其表达“粗糙度”的BRDF模型基础是一样的：来自 [Theory for Off-Specular Reflection From Roughened Surfaces - Torrance, Sparrow 1967](https://www.graphics.cornell.edu/~westin/pubs/TorranceSparrowJOSA1967.pdf)
 
-之前提过对完全镜面/Specular情况的特殊处理，我们先很快地给出他PDF的定义：**恒为0**（回忆他是狄拉克函数$\delta(wi-wr)$）。对应的，其BSDF Eval（f）**也为0**,理解成球面上只【无穷小】的一点能表现入射光的【所有】能量：很显然，要表达将又是个无穷大，而这是做不到的。
+之前提过对完全镜面/Specular情况的特殊处理，我们先很快地给出他PDF的定义：**恒为0**（回忆他是狄拉克函数$\delta(wi-wr)$）。对应的，其BSDF Eval（f）**也为0**,理解成球面上只「无穷小」的一点能表现入射光的「所有」能量：很显然，要表达将又是个无穷大，而这是做不到的。
 
 ##### 雅可比行列式
 
@@ -449,7 +449,7 @@ PBRT在介绍完漫反射后给出了ConductorBxDF及DieletricBxDF的定义—�
 
 图源RTR4 p337——建模微面BRDF时，利用half-vector （图中 $\mathbf h$，后面记为$w_m$） 建模微面的法线会很方便，这点之后也能见识到。
 
-不过去采样$w_m$有个问题：我们最后给【要的】是$w_i$。采样前者的话，二者并不在同一个空间内（绿色vs紫色）：
+不过去采样$w_m$有个问题：我们最后给「要的」是$w_i$。采样前者的话，二者并不在同一个空间内（绿色vs紫色）：
 ![image-20251222084511331](/image-foundation/image-20251222084511331.png)
 
 图源 [PBRT](https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#x5-TheHalf-DirectionTransform)。在（a）的平面情况，我们有简单的 $\theta_m = \frac{\theta_o + \theta_i}{2} $映射，他的雅可比行列式即$\frac{d\theta_m}{d\theta_i}=\frac{1}{2}$；而在(b),(c),(d)的球面中，立体角映射本身并不好找，但是他的雅可比行列式：
@@ -512,11 +512,11 @@ VNDF重要性采样和BRDF本身已经介绍过，这里用起来即可。代码
 
 ### 反射与折射
 
-我们已经有了足够的数学工具建模光的【反射】概率模型。PBRT中，[9.3 Specular Reflection and Transmission](https://www.pbr-book.org/4ed/Reflection_Models/Specular_Reflection_and_Transmission.html) 被放在之前介绍，不过前面其实也只有一笔带过的菲涅耳$F$等很少的一部分需要这里的知识，索性~~拖到~~现在记笔记。
+我们已经有了足够的数学工具建模光的「反射」概率模型。PBRT中，[9.3 Specular Reflection and Transmission](https://www.pbr-book.org/4ed/Reflection_Models/Specular_Reflection_and_Transmission.html) 被放在之前介绍，不过前面其实也只有一笔带过的菲涅耳$F$等很少的一部分需要这里的知识，索性~~拖到~~现在记笔记。
 
 #### 反射定律
 
-现实中不存在完美的镜面：【能量】在接触表面后多少会被吸收：至于“多少”，这里之后同折射部分一并介绍。
+现实中不存在完美的镜面：「能量」在接触表面后多少会被吸收：至于“多少”，这里之后同折射部分一并介绍。
 
 不过就建模*光路*而言，满足入射角=出射角的情况一概归类于此：这里已在前面BxDF部分介绍过，不再多提。
 
@@ -562,7 +562,7 @@ public bool Refract(float3 wi, float3 n, float eta /* IOR */, out float3 wt, out
 
 ##### 实数折射率
 
-之前提到的 $F_r$ - 菲涅耳定律给出了在光到材质上后，**反射与折射【能量】的关系**。计算本身涉及电磁相关波知识...大物好久没看也基本忘了，这里只给出形式
+之前提到的 $F_r$ - 菲涅耳定律给出了在光到材质上后，**反射与折射「能量」的关系**。计算本身涉及电磁相关波知识...大物好久没看也基本忘了，这里只给出形式
 
 - 垂直(s)偏振的反射比为：
 
@@ -636,7 +636,7 @@ public float FrComplex(float cosTheta_i, complex eta){
 }
 ```
 
-$k$部分为[【消光系数】](https://en.wikipedia.org/wiki/Refractive_index#Complex_refractive_index)，再次是一个测量值——**金属的消光系数很大，以至于会对反射率产生不可忽略的影响**：吸收（折射）多到光线无法穿透而变得不透明！
+$k$部分为[「消光系数」](https://en.wikipedia.org/wiki/Refractive_index#Complex_refractive_index)，再次是一个测量值——**金属的消光系数很大，以至于会对反射率产生不可忽略的影响**：吸收（折射）多到光线无法穿透而变得不透明！
 
 离线管线，和部分参考渲染器在建模金属时一般用的也是该形式：Blender也是如此。作为例子：
 
@@ -685,7 +685,7 @@ PBRT里介绍的 [9.4 Conductor BRDF](https://www.pbr-book.org/4ed/Reflection_Mo
 
 <img src="/image-foundation/image-20251223153046049.png" alt="image-20251223153046049" style="zoom:50%;" />
 
-glTF的该模型可以认为是和PBRT中的`DieletricBxDF`与`DiffuseBxDF`做的`LayeredBxDF`的“简化”版本：*上层光泽层【反射]+【折射】到下层漫【反射】再次【折射】出介面*。
+glTF的该模型可以认为是和PBRT中的`DieletricBxDF`与`DiffuseBxDF`做的`LayeredBxDF`的“简化”版本：*上层光泽层「反射]+「折射」到下层漫「反射」再次「折射」出介面*。
 
 不过，注意图中x部分：这里的层次间叠加(`fresnel_mix`)**不考虑介面间的反射**，二次反射会直接被忽略，能量消失！
 
@@ -699,9 +699,9 @@ glTF的该模型可以认为是和PBRT中的`DieletricBxDF`与`DiffuseBxDF`做�
 
 #### fresnel_mix 的由来
 
-可以看到，**电介质**材质有两个BRDF Lobe需要采样：光泽$w$和漫反射$w\prime$。BRDF间的混合并非加法：这样做很显然是能量不守恒的。但从采样的角度出发：在一个点上，这两个$w$都可能是被采样到的光线（参考上图）。如果知道这两者采样**【可能性】**的话，岂不是可以做任意选择而去逼近混合后的结果？
+可以看到，**电介质**材质有两个BRDF Lobe需要采样：光泽$w$和漫反射$w\prime$。BRDF间的混合并非加法：这样做很显然是能量不守恒的。但从采样的角度出发：在一个点上，这两个$w$都可能是被采样到的光线（参考上图）。如果知道这两者采样**「可能性」**的话，岂不是可以做任意选择而去逼近混合后的结果？
 
-这既是[LayeredBxDF中用到的NEE/Next Event Estimation（次事件估计）的思想](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials#fragment-SamplenexteventforlayeredBSDFevaluationrandomwalk-0)。而回顾我们之间讨论过的菲涅耳方程：我们很清楚有**【多少】**能量会到达下一层（然后反射），又有多少会被直接反射：_反射率_准确地表达了这样的比例！
+这既是[LayeredBxDF中用到的NEE/Next Event Estimation（次事件估计）的思想](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials#fragment-SamplenexteventforlayeredBSDFevaluationrandomwalk-0)。而回顾我们之间讨论过的菲涅耳方程：我们很清楚有**「多少」**能量会到达下一层（然后反射），又有多少会被直接反射：_反射率_准确地表达了这样的比例！
 
 接下来采样中对两个Lobe的混合也将这么做。在此之前还有一个问题：导体/电介质二者的混合应该怎么做？再次根据`metallic`值NEE可取，但其实不必如此...
 
@@ -802,7 +802,7 @@ E(w_o) = \int_{H^2}{\rho(w_o,w_i) cos\theta d\omega} = 1
 $$
 以上则为**反照率/Albedo**的定义，朝任意方向，对反射率为1的物体，在白炉中应有反照率$Albedo=1$。
 
-但我们已经知道包括GGX在内的微面模型并不包含内反射（前文情况c）能量，定义上则存在能量损失；Heitz在这篇论文中指出可以从如何【补偿】这部分丢失的能量出发；设单次散射模型为$\rho_{ss}(w_o,w_i)$,补偿量为$\rho_{ms}(w_o,w_i)$，应有：
+但我们已经知道包括GGX在内的微面模型并不包含内反射（前文情况c）能量，定义上则存在能量损失；Heitz在这篇论文中指出可以从如何「补偿」这部分丢失的能量出发；设单次散射模型为$\rho_{ss}(w_o,w_i)$,补偿量为$\rho_{ms}(w_o,w_i)$，应有：
 $$
 \rho(w_o,w_i) = \rho_{ss}(w_o,w_i) + \rho_{ms}(w_o,w_i)
 $$
@@ -841,7 +841,7 @@ $$
 $$
 2\pi \int_{0}^{1}{F(\theta)u du}
 $$
-这是平均反射的【能量】。我们假设的“均匀环境光下”的入射能量很简单——还记得CosineHemispherePDF是怎么推导出来的：
+这是平均反射的「能量」。我们假设的“均匀环境光下”的入射能量很简单——还记得CosineHemispherePDF是怎么推导出来的：
 $$
 i = \int_{H^2}{cos\theta}d\omega = \pi
 $$
@@ -963,9 +963,9 @@ void integrateGGX_Eavg(uint2 p : SV_DispatchThreadID)
 
 ###### Slang 写 Kernel？
 
-Foundation 现在还没有给这种one-shot运行出结果的CS搭脚手架。这当然很有用，不过这并非我们【渲染】引擎想去解决的问题。
+Foundation 现在还没有给这种one-shot运行出结果的CS搭脚手架。这当然很有用，不过这并非我们「渲染」引擎想去解决的问题。
 
-我们用的Shader语言Slang为【科学计算】提供了不少奇技淫巧：支持自动微分，多架构CPU/GPU执行：而且是write once, run everywhere那种！
+我们用的Shader语言Slang为「科学计算」提供了不少奇技淫巧：支持自动微分，多架构CPU/GPU执行：而且是write once, run everywhere那种！
 
 利用[`slangpy`](https://github.com/shader-slang/slangpy) ——你甚至可以用Jupyter Notebook跑HLSL/GLSL做kernel，并且可选地带GPU加速！~~学术性游戏开发~~ 
 
