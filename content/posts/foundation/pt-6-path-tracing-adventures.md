@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-24T21:53:51.814915
+lastmod: 2025-12-24T21:54:55.065019
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -703,17 +703,7 @@ glTF的该模型可以认为是和PBRT中的`DieletricBxDF`与`DiffuseBxDF`做�
 
 这既是[LayeredBxDF中用到的NEE/Next Event Estimation（次事件估计）的思想](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials#fragment-SamplenexteventforlayeredBSDFevaluationrandomwalk-0)。而回顾我们之间讨论过的菲涅耳方程：我们很清楚有**【多少】**能量会到达下一层（然后反射），又有多少会被直接反射：_反射率_准确地表达了这样的比例！
 
-接下来采样中对两个Lobe的混合也将这么做。在此之前还有一个问题：导体/电介质二者的混合应该怎么做？再次根据`metallic`值NEE可取，但其实不必如此。
-
-```c++
-// Fresnel eval approximation of layered materials
-// See https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#fresnel
-public float3 glTFFresnelMix(float VdotH, float3 bottom, float3 top, float ior = 1.5f){
-    float F0 = pow((ior - 1) / (ior + 1), 2);
-    float3 F = SchlickFresnel(F0, 1.0f, VdotH);
-    return lerp(bottom, top, F);
-}
-```
+接下来采样中对两个Lobe的混合也将这么做。在此之前还有一个问题：导体/电介质二者的混合应该怎么做？再次根据`metallic`值NEE可取，但其实不必如此...
 
 #### 导体/电介质合并
 
