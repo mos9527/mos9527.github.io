@@ -1,5 +1,5 @@
 p,a,div {
-    font-family: monospace, sans-serif;
+    font-family: monospace, serif;
 }
 @keyframes blink {
     from, to {

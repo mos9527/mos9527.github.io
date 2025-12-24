@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-24T17:56:22.705854
+lastmod: 2025-12-24T18:50:26.811849
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -441,7 +441,7 @@ public struct TrowbridgeReitzDistribution {
 
     其中$\Lambda$已在实现中给出。
 
-# 光泽反射 （Torrance-Sparrow）
+#### 光泽反射 （Torrance-Sparrow）
 
 PBRT在介绍完漫反射后给出了ConductorBxDF及DieletricBxDF的定义——这里暂时不对他们进行直接介绍，但是其表达“粗糙度”的BRDF模型基础是一样的：来自 [Theory for Off-Specular Reflection From Roughened Surfaces - Torrance, Sparrow 1967](https://www.graphics.cornell.edu/~westin/pubs/TorranceSparrowJOSA1967.pdf)
 
@@ -497,7 +497,8 @@ $$
 $$
 $p(w_i)$代入则有：
 $$
-f_{\mathrm{r}}\left(\mathrm{p}, \omega_{\mathrm{o}}, \omega_{\mathrm{i}}\right) = p(w_i)   F\left(\omega_{\mathrm{o}} \cdot \omega_{\mathrm{m}}\right) G_{1}\left(\omega_{\mathrm{i}}\right) = \frac{D_{wo}(w_m) F(w_o\cdot w_m)G_1(w_i)}{4(w_o\cdot w_m)}
+f_{\mathrm{r}}\left(\mathrm{p}, \omega_{\mathrm{o}}, \omega_{\mathrm{i}}\right) = p(w_i) \newline
+F\left(\omega_{\mathrm{o}} \cdot \omega_{\mathrm{m}}\right) G_{1}\left(\omega_{\mathrm{i}}\right) = \frac{D_{wo}(w_m) F(w_o\cdot w_m)G_1(w_i)}{4(w_o\cdot w_m)}
 $$
 代入VNDF：
 $$
@@ -527,11 +528,14 @@ VNDF重要性采样和BRDF本身已经介绍过，这里用起来即可。代码
 
 ![image-20251223140821247](/image-foundation/image-20251223140821247.png)
 
-初高中学过的光的折射：**斯涅尔定律（Snell's Law）**告诉我们，光的折射角和入射角有以下关系（即入射面1,出射面2）：
+初高中学过的光的折射：**斯涅尔定律（Snell's Law）** 告诉我们，光的折射角和入射角有以下关系（即入射面1,出射面2）
+
+
 $$
-{\displaystyle {\frac {\sin \theta _{i}}{\sin \theta _{t}}}=n_{1,2}={\frac {n_{1}}{n_{2}}}={\frac {v_{2}}{v_{1}}}}
+\frac {\sin \theta_i}{\sin \theta_t} = n_{1,2}= \frac {n_1}{n_2}=\frac {v_2}{v_1}
 $$
-其中折射率(Index Of Refraction, IOR) 记为 $n = \frac{n_t}{n_i}$。向量计算参考以下PBRT实现：
+
+其中折射率(Index Of Refraction, IOR) 记为 $n = \frac{n_t}{n_i}$ 。向量计算参考以下PBRT实现：
 
 ```c++
 // https://www.pbr-book.org/4ed/Reflection_Models/Specular_Reflection_and_Transmission#SnellrsquosLaw
@@ -562,31 +566,30 @@ public bool Refract(float3 wi, float3 n, float eta /* IOR */, out float3 wt, out
 
 ##### 实数折射率
 
-之前提到的$F_r$ - 菲涅耳定律给出了在光到材质上后，**反射与折射【能量】的关系**。计算本身涉及电磁相关波知识...大物好久没看也基本忘了，这里只给出形式
+之前提到的 $F_r$ - 菲涅耳定律给出了在光到材质上后，**反射与折射【能量】的关系**。计算本身涉及电磁相关波知识...大物好久没看也基本忘了，这里只给出形式
 
 - 垂直(s)偏振的反射比为：
 
 $$
-{\displaystyle R_{s}=\left({\frac {n_{1}\cos \theta _{i}-n_{2}\cos \theta _{t}}{n_{1}\cos \theta _{i}+n_{2}\cos \theta _{t}}}\right)^{2}}
+R_{s}=\left({\frac {n_1\cos \theta_i-n_2\cos \theta_t}{n_1\cos \theta _i+n_2\cos \theta_t}}\right)^{2}
 $$
-
 
 
 - 平行(p)偏振的反射比为：
 $$
-{\displaystyle R_{p}=\left({\frac {n_{1}\cos \theta _{t}-n_{2}\cos \theta _{i}}{n_{1}\cos \theta _{t}+n_{2}\cos \theta _{i}}}\right)^{2}}
+R_{p}=\left({\frac {n_1\cos \theta_t+n_2\cos \theta_i}{n_1\cos \theta _t+n_2\cos \theta_i}}\right)^{2}
 $$
 
 - s,p偏振等量（无偏振）时，入射光的反射比即为：
 
 $$
-{\displaystyle F_r={\frac {R_{s}+R_{p}}{2}}\,}
+F_r={\frac {R_{s}+R_{p}}{2}}\
 $$
 
 - 折射比很直接
-  $$
-  F_t = 1 - F_r
-  $$
+$$
+F_t = 1 - F_r
+$$
 
 $\theta_i$已知，$\theta_t$的计算利用折射定律。以下即实数折射率计算反射比的PBRT实现：
 
@@ -970,6 +973,14 @@ void integrateGGX_Eavg(uint2 p : SV_DispatchThreadID)
     output[p] = sum / samples;
 }
 ```
+
+###### slang 直接运行
+
+其实，Foundation 现在还没有给这种one-shot运行出结果的CS搭脚手架。这当然很有用，不过这并非我们【渲染】引擎的特长~~都是借口~~
+
+值得注意的是，Slang可以直接从shader代码生成可以跑出结果的二进制——可选的在CPU/CUDA/Vulkan等各种后端用自带脚手架运行！
+
+
 
 ##### $f_{ms}$ 补偿 Lobe
 
