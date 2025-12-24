@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-23T21:03:07.177571
+lastmod: 2025-12-24T11:27:29.611887
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -511,7 +511,7 @@ $$
 
 ##### Sample_f/Sample
 
-VNDF重要性采样和BRDF本身已经介绍过，这里用起来即可。代码将在之后实现各x类BxDF时给出。
+VNDF重要性采样和BRDF本身已经介绍过，这里用起来即可。代码将在之后实现各类BxDF时给出。
 
 ### 反射与折射
 
@@ -777,7 +777,7 @@ public float SchlickFresnel(float F0, float F90, float cosTheta)
 
 > Microfacet models often do not consider multiple scattering. The shadowing term suppresses light that intersects the microsurface a second time. [Heitz et al. (2016)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#Heitz2016) extended the Smith-based microfacet models to include a multiple scattering component, which significantly improves accuracy of predictions of the model. We suggest to incorporate multiple scattering whenever possible, either by making use of the unbiased stochastic evaluation introduced by Heitz, or one of the approximations presented later, for example by [Kulla and Conty (2017)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#KullaConty2017) or [Turquin (2019)](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#Turquin2019).
 
-接下来就Heitz方法简要介绍，并对这里的Turquin方法进行复现。
+接下来就Heitz方法简要介绍，并对这里的Kulla and Conty方法进行复现。
 
 #### Heitz 2016 Random Walk
 
@@ -799,13 +799,34 @@ public float SchlickFresnel(float F0, float F90, float cosTheta)
 
 未来有机会再尝试复现这里的RW手段。在此之前，实现上更为简单且出图方差更低（不需逼近）的手段即为以下查表方法。
 
-#### Turquin 2019 LUT
+#### Kulla and Conty 2017 LUT
 
-[Blender 4.0 以后](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L862) 采用了该方法。首先引入几个概念：
+[Blender 4.0 以后](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L359) 采用了[该方法](https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf) (注意cycles做的$E_{avg}$等查表）。首先引入几个概念：
 
-##### 平均反射率
+##### 方向反照率 Albedo  $E(w)$
 
-首先，假设能量确实守恒的话，从一点到底能反射出多少光？**平均反射率**表述的就是这一点：在**没有任何遮蔽的情况下**（包括shadowing-masking），上半球余弦加权的反射率积分。形式如下：
+<img src="/image-foundation/image-20251224095702067.png" alt="image-20251224095702067" style="zoom:50%;" />
+
+设想：白炉中的有一球体，他的BRDF为$\rho(w_o,w_i)$，$F = 1$：以下积分是一定成立的，即上图的式子（d）（来自 [Understanding the masking-shadowing function in microfacet-based BRDFs - Heitz 2014](https://jcgt.org/published/0003/02/03/paper.pdf) )
+$$
+E(w_o) = \int_{H^2}{\rho(w_o,w_i) cos\theta d\omega} = 1
+$$
+以上则为**反照率/Albedo**的定义，对反射率为1的物体，在白炉中应有$Abledo=1$。
+
+但我们已经知道包括GGX在内的微面模型并不包含内反射（前文情况c）能量，定义上则存在能量损失；Heitz在这篇论文中指出可以从如何【补偿】这部分丢失的能量出发；设单次散射模型为$\rho_{ss}(w_o,w_i)$,补偿量为$\rho_{ms}(w_o,w_i)$，应有：
+$$
+\rho(w_o,w_i) = \rho_{ss}(w_o,w_i) + \rho_{ms}(w_o,w_i)
+$$
+
+设同样的积分，代入前面能量守恒关系有：
+$$
+E(w_o) = E_{ss}(w_o) + E_{ms}(w_o) = 1 \newline
+E_{ms}(w_o) = 1 -E_{ss}(w_o)
+$$
+
+##### 平均反射率 $F_{avg}$
+
+假设能量确实守恒的话，从一点，假设环境光照均匀——平均能反射出多少光？**平均反射率**表述的就是这一点：在**没有任何遮蔽的情况下**（包括shadowing-masking），上半球余弦加权的反射率积分。形式如下：
 $$
 \int_{H^2} F(\theta) cos\theta d\omega
 $$
@@ -825,16 +846,61 @@ $F(\theta)$的原形式积分很麻烦。这里 Blender 用了之前介绍的 Sh
 $$
 2\pi \int_{0}^{1}{ (R_{0}+(R_{90}-R_{0})(1-u )^{5}) u du}
 $$
-常数拆掉，不妨指数设为$n$：以下即为Blender Cycles中的形式：
+常数拆掉，不妨指数设为$n$：
 $$
-s = 2\pi \int_{0}^{1}{ (1-u)^{n} u du} = \frac{2}{(n+3)n + 2}
+S = 2\pi \int_{0}^{1}{ (1-u)^{n} u du} = \frac{2\pi}{(n+3)n + 2}
 $$
-带回得到平均反射率值。对，$n=5(Shlick)，s=2/(42)=1/21$
+这是平均**反射的**能量，我们假设的“均匀环境光下”的入射能量很简单。还记得CosineHemispherePDF是怎么推导出来的：
 $$
+i = \int_{H^2}{cos\theta}d\omega = \pi
+$$
+他们的比例带回得到平均反射率值。即为[Blender Cycles中的形式](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L862)：
+$$
+s = \frac{S}{i} = \frac{2}{(n+3)n + 2} \newline
 F_{avg} = R_0 + s(R_{90} - R_0) = lerp(R_0, R_{90}, s)
 $$
-这是反射率的上限，接下来也将用到。
+> 附注：此为 [4.7.2 Energy loss in specular reflectance](https://google.github.io/filament/Filament.md.html#materialsystem/improvingthebrdfs/energylossinspecularreflectance) “魔法数字”的来源：对$n=5(Shlick)，s=2/(42)=1/21$
 
-TBD
+##### 平均反照率 $E_{avg}$
+
+在同样环境下,方便起见，我们对$E_{ss}$求一个相似概念：**平均反照率（Average Albedo）**
+$$
+E = \int_{H^2}{E_{ss}(\omega)cos\theta d\omega}
+$$
+在此$\phi$无关，简化:
+$$
+E = 2\pi \int_{0}^{\frac{\pi}{2}}{E_{ss}(\theta)cos\theta sin\theta d\theta}
+$$
+再次换元$u=cos\theta$
+$$
+E = 2\pi \int_{0}^{1}{E_{ss}(u)udu}
+$$
+入射能量再次是$\pi$ - 这里和之前一样。得到反射率为：
+$$
+E_{avg} = 2\int_{0}^{1}{E_{ss}(u)udu}
+$$
+式子和$F_{avg}$推导基本一致。这样我们也能算出平均**丢失能量**，即为$1-E_{avg}$
+
+##### $f_{ms}$ 补偿 Lobe
+
+先不考虑反射率，[Revisiting Physically Based Shading at Imageworks - Kulla, Conty 2017](https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf) 给出了以下$E_{ms}$补偿BRDF。
+
+$$
+f_{ms}(w_o,w_i) = \frac{(1-E_{ss}(w_o))(1-E_{ss}(w_i))}{\pi(1-E_{avg})}
+$$
+
+这个式子由 [A Microfacet Based Coupled Specular-Matte BRDF Model with Importance Sampling - Kelemen 2001](https://www.researchgate.net/publication/2378872_A_Microfacet_Based_Coupled_Specular-Matte_BRDF_Model_with_Importance_Sampling) 找到（下图）
+
+<img src="/image-foundation/image-20251224105747526.png" alt="image-20251224105747526" style="zoom:50%;" />
+
+代入$E_{ms}$计算积分满足$E_{ss} + E_{ms} = 1$关系。如果$E_{avg}$已知的话，$f_{ms}$则能被轻易算出。
+
+回顾前文，$E, E_{avg}$的计算都需要积分，而且分析解找不到。参考[Blender cycles_precompute.cpp](https://projects.blender.org/blender/blender/src/commit/00546eb2f34cc95976a640d268deb371b7ca9210/intern/cycles/app/cycles_precompute.cpp) - 接下来给出通过采样预计算这两个值的方法。
+
+
+
+
+
+
 
 <h1 style="color:red">--- 施工中 ---</h1>
