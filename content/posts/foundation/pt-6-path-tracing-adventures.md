@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-24T12:05:15.223340
+lastmod: 2025-12-24T17:56:22.705854
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -441,7 +441,7 @@ public struct TrowbridgeReitzDistribution {
 
     其中$\Lambda$已在实现中给出。
 
-#### 光泽反射 （Torrance-Sparrow）
+# 光泽反射 （Torrance-Sparrow）
 
 PBRT在介绍完漫反射后给出了ConductorBxDF及DieletricBxDF的定义——这里暂时不对他们进行直接介绍，但是其表达“粗糙度”的BRDF模型基础是一样的：来自 [Theory for Off-Specular Reflection From Roughened Surfaces - Torrance, Sparrow 1967](https://www.graphics.cornell.edu/~westin/pubs/TorranceSparrowJOSA1967.pdf)
 
@@ -811,7 +811,7 @@ public float SchlickFresnel(float F0, float F90, float cosTheta)
 $$
 E(w_o) = \int_{H^2}{\rho(w_o,w_i) cos\theta d\omega} = 1
 $$
-以上则为**反照率/Albedo**的定义，对反射率为1的物体，在白炉中应有$Albedo=1$。
+以上则为**反照率/Albedo**的定义，朝任意方向，对反射率为1的物体，在白炉中应有反照率$Albedo=1$。
 
 但我们已经知道包括GGX在内的微面模型并不包含内反射（前文情况c）能量，定义上则存在能量损失；Heitz在这篇论文中指出可以从如何【补偿】这部分丢失的能量出发；设单次散射模型为$\rho_{ss}(w_o,w_i)$,补偿量为$\rho_{ms}(w_o,w_i)$，应有：
 $$
@@ -824,9 +824,19 @@ E(w_o) = E_{ss}(w_o) + E_{ms}(w_o) = 1 \newline
 E_{ms}(w_o) = 1 -E_{ss}(w_o)
 $$
 
+为方便后面计算，我们用$\mu=\cos\theta$表示入射角（假设$\phi$无关——在Kulla-Conty方法中如此），可以得到：
+$$
+E(\mu_0) = \int_{0}^{2\pi}{\int_{0}^{1}}f(\mu_0, \mu_i)\mu_id\mu_id\phi \newline
+E(\mu_0) = 2\pi\int_{0}^{1}f(\mu_0, \mu_i)\mu_id\mu_i \newline
+$$
+作为验证，我们可以代入漫反射的BRDF $f_r = R/\pi$, 并令$R=1$：
+$$
+E(\mu_0) = 2\int_{0}^{1}\mu_id\mu_i = 1
+$$
+
 ##### 平均反射率 $F_{avg}$
 
-假设能量确实守恒的话，从一点，假设环境光照均匀——平均能反射出多少光？**平均反射率**表述的就是这一点：在**没有任何遮蔽的情况下**（包括shadowing-masking），上半球余弦加权的反射率积分。形式如下：
+假设能量确实守恒的话，从一点，假设环境光照均匀——平均能反射出多少光？**平均反射率**表述的就是这一点：在**没有任何遮蔽的情况下**（包括shadowing-masking），上半球余弦加权的反射率积分。其能量形式如下：
 $$
 \int_{H^2} F(\theta) cos\theta d\omega
 $$
@@ -842,24 +852,29 @@ $$
 $$
 2\pi \int_{0}^{1}{F(\theta)u du}
 $$
-$F(\theta)$的原形式积分很麻烦。这里 Blender 用了之前介绍的 Shlick 估计，代入有
-$$
-2\pi \int_{0}^{1}{ (R_{0}+(R_{90}-R_{0})(1-u )^{5}) u du}
-$$
-常数拆掉，不妨指数设为$n$：
-$$
-S = 2\pi \int_{0}^{1}{ (1-u)^{n} u du} = \frac{2\pi}{(n+3)n + 2}
-$$
-这是平均**反射的**能量，我们假设的“均匀环境光下”的入射能量很简单。还记得CosineHemispherePDF是怎么推导出来的：
+这是平均反射的【能量】。我们假设的“均匀环境光下”的入射能量很简单——还记得CosineHemispherePDF是怎么推导出来的：
 $$
 i = \int_{H^2}{cos\theta}d\omega = \pi
 $$
-他们的比例带回得到平均反射率值。即为[Blender Cycles中的形式](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L862)：
+他们的比例则是得到平均反射率值，即为：
 $$
-s = \frac{S}{i} = \frac{2}{(n+3)n + 2} \newline
+2 \int_{0}^{1}{F(\theta)u du}
+$$
+$F(\theta)$的原形式积分很麻烦。这里 Blender 用了之前介绍的 Shlick 估计，代入有
+$$
+2 \int_{0}^{1}{ (R_{0}+(R_{90}-R_{0})(1-u )^{5}) u du}
+$$
+常数拆掉，不妨指数设为$n$，这里即为[Blender Cycles中的形式](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L862)。$s$对于一定的$n$是个常数
+> 附注：此为 [4.7.2 Energy loss in specular reflectance](https://google.github.io/filament/Filament.md.html#materialsystem/improvingthebrdfs/energylossinspecularreflectance) “魔法数字”的来源：对$n=5(Shlick)，s=2/(42)=1/21$
+
+$$
+s = 2 \int_{0}^{1}{ (1-u)^{n} u du} = \frac{2}{(n+3)n + 2}
+$$
+
+常数补回来如下：
+$$
 F_{avg} = R_0 + s(R_{90} - R_0) = lerp(R_0, R_{90}, s)
 $$
-> 附注：此为 [4.7.2 Energy loss in specular reflectance](https://google.github.io/filament/Filament.md.html#materialsystem/improvingthebrdfs/energylossinspecularreflectance) “魔法数字”的来源：对$n=5(Shlick)，s=2/(42)=1/21$
 
 ##### 平均反照率 $E_{avg}$
 
@@ -871,15 +886,90 @@ $$
 $$
 E = 2\pi \int_{0}^{\frac{\pi}{2}}{E_{ss}(\theta)cos\theta sin\theta d\theta}
 $$
-再次换元$u=cos\theta$
+再次换元$\mu=cos\theta$
 $$
-E = 2\pi \int_{0}^{1}{E_{ss}(u)udu}
+E = 2\pi \int_{0}^{1}{E_{ss}(\mu)\mu d\mu}
 $$
 入射能量再次是$\pi$ - 这里和之前一样。得到反射率为：
 $$
-E_{avg} = 2\int_{0}^{1}{E_{ss}(u)udu}
+E_{avg} = 2\int_{0}^{1}{E_{ss}(\mu) \mu d\mu}
 $$
 式子和$F_{avg}$推导基本一致。这样我们也能算出平均**丢失能量**，即为$1-E_{avg}$
+
+##### $E,E_{avg}$ 预积分
+
+回顾前文，$E, E_{avg}$的计算都需要积分，而且（GGX）分析解找不到。参考[Blender cycles_precompute.cpp](https://projects.blender.org/blender/blender/src/commit/00546eb2f34cc95976a640d268deb371b7ca9210/intern/cycles/app/cycles_precompute.cpp) - 接下来给出通过采样预计算这两个值的方法。和前文一致，$\phi$被视作无关。
+
+$E$的蒙特卡洛形式为：
+$$
+E(\mu_0) = \int_{0}^{2\pi}{d\phi}\int_{0}^{1}f(\mu_0, \mu_i)\mu_id\mu_i = \frac{1}{N}\sum \frac{f(\mu_0, \mu_i)\mu_i}{p(\mu_i)}
+$$
+
+同样的，对于$E_{avg}$，直接代入上面$E$的单个样本形式：
+$$
+E_{avg} = 2\int_{0}^{1}{\mu d\mu \times  E(\mu)  } = \frac{1}{N}\sum \frac{2\mu_o \times f(\mu_0, \mu_i)\mu_i}{p(\mu_i)}
+$$
+无视仰角$\phi$，我们的$\mu$到$\omega$为简单的半圆面关系：
+$$
+\omega = (sin \theta,0,cos\theta) = (\sqrt{1-\mu^2},0,\mu)
+$$
+实现工作已准备就绪。以下为Slang部分代码：
+
+```c++
+// Reference: https://projects.blender.org/blender/blender/src/commit/00546eb2f34cc95976a640d268deb371b7ca9210/intern/cycles/app/cycles_precompute.cpp
+import IMath;
+import IBRDF;
+
+RWTexture2D<float> output;
+
+float sampleGGX_E(float alpha, float cosTheta, float uc, float2 u){
+    TrowbridgeReitzDistribution mfDistrib = TrowbridgeReitzDistribution(alpha, alpha);
+    if (mfDistrib.EffectivelySmooth())
+        return 0.0f;
+    float3 wo = float3(sqrt(1.0 - cosTheta * cosTheta), 0.0, cosTheta);
+    float3 wm = mfDistrib.Sample_wm(wo, u);
+    float3 wi = Reflect(wo, wm);
+    if (!SameHemisphere(wo, wi))
+        return 0.0f;
+    float pdf = mfDistrib.PDF(wo, wm) / (4 * AbsDot(wo, wm));
+    float f = mfDistrib.D(wm)  * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
+    return f * AbsCosTheta(wi) / pdf;
+}
+
+[shader("compute")]
+[numthreads(32,32,1)]
+void integrateGGX_E(uint2 p : SV_DispatchThreadID)
+{
+    static const uint kSamples = 1024;
+    float sum = 0.0f, samples = 0.0f;
+    float u = (float(p.x) + 0.5f) / 32.0f, v = (float(p.y) + 0.5f) / 32.0f;
+    PCG rng = PCG(uint4(p, 0, 0));
+    for (uint i = 0; i < kSamples;i++) {
+        float alpha = Sqr(clamp(u, 1e-2, 1.0f));
+        float cosTheta = clamp(v, 0.0f, 1.0f);
+        sum += sampleGGX_E(alpha, cosTheta, rng.sample(), rng.sample2D());
+        samples += 1.0f;
+    }
+    output[p] = sum / samples;
+}
+
+[shader("compute")]
+[numthreads(32,1,1)]
+void integrateGGX_Eavg(uint2 p : SV_DispatchThreadID)
+{
+    static const uint kSamples = 1024;
+    float sum = 0.0f, samples = 0.0f;
+    float u = (float(p.x) + 0.5f) / 32.0f;
+    PCG rng = PCG(uint4(p, 0, 0));
+    for (uint i = 0; i < kSamples;i++) {
+        float alpha = Sqr(clamp(u, 1e-2, 1.0f));
+        float cosTheta = rng.sample();
+        sum += 2 * cosTheta * sampleGGX_E(alpha, cosTheta, rng.sample(), rng.sample2D());
+        samples += 1.0f;
+    }
+    output[p] = sum / samples;
+}
+```
 
 ##### $f_{ms}$ 补偿 Lobe
 
@@ -893,10 +983,9 @@ $$
 
 <img src="/image-foundation/image-20251224105747526.png" alt="image-20251224105747526" style="zoom:50%;" />
 
-代入$E_{ms}$计算积分满足$E_{ss} + E_{ms} = 1$关系。如果$E_{avg}$已知的话，$f_{ms}$则能被轻易算出。
+代入$E_{ms}$计算积分满足$E_{ss} + E_{ms} = 1$关系。如果$E_{avg}$已知的话，$f_{ms}$则能被轻易算出。我们之前已经完成了这部分的工作！
 
-回顾前文，$E, E_{avg}$的计算都需要积分，而且分析解找不到。参考[Blender cycles_precompute.cpp](https://projects.blender.org/blender/blender/src/commit/00546eb2f34cc95976a640d268deb371b7ca9210/intern/cycles/app/cycles_precompute.cpp) - 接下来给出通过采样预计算这两个值的方法。
 
-TBD
+
 
 <h1 style="color:red">--- 施工中 ---</h1>
