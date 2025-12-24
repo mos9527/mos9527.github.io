@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-24T11:27:29.611887
+lastmod: 2025-12-24T12:05:15.223340
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -811,7 +811,7 @@ public float SchlickFresnel(float F0, float F90, float cosTheta)
 $$
 E(w_o) = \int_{H^2}{\rho(w_o,w_i) cos\theta d\omega} = 1
 $$
-以上则为**反照率/Albedo**的定义，对反射率为1的物体，在白炉中应有$Abledo=1$。
+以上则为**反照率/Albedo**的定义，对反射率为1的物体，在白炉中应有$Albedo=1$。
 
 但我们已经知道包括GGX在内的微面模型并不包含内反射（前文情况c）能量，定义上则存在能量损失；Heitz在这篇论文中指出可以从如何【补偿】这部分丢失的能量出发；设单次散射模型为$\rho_{ss}(w_o,w_i)$,补偿量为$\rho_{ms}(w_o,w_i)$，应有：
 $$
@@ -897,10 +897,6 @@ $$
 
 回顾前文，$E, E_{avg}$的计算都需要积分，而且分析解找不到。参考[Blender cycles_precompute.cpp](https://projects.blender.org/blender/blender/src/commit/00546eb2f34cc95976a640d268deb371b7ca9210/intern/cycles/app/cycles_precompute.cpp) - 接下来给出通过采样预计算这两个值的方法。
 
-
-
-
-
-
+TBD
 
 <h1 style="color:red">--- 施工中 ---</h1>
