@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T15:49:23.438342
+lastmod: 2025-12-25T15:49:56.953915
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1158,7 +1158,7 @@ ggxE[dot(p, uint2(1, 32))] = float2(E / samples, Eprime / samples);
 | -------------------------------------------- | ------------------------------------------------------------ |
 | ![img](/image-foundation/filament-dfg12.png) | ![image-20251225154559371](/image-foundation/image-20251225154559371.png) |
 
-实际载入使用的则为以下形式：
+实际载入使用的则为以下形式：UV顺序上和ImageWorks与自己之前的LUT一致。
 
 ![image-20251225154851094](/image-foundation/image-20251225154851094.png)
 
