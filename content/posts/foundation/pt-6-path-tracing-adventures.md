@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T15:47:09.160054
+lastmod: 2025-12-25T15:49:23.438342
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1152,13 +1152,14 @@ for (uint i = 0; i < kSamples;i++) {
 ggxE[dot(p, uint2(1, 32))] = float2(E / samples, Eprime / samples);
 ```
 
-跑出来是这样的。参照不太好找，不过 Filament [5.3.4.3 The DFG1 and DFG2 term visualize](https://google.github.io/filament/Filament.md.html#lighting/imagebasedlights/processinglightprobes) 做了类似的事情：事实上我们的$E\prime$和$DFG_2$是一致的，对比如下（作为对比:R实际为(1-F)*E, 同时这里的Y轴有翻转处理以对齐Filament结果）
+跑出来是这样的。参照不太好找，不过 Filament [5.3.4.3 The DFG1 and DFG2 term visualize](https://google.github.io/filament/Filament.md.html#lighting/imagebasedlights/processinglightprobes) 做了类似的事情：事实上我们的$E\prime$和$DFG_2$是一致的，对比如下（作为对比:R实际为(1-λ)*E, 同时这里的Y轴有翻转处理以对齐Filament结果）
 
 | Filament                                     | Ours                                                         |
 | -------------------------------------------- | ------------------------------------------------------------ |
 | ![img](/image-foundation/filament-dfg12.png) | ![image-20251225154559371](/image-foundation/image-20251225154559371.png) |
 
-参照物被压缩的有点惨，不过可以看出来含义是一样的。
+实际载入使用的则为以下形式：
 
+![image-20251225154851094](/image-foundation/image-20251225154851094.png)
 
 <h1 style="color:red">--- 施工中 ---</h1>
