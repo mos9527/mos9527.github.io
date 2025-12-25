@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T15:49:56.953915
+lastmod: 2025-12-25T16:12:04.191000
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1122,7 +1122,11 @@ E(\mu_0) = f_0 \int_{0}^{2\pi}{d\phi}\int_{0}^{1}f(\mu_0, \mu_i)\mu_id\mu_i + (f
 $$
 常数$f_0,f_{90}$完全可以拖出来。此外，注意到左边积分还是之前$E$的形式；右边多了个$\lambda$，额外记一个表算即可。我们记右边（不包括$f_0,f_{90}$的积分为$E\prime$，离散形式为：
 $$
-E\prime(\mu_0) = \int_{0}^{1}\lambda(w_o \cdot w_m)f(\mu_0, \mu_i)\mu_id\mu_i =  \frac{1}{N}\sum \frac{\lambda(w_o \cdot w_m)f(\mu_o, \mu_i)\mu_i}{p(\mu_i)}
+E\prime(\mu_0) = \int_{0}^{2\pi}\int_{0}^{1}\lambda(w_o \cdot w_m)f(\mu_0, \mu_i)\mu_id\mu_i =  \frac{1}{N}\sum \frac{\lambda(w_o \cdot w_m)f(\mu_o, \mu_i)\mu_i}{p(\mu_i)}
+$$
+最后的$E\prime\prime(\mu_0)$则为:
+$$
+E\prime\prime(\mu_0) = f_0 \times E(\mu_0) + (f_{90} - f_0)\times E\prime(\mu_0)
 $$
 和之前计算相比改动很小。直接贴代码：
 
@@ -1161,5 +1165,14 @@ ggxE[dot(p, uint2(1, 32))] = float2(E / samples, Eprime / samples);
 实际载入使用的则为以下形式：UV顺序上和ImageWorks与自己之前的LUT一致。
 
 ![image-20251225154851094](/image-foundation/image-20251225154851094.png)
+
+###### 电介质效果
+
+![image-20251225161144555](/image-foundation/image-20251225161144555.png)
+
+TBD：中途roughness过补偿？
+
+
+
 
 <h1 style="color:red">--- 施工中 ---</h1>
