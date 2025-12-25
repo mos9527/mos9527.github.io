@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-24T22:14:57.506750
+lastmod: 2025-12-25T10:29:55.237810
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -768,7 +768,7 @@ public float SchlickFresnel(float F0, float F90, float cosTheta)
 
 接下来就Heitz方法简要介绍，并对这里的Kulla and Conty方法进行复现。
 
-#### Heitz 2016 Random Walk
+#### Random Walk (Heitz 2016)
 
 记得$G1$ Masking/Shadowing 函数表达的量：宏观面内沿某视角$\mathbf{v}$可见的微面比例。
 
@@ -788,9 +788,12 @@ public float SchlickFresnel(float F0, float F90, float cosTheta)
 
 未来有机会再尝试复现这里的RW手段。在此之前，实现上更为简单且出图方差更低（不需逼近）的手段即为以下查表方法。
 
-#### Kulla and Conty 2017 LUT
+#### 预积分查表（Kulla, Conty & Turquin）
 
-[Blender 4.0 以后](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L359) 采用了[该方法](https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf) (注意cycles做的$E_{avg}$等查表）。首先引入几个概念：
+[Blender 4.0 以后](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L359) 采用了查表方法(注意cycles做的$E_{avg}$等查表）。形式上是后者Turquin的公式，不过鉴于其推导离不开Kulla 2017的工作，这里一并复现。方便读者参考，以下为二者链接：
+
+- [Revisiting Physically Based Shading at Imageworks, Kulla, Conty 2017](https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf)
+- [Practical multiple scattering compensation for microfacet models, Turquin 2019](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf)
 
 ##### 方向反照率 Albedo  $E(w)$
 
@@ -879,7 +882,7 @@ $$
 $$
 E = 2\pi \int_{0}^{1}{E_{ss}(\mu)\mu d\mu}
 $$
-入射能量再次是$\pi$ - 这里和之前一样。得到反射率为：
+入射能量再次是$\pi$ - 这里和之前一样。得到反照率为：
 $$
 E_{avg} = 2\int_{0}^{1}{E_{ss}(\mu) \mu d\mu}
 $$
@@ -914,12 +917,12 @@ float sampleGGX_E(float rough, float cosTheta, float uc, float2 u){
     float alpha = Sqr(rough);
     TrowbridgeReitzDistribution mfDistrib = TrowbridgeReitzDistribution(alpha, alpha);
     if (mfDistrib.EffectivelySmooth())
-        return 1.0f; // Dirac delta - though we're conuting energy, so return 1
+        return 1.0f; // Dirac delta - though we're counting energy, so return 1
     float3 wo = float3(sqrt(1.0 - cosTheta * cosTheta), 0.0, cosTheta);
     float3 wm = mfDistrib.Sample_wm(wo, u);
     float3 wi = Reflect(wo, wm);    
     if (!SameHemisphere(wo, wi))
-        return 0.0f; // Absorbtion
+        return 0.0f; // Absorption
     float pdf = mfDistrib.PDF(wo, wm) / (4 * AbsDot(wo, wm));
     float f = mfDistrib.D(wm)  * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
     return f * AbsCosTheta(wi) / pdf;
@@ -1004,12 +1007,13 @@ integrateGGX_Eavg.dispatch(thread_count=[1,1,1],vars={"output": ggx_Eavg})
 
 就此，我们给出的几个积分计算完毕。
 
-##### $f_{ms}$ 补偿 Lobe
+##### $f_{ms}$ 推导
 
-先不考虑反射率，[Revisiting Physically Based Shading at Imageworks - Kulla, Conty 2017](https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf) 给出了以下$E_{ms}$补偿BRDF。
+先不考虑反射率，[Revisiting Physically Based Shading at Imageworks - Kulla, Conty 2017](https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf) 给出了以下$f_{ms}$补偿BRDF中的Fresnel（ss:single scattering, ms: multiple scattering）：
 
 $$
-f_{ms}(w_o,w_i) = \frac{(1-E_{ss}(w_o))(1-E_{ss}(w_i))}{\pi(1-E_{avg})}
+f_{ms}(w_o,w_i) = \frac{(1-E_{ss}(w_o))(1-E_{ss}(w_i))}{\pi(1-E_{avg})} \newline
+f\prime = f_{ss} + f_{ms}
 $$
 
 这个式子由 [A Microfacet Based Coupled Specular-Matte BRDF Model with Importance Sampling - Kelemen 2001](https://www.researchgate.net/publication/2378872_A_Microfacet_Based_Coupled_Specular-Matte_BRDF_Model_with_Importance_Sampling) 找到（下图）
@@ -1018,7 +1022,73 @@ $$
 
 代入$E_{ms}$计算积分满足$E_{ss} + E_{ms} = 1$关系。如果$E_{avg}$已知的话，$f_{ms}$则能被轻易算出。我们之前已经完成了这部分的工作！
 
+不过注意，目前为止的公式都做了一个简化假设：$F=1$——表现实际的反照率则需打破因此带来的$E(\mu)=1$ 假设。
 
+幸运的时，目前为止我们算的都是「平均量」。$F\ne1$的「能量」损失也是易得的。回顾之前的反射率定义，「一次**平均**」反射返回的能量为：
+$$
+F_{avg}E_{avg}
+$$
+继续：「之后」面介面内的反射呢？我们知道在（c）情况，不记$F$，内部反射丢失的平均能量是$1-E_{avg}$：结合之前的$F_{avg}$，则有次反射「丢失」的能量为
+$$
+l = F_{avg}(1-E_{avg}) \newline
+\Delta{E} = F_{avg}E_{avg}l
+$$
+然后，未丢失部分能量继续反射，反反复复...直到被完全吸收。那中途「丢失」的能量和，是不是有头绪计算了？
 
+是的——这里有一个等比数列！丢失的能量总和即为：
+$$
+\sum_{k=1}^{\infty}{\Delta{E}} = F_{avg}E_{avg}\sum_{k=1}^{\infty}{l^k} = F_{avg}E_{avg}\frac{l}{1 - l} = \frac{F^2_{avg}E_{avg}(1 - E_{avg})}{1 - F_{avg}(1 - E_{avg})}
+$$
+最后，$F_{avg}=1$时这个式子也恒等于$1 - E_{avg}$：这也是成立的。
+
+反映到之前的$f_{ms}$，Kulla把这个和直接作比例乘回$f_{ms}$了——这是不对的（读者请思考$F_{avg}=1$时情况）。在原Talk Appendix中这也被修正：最后对应所有$F$的$f_{ms}$即为：
+$$
+f_{ms}\prime =\frac{(1-E_{ss}(w_o))(1-E_{ss}(w_i))F^2_{avg}E_{avg}}{\pi(1-E_{avg})(1 - F_{avg}(1 - E_{avg}))}
+$$
+幸运的是，这正是 Filament [4.7.2 Energy loss in specular reflectance](https://google.github.io/filament/Filament.md.html#mjx-eqn%3AenergyCompensationLobe) 用的式子！不过有点长，假如可以简化...
+
+##### $f_{ms}$ 简化
+
+![image-20251225095845997](/image-foundation/image-20251225095845997.png)
+
+在 [The road toward unified rendering with Unity’s high definition rendering pipeline, Lagrade 2018](https://advances.realtimerendering.com/s2018/Siggraph%202018%20HDRP%20talk_with%20notes.pdf) 中就有提及，[Turquin在后来自己在2019的技术报告中也给出了一样的形式](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf)。
+
+![image-20251225100427612](/image-foundation/image-20251225100427612.png)
+
+核心观察是：正如我们之前所见，$F_{avg}$是个很小的值(记得之前推导的Shlick 模型，$n=5, s= 1/21$)，$F_{ms}$不妨直接不算...
+
+此外，另外的好处是，因为这样的计算相当于是对原Lobe进行“缩放”...
+
+![image-20251225100324323](/image-foundation/image-20251225100324323.png)
+
+这和Heitz跑出来的实际情况是很像的：多次反射/multiscatter的lobe很像第一次单次折射的lobe！
+
+之前没有提及，但是Kulla的方法（记得不记$\phi$）的补偿lobe是一个简单的diffuse/半球lobe；参考上图，可见Turquin的方法会更接近物理事实。
+
+最后，非常简单的补偿量$f_{ms}$即为
+$$
+f_{ms} = f_0 \frac{1-E}{E}f_{ss} = f_0 (\frac{1}{E} - 1)f_{ss}
+$$
+
+这里加到我们的glossy lobe即可。对`glTFBSDF`的`Sample_f`部分改进：
+```c++
+...
+float mu = AbsCosTheta(wo);
+float rough = sqrt(max(mfDistrib.alpha_x, mfDistrib.alpha_y));
+float E = ggxLutE.SampleLevel(lutSampler, float2(mu, rough), 0);
+float3 Fss = SchlickFresnel(F0, 1.0f, ClampedDot(wo, wm));
+float3 Fms = F0 * (1/E - 1) * Fss;
+float3 f = (Fss + Fms) * mfDistrib.D(wm) * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
+return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
+```
+
+#### 效果
+
+一样的白炉测试效果如下，前后对比：
+
+| ![image-20251223183648108](/image-foundation/image-20251223183648108.png) | ![image-20251225102842279](/image-foundation/image-20251225102842279.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+
+TBD 解决高roughness奇怪的异常 - -||
 
 <h1 style="color:red">--- 施工中 ---</h1>
