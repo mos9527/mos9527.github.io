@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T16:12:04.191000
+lastmod: 2025-12-25T16:12:40.471693
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1167,6 +1167,8 @@ ggxE[dot(p, uint2(1, 32))] = float2(E / samples, Eprime / samples);
 ![image-20251225154851094](/image-foundation/image-20251225154851094.png)
 
 ###### 电介质效果
+
+让roughness，metallic反映场景真实情况，效果如下：
 
 ![image-20251225161144555](/image-foundation/image-20251225161144555.png)
 
