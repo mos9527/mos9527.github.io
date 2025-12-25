@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T14:38:21.895757
+lastmod: 2025-12-25T15:47:09.160054
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1082,11 +1082,83 @@ float3 f = (Fss + Fms) * mfDistrib.D(wm) * mfDistrib.G(wo, wi) / (4 * AbsCosThet
 return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
 ```
 
-#### 效果
+##### 导体效果
 
 一样的白炉测试效果如下。先令所有`metallic=1.0f`,即只看specular lobe：
 
 ![image-20251225143740725](/image-foundation/image-20251225143740725.png)
 
 (注：别忘了Sampler用CLAMP_TO_EDGE - -||)
+
+##### 电介质表现
+
+目前为止，我们只对不存在（不考虑：导体中折射即吸收）折射贡献的BRDF做了改进。对于电介质BRDF（及metal<1），这里的工作是不够的：因为算$E$的时候并没有看「折射」后的能量问题。
+
+有一个问题就是这里的参数多了个IOR，ImageWorks (Kulla, Conty)提出使用3D材质查表，但回忆glTF定义：我们材质的IOR是常数$1.5$——这里再次省掉一个维度。
+
+###### 电介质$E(\mu)$
+
+回顾之前不考虑$F$（设$F=1$）的$E$计算，和其对应离散/蒙特卡洛形式：
+$$
+E(\mu_0) = \int_{0}^{2\pi}{d\phi}\int_{0}^{1}f(\mu_0, \mu_i)\mu_id\mu_i = \frac{1}{N}\sum \frac{f(\mu_o, \mu_i)\mu_i}{p(\mu_i)}
+$$
+和之前一样，这里引入$F$即可；鉴于我们使用Shlick形式且IOR=1.5，则有：
+$$
+F = f_0 + (f_{90} - f_{0}) \times (1.0 - \cos\theta)^5
+$$
+
+麻烦，多了个$f_0$；不妨拆成几个项，记：
+$$
+\lambda(\theta) = (1.0-\cos\theta)^5
+$$
+我们求的是：
+$$
+E(\mu_0) = \int_{0}^{2\pi}{d\phi}\int_{0}^{1}F(w_o \cdot w_m)f(\mu_0, \mu_i)\mu_id\mu_i \newline
+$$
+
+化简：
+$$
+E(\mu_0) = f_0 \int_{0}^{2\pi}{d\phi}\int_{0}^{1}f(\mu_0, \mu_i)\mu_id\mu_i + (f_{90}-f_0) \int_{0}^{2\pi}{d\phi}\int_{0}^{1}\lambda(w_o \cdot w_m)f(\mu_0, \mu_i)\mu_id\mu_i
+$$
+常数$f_0,f_{90}$完全可以拖出来。此外，注意到左边积分还是之前$E$的形式；右边多了个$\lambda$，额外记一个表算即可。我们记右边（不包括$f_0,f_{90}$的积分为$E\prime$，离散形式为：
+$$
+E\prime(\mu_0) = \int_{0}^{1}\lambda(w_o \cdot w_m)f(\mu_0, \mu_i)\mu_id\mu_i =  \frac{1}{N}\sum \frac{\lambda(w_o \cdot w_m)f(\mu_o, \mu_i)\mu_i}{p(\mu_i)}
+$$
+和之前计算相比改动很小。直接贴代码：
+
+```c++
+// sampleGGX_E 额外输出 VdotH
+float3 wo = float3(sqrt(1.0 - cosTheta * cosTheta), 0.0, cosTheta);
+if (mfDistrib.EffectivelySmooth()){
+    float3 wi = float3(-wo.x, -wo.y, wo.z);
+    float3 wm = normalize(wo + wi);
+    VdotH = AbsDot(wo, wm);
+    return 1.0f; // Dirac delta - though we're counting energy, so return 1
+}    
+float3 wm = mfDistrib.Sample_wm(wo, u);
+VdotH = AbsDot(wo, wm);
+// integrateGGX_E 多一项 Eprime
+for (uint i = 0; i < kSamples;i++) {
+    float cosTheta = clamp(u, 1e-4, 1.0f);
+    float rough = clamp(v, 1e-4, 1.0f);
+    float3 wi;          
+    float VdotH;
+    float sample = sampleGGX_E(rough, cosTheta, rng.sample(), rng.sample2D(), VdotH);        
+    float lambda = pow(1 - VdotH, 5);
+    E += sample;
+    Eprime += lambda * sample;
+    samples += 1.0f;        
+}
+ggxE[dot(p, uint2(1, 32))] = float2(E / samples, Eprime / samples);
+```
+
+跑出来是这样的。参照不太好找，不过 Filament [5.3.4.3 The DFG1 and DFG2 term visualize](https://google.github.io/filament/Filament.md.html#lighting/imagebasedlights/processinglightprobes) 做了类似的事情：事实上我们的$E\prime$和$DFG_2$是一致的，对比如下（作为对比:R实际为(1-F)*E, 同时这里的Y轴有翻转处理以对齐Filament结果）
+
+| Filament                                     | Ours                                                         |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| ![img](/image-foundation/filament-dfg12.png) | ![image-20251225154559371](/image-foundation/image-20251225154559371.png) |
+
+参照物被压缩的有点惨，不过可以看出来含义是一样的。
+
+
 <h1 style="color:red">--- 施工中 ---</h1>
