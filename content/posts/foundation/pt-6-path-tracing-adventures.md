@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T19:12:22.889619
+lastmod: 2025-12-25T20:00:39.231578
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1097,7 +1097,7 @@ return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
 
 目前为止，我们只对不存在（不考虑：导体中折射即吸收）折射贡献的BRDF做了改进。对于电介质BRDF（及metal<1），这里的工作是不够的：因为算$E$的时候并没有看「折射」后的能量问题。
 
-有一个问题就是这里的参数多了个IOR，ImageWorks (Kulla, Conty)提出使用3D材质查表，但回忆glTF定义：我们材质的IOR是常数$1.5$——这里再次省掉一个维度。
+有一个问题就是这里的参数多了个IOR，ImageWorks (Kulla, Conty)提出使用3D材质查表。不过进行一些数学观察不难发现，这个表其实可以仅用两张表达所有$F_0, F_{90}$的情况。
 
 ###### 电介质$E(\mu)$
 
@@ -1110,7 +1110,7 @@ $$
 F = f_0 + (f_{90} - f_{0}) \times (1.0 - \cos\theta)^5
 $$
 
-麻烦，多了个$f_0$；不妨拆成几个项，记：
+麻烦，多了个$f_0, f_{90}$；不妨拆成几个项，记：
 $$
 \lambda(\theta) = (1.0-\cos\theta)^5
 $$
@@ -1144,7 +1144,7 @@ if (mfDistrib.EffectivelySmooth()){
 }    
 float3 wm = mfDistrib.Sample_wm(wo, u);
 VdotH = AbsDot(wo, wm);
-// integrateGGX_E 多一项 Eprime
+// integrateGGX_E 多一项 E'
 for (uint i = 0; i < kSamples;i++) {
     float cosTheta = clamp(u, 1e-4, 1.0f);
     float rough = clamp(v, 1e-4, 1.0f);
