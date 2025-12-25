@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T20:00:39.231578
+lastmod: 2025-12-25T20:24:58.012672
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1268,7 +1268,15 @@ public BSDFSample Sample_f(float3 wo, float uc, float2 u, TransportMode, BxDFRef
 
 #### 样张
 
-嗯..有机会在blender摸鱼了。这里等捏出来几个场景后添加图片...
+嗯..有机会在blender摸鱼了。这里等捏出来几个场景后陆续添加图片...
+
+注意没有透明度/降噪：这一篇文字已经够长了；此外，Tonemap部分和上一篇一致。
+
+##### Intel Sponza
+
+![image-20251225202112425](/image-foundation/image-20251225202112425.png)
+
+Link: https://github.com/mos9527/Scenes?tab=readme-ov-file#intel-gpu-research-samples---sponza
 
 #### References
 
