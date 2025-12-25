@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T18:28:45.057640
+lastmod: 2025-12-25T19:12:22.889619
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -80,13 +80,14 @@ float uintToFloat(uint x) {
 毕竟，我们的随机数种子也是由帧序号初始化的——这样做可以将多帧，可能不同但趋近最终积分的结过积累以逼近。小记积累部分的更新：
 
 ```glsl
-// Accumulation
-float3 output = L;
+float4 output = float4(L, 1.0f);
 float frameCount = float(globalParams.ptAccumualatedFrames + 1);
-float3 prevAvg = (globalParams.ptAccumualatedFrames == 0) ? float3(0) : accumulation[pix].xyz;
-// Welford mean update
-float3 newAvg = prevAvg + (output - prevAvg) / frameCount;
-accumulation[pix] = float4(newAvg, 1.0);
+if (frameCount == 1){
+    accumulation[pix] = lighting[pix] = output;
+} else {
+    accumulation[pix] += output;
+    lighting[pix] = accumulation[pix] / frameCount;
+}
 ```
 
 还有一个好处是：因为是多帧平均采样，若对镜头做jitter，这里就是一种 ~~五毛钱~~ TAA/Temporal抗锯齿的实现。Primiary Ray生成如下：
@@ -1248,11 +1249,13 @@ public BSDFSample Sample_f(float3 wo, float uc, float2 u, TransportMode, BxDFRef
 
 ##### 遗留问题
 
-- 积累地足够久图像会以某种奇怪的规律变暗？
+- 积累地足够久图像会以某种奇怪的规律变暗？ **UPD:** 解决：是精度问题。积累buffer就别省着用FP16了...换成FP32解决
 ![image-20251225181106479](/image-foundation/image-20251225181106479.png)
 
-- nvpro-samples 中见到一个[限制路径roughness消除firefly的trick](https://github.com/nvpro-samples/vk_gltf_renderer/blob/master/shaders/gltf_pathtrace.slang#L761)，但是不知道为什么这样有效。前后对比如下（注意左上角！）
+- nvpro-samples 中见到一个[限制路径roughness消除firefly的trick](https://github.com/nvpro-samples/vk_gltf_renderer/blob/master/shaders/gltf_pathtrace.slang#L761)，但是不知道为什么这样有效（限制PDF？需要考证）
 
+  前后对比如下（注意左上角！）
+  
   ```c++
         // Keep track of the maximum roughness to prevent firefly artifacts
         // by forcing subsequent bounces to be at least as rough
