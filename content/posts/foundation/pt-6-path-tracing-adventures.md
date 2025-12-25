@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T10:29:55.237810
+lastmod: 2025-12-25T10:40:32.038619
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1084,10 +1084,9 @@ return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
 
 #### 效果
 
-一样的白炉测试效果如下，前后对比：
+一样的白炉测试效果如下。先令所有`metallic=1.0f`,即只看specular lobe：
 
-| ![image-20251223183648108](/image-foundation/image-20251223183648108.png) | ![image-20251225102842279](/image-foundation/image-20251225102842279.png) |
-| ------------------------------------------------------------ | ------------------------------------------------------------ |
+![image-20251225102842279](/image-foundation/image-20251225102842279.png)
 
 TBD 解决高roughness奇怪的异常 - -||
 
