@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T16:12:40.471693
+lastmod: 2025-12-25T16:42:35.007429
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1082,15 +1082,17 @@ float3 f = (Fss + Fms) * mfDistrib.D(wm) * mfDistrib.G(wo, wi) / (4 * AbsCosThet
 return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
 ```
 
-##### 导体效果
+##### 导体
 
-一样的白炉测试效果如下。先令所有`metallic=1.0f`,即只看specular lobe：
+###### 导体效果
+
+一样的白炉测试效果如下。先令所有`metallic=1.0f`,即只看ConductorBxDF等效部分：
 
 ![image-20251225143740725](/image-foundation/image-20251225143740725.png)
 
 (注：别忘了Sampler用CLAMP_TO_EDGE - -||)
 
-##### 电介质表现
+##### 电介质
 
 目前为止，我们只对不存在（不考虑：导体中折射即吸收）折射贡献的BRDF做了改进。对于电介质BRDF（及metal<1），这里的工作是不够的：因为算$E$的时候并没有看「折射」后的能量问题。
 
@@ -1168,13 +1170,57 @@ ggxE[dot(p, uint2(1, 32))] = float2(E / samples, Eprime / samples);
 
 ###### 电介质效果
 
-让roughness，metallic反映场景真实情况，效果如下：
+ImageWorks也提到了对Diffuse lobe的调整（虽然这部分我们也讨论过了）：$E\prime\prime$是补偿过的反射量，那么真正能到达底层diffuse lobe的能量即为$1-E\prime\prime$（回顾反射率关系），刚好允许我们进行正确的能量调整：漫反射一定有入射=出射，$1-E\prime\prime$则是混合glossy lobe后其正确的反照率。
 
-![image-20251225161144555](/image-foundation/image-20251225161144555.png)
+至此电介质模型调整完毕，shader节选如下：
 
-TBD：中途roughness过补偿？
+```c++
+...
+const float mu = AbsCosTheta(wo);
+const float2 EEp = ggxLutE.SampleLevel(lutSampler, float2(mu, roughness), 0);
+const float3 Epp = F0 * EEp.x + (F90 - F0) * EEp.y;
+float probGlossy = NEEGlossyProb(wo);
+if (uc < probGlossy) {
+    // Sample Glossy
+    if (mfDistrib.EffectivelySmooth()) {
+        // Dirac delta case
+        float3 wi = float3(-wo.x, -wo.y, wo.z); // = wr
+        float3 fGlossy = SchlickFresnel(F0, 1.0f, AbsCosTheta(wi));
+        // Sampled PDF would be delta, but we represent them as 1s w/o weighting
+        // With NEE this is what you get:
+        return BSDFSample(fGlossy / AbsCosTheta(wi), wi, 1 * probGlossy, BxDFFlags::SpecularReflection);
+    } else {
+        float3 wm = mfDistrib.Sample_wm(wo, u);
+        float3 wi = Reflect(wo, wm);
+        if (!SameHemisphere(wo, wi))
+            return BSDFSample(); // Absorption
 
+        float3 Fss = SchlickFresnel(F0, 1.0f, AbsDot(wo, wm));
+        float3 Fms = F0 * (1/Epp - 1) * Fss;
+        float3 f = (Fms + Fss) * mfDistrib.D(wm) * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
 
+        float pdf = probGlossy * mfDistrib.PDF(wo, wm) / (4 * AbsDot(wo, wm));
+        return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
+    }
+} else {
+    // Sample Diffuse
+    float3 wi = SampleCosineHemisphere(u);
+    wi = FaceForward(wi, float3(0,0,1));
+    float3 wm = normalize(wo + wi);
+
+    float3 cdiff = baseColor * (1.0f - metallic);
+    float3 f = (1-Epp) * cdiff * InvPi;
+
+    float pdf = (1 - probGlossy) * CosineHemispherePDF(ClampedCosTheta(wi));
+    return BSDFSample(f, wi, pdf, BxDFFlags::DiffuseReflection);
+}
+```
+
+让metallic=0（全电介质）的效果如下：
+
+![image-20251225163746262](/image-foundation/image-20251225163746262.png)
+
+​	
 
 
 <h1 style="color:red">--- 施工中 ---</h1>
