@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T16:42:35.007429
+lastmod: 2025-12-25T18:20:41.154993
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1175,44 +1175,63 @@ ImageWorks也提到了对Diffuse lobe的调整（虽然这部分我们也讨论�
 至此电介质模型调整完毕，shader节选如下：
 
 ```c++
-...
-const float mu = AbsCosTheta(wo);
-const float2 EEp = ggxLutE.SampleLevel(lutSampler, float2(mu, roughness), 0);
-const float3 Epp = F0 * EEp.x + (F90 - F0) * EEp.y;
-float probGlossy = NEEGlossyProb(wo);
-if (uc < probGlossy) {
-    // Sample Glossy
-    if (mfDistrib.EffectivelySmooth()) {
-        // Dirac delta case
-        float3 wi = float3(-wo.x, -wo.y, wo.z); // = wr
-        float3 fGlossy = SchlickFresnel(F0, 1.0f, AbsCosTheta(wi));
-        // Sampled PDF would be delta, but we represent them as 1s w/o weighting
-        // With NEE this is what you get:
-        return BSDFSample(fGlossy / AbsCosTheta(wi), wi, 1 * probGlossy, BxDFFlags::SpecularReflection);
+public BSDFSample Sample_f(float3 wo, float uc, float2 u, TransportMode, BxDFReflTransFlags) {
+    float c_min_reflectance = 0.04f;
+    // Mixed Metallic/Dielectric Fresnel F0
+    const float3 F0 = lerp(float3(c_min_reflectance), baseColor, metallic);
+    const float3 F90 = 1.0f; // As per glTF spec
+    // Multi-scatter compensation
+    // https://mos9527.com/posts/foundation/pt-6-path-tracing-adventures/#%E8%83%BD%E9%87%8F%E5%AE%88%E6%81%92%E6%94%B9%E8%BF%9B
+    const float mu = AbsCosTheta(wo);
+    const float2 EEp = ggxLutE.SampleLevel(lutSampler, float2(mu, roughness), 0);
+    const float3 Epp = F0 * EEp.x + (F90 - F0) * EEp.y;
+    float probGlossy = NEEGlossyProb(wo);
+    if (uc < probGlossy) {
+        // Sample Glossy
+        if (mfDistrib.EffectivelySmooth()) {
+            // Dirac delta case
+            float3 wi = float3(-wo.x, -wo.y, wo.z); // = wr
+            wi = FaceForward(wi, float3(0,0,1));
+            float3 wm = normalize(wi + wo);
+
+            float3 Fss = SchlickFresnel(F0, 1.0f, AbsDot(wo, wm));
+            float3 Fms = F0 * (1/Epp - 1) * Fss;
+            if (!energyCompensation)
+                Fms = 0;
+            float3 f = (Fss+Fms) / AbsCosTheta(wi);
+            // Sampled PDF would be delta, but we represent them as 1s w/o weighting
+            // With NEE this is what you get:
+            float pdf = 1.0f * probGlossy;
+            return BSDFSample(f, wi, pdf, BxDFFlags::SpecularReflection);
+        } else {
+            float3 wm = mfDistrib.Sample_wm(wo, u);
+            float3 wi = Reflect(wo, wm);
+            if (!SameHemisphere(wo, wi))
+                return BSDFSample(); // Absorption
+
+            float3 Fss = SchlickFresnel(F0, 1.0f, AbsDot(wo, wm));
+            float3 Fms = F0 * (1/Epp - 1) * Fss;
+            if (!energyCompensation)
+                Fms = 0;
+            float3 f = (Fms + Fss) * mfDistrib.D(wm) * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
+
+            float pdf = probGlossy * mfDistrib.PDF(wo, wm) / (4 * AbsDot(wo, wm));
+            return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
+        }
     } else {
-        float3 wm = mfDistrib.Sample_wm(wo, u);
-        float3 wi = Reflect(wo, wm);
-        if (!SameHemisphere(wo, wi))
-            return BSDFSample(); // Absorption
+        // Sample Diffuse
+        float3 wi = SampleCosineHemisphere(u);
+        wi = FaceForward(wi, float3(0,0,1));
+        float3 wm = normalize(wo + wi);
 
-        float3 Fss = SchlickFresnel(F0, 1.0f, AbsDot(wo, wm));
-        float3 Fms = F0 * (1/Epp - 1) * Fss;
-        float3 f = (Fms + Fss) * mfDistrib.D(wm) * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
+        float3 cdiff = baseColor * (1.0f - metallic);
+        float3 f = cdiff * InvPi;
+        if (energyCompensation)
+            f *= 1 - Epp;
 
-        float pdf = probGlossy * mfDistrib.PDF(wo, wm) / (4 * AbsDot(wo, wm));
-        return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
+        float pdf = (1 - probGlossy) * CosineHemispherePDF(ClampedCosTheta(wi));
+        return BSDFSample(f, wi, pdf, BxDFFlags::DiffuseReflection);
     }
-} else {
-    // Sample Diffuse
-    float3 wi = SampleCosineHemisphere(u);
-    wi = FaceForward(wi, float3(0,0,1));
-    float3 wm = normalize(wo + wi);
-
-    float3 cdiff = baseColor * (1.0f - metallic);
-    float3 f = (1-Epp) * cdiff * InvPi;
-
-    float pdf = (1 - probGlossy) * CosineHemispherePDF(ClampedCosTheta(wi));
-    return BSDFSample(f, wi, pdf, BxDFFlags::DiffuseReflection);
 }
 ```
 
@@ -1220,7 +1239,33 @@ if (uc < probGlossy) {
 
 ![image-20251225163746262](/image-foundation/image-20251225163746262.png)
 
-​	
+#### 总结
 
+最后，调整完能量守恒前后的该模型在白炉测试中效果如下：
 
-<h1 style="color:red">--- 施工中 ---</h1>
+| ![image-20251225180916282](/image-foundation/image-20251225180916282.png) | ![image-20251225180846683](/image-foundation/image-20251225180846683.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+
+##### 遗留问题
+
+- 积累地足够久图像会以某种奇怪的规律变暗？
+![image-20251225181106479](/image-foundation/image-20251225181106479.png)
+
+- nvpro-samples 中见到一个[限制路径roughness消除firefly的trick](https://github.com/nvpro-samples/vk_gltf_renderer/blob/master/shaders/gltf_pathtrace.slang#L761)，但是不知道为什么这样有效。前后对比如下（注意左上角！）
+
+  ```c++
+        // Keep track of the maximum roughness to prevent firefly artifacts
+        // by forcing subsequent bounces to be at least as rough
+        maxRoughness     = max(pbrMat.roughness, maxRoughness);
+        pbrMat.roughness = maxRoughness;
+  ```
+
+| ![image-20251225181555333](/image-foundation/image-20251225181555333.png) | ![image-20251225181601057](/image-foundation/image-20251225181601057.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+
+#### 样张
+
+嗯..有机会在blender摸鱼了。这里等捏出来几个场景后添加图片...
+
+#### References
+
