@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-25T20:24:58.012672
+lastmod: 2025-12-26T17:46:49.839800
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1159,7 +1159,7 @@ for (uint i = 0; i < kSamples;i++) {
 ggxE[dot(p, uint2(1, 32))] = float2(E / samples, Eprime / samples);
 ```
 
-跑出来是这样的。参照不太好找，不过 Filament [5.3.4.3 The DFG1 and DFG2 term visualize](https://google.github.io/filament/Filament.md.html#lighting/imagebasedlights/processinglightprobes) 做了类似的事情：事实上我们的$E\prime$和$DFG_2$是一致的，对比如下（作为对比:R实际为(1-λ)*E, 同时这里的Y轴有翻转处理以对齐Filament结果）
+跑出来是这样的。参照不太好找，不过 Filament [5.3.4.3 The DFG1 and DFG2 term visualized](https://google.github.io/filament/Filament.md.html#lighting/imagebasedlights/processinglightprobes) 做了类似的事情：事实上我们的$E\prime$和$DFG_2$是一致的，对比如下（作为对比:R实际为(1-λ)*E, 同时这里的Y轴有翻转处理以对齐Filament结果）
 
 | Filament                                     | Ours                                                         |
 | -------------------------------------------- | ------------------------------------------------------------ |
@@ -1176,64 +1176,161 @@ ImageWorks也提到了对Diffuse lobe的调整（虽然这部分我们也讨论�
 至此电介质模型调整完毕，shader节选如下：
 
 ```c++
-public BSDFSample Sample_f(float3 wo, float uc, float2 u, TransportMode, BxDFReflTransFlags) {
-    float c_min_reflectance = 0.04f;
-    // Mixed Metallic/Dielectric Fresnel F0
-    const float3 F0 = lerp(float3(c_min_reflectance), baseColor, metallic);
-    const float3 F90 = 1.0f; // As per glTF spec
-    // Multi-scatter compensation
-    // https://mos9527.com/posts/foundation/pt-6-path-tracing-adventures/#%E8%83%BD%E9%87%8F%E5%AE%88%E6%81%92%E6%94%B9%E8%BF%9B
-    const float mu = AbsCosTheta(wo);
-    const float2 EEp = ggxLutE.SampleLevel(lutSampler, float2(mu, roughness), 0);
-    const float3 Epp = F0 * EEp.x + (F90 - F0) * EEp.y;
-    float probGlossy = NEEGlossyProb(wo);
-    if (uc < probGlossy) {
-        // Sample Glossy
-        if (mfDistrib.EffectivelySmooth()) {
-            // Dirac delta case
-            float3 wi = float3(-wo.x, -wo.y, wo.z); // = wr
-            wi = FaceForward(wi, float3(0,0,1));
-            float3 wm = normalize(wi + wo);
+import IBxDF;
+import IMath;
 
-            float3 Fss = SchlickFresnel(F0, 1.0f, AbsDot(wo, wm));
-            float3 Fms = F0 * (1/Epp - 1) * Fss;
-            if (!energyCompensation)
-                Fms = 0;
-            float3 f = (Fss+Fms) / AbsCosTheta(wi);
-            // Sampled PDF would be delta, but we represent them as 1s w/o weighting
-            // With NEE this is what you get:
-            float pdf = 1.0f * probGlossy;
-            return BSDFSample(f, wi, pdf, BxDFFlags::SpecularReflection);
-        } else {
-            float3 wm = mfDistrib.Sample_wm(wo, u);
-            float3 wi = Reflect(wo, wm);
-            if (!SameHemisphere(wo, wi))
-                return BSDFSample(); // Absorption
+[[vk_binding(0,1)]] SamplerState lutSampler;
+[[vk_binding(1,1)]] Texture2D<float2> ggxLutE;
 
-            float3 Fss = SchlickFresnel(F0, 1.0f, AbsDot(wo, wm));
-            float3 Fms = F0 * (1/Epp - 1) * Fss;
-            if (!energyCompensation)
-                Fms = 0;
-            float3 f = (Fms + Fss) * mfDistrib.D(wm) * mfDistrib.G(wo, wi) / (4 * AbsCosTheta(wi) * AbsCosTheta(wo));
+const static float MIN_ALPHA = 1e-3;
+// Inspired by Blender's OSL implementation
+//  https://projects.blender.org/blender/blender/src/commit/96d715c643888c78e5dbaa8bd3c3c79ce599c0a3/intern/cycles/kernel/osl/shaders/node_principled_bsdf.osl#L15
+public struct PrincipledBSDF /* glTF Core Spec ver */ : IBxDF {
+    float3 baseColor;
+    float metallic;
+    float roughness;
+    bool energyCompensation;
 
-            float pdf = probGlossy * mfDistrib.PDF(wo, wm) / (4 * AbsDot(wo, wm));
-            return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
-        }
-    } else {
-        // Sample Diffuse
-        float3 wi = SampleCosineHemisphere(u);
-        wi = FaceForward(wi, float3(0,0,1));
-        float3 wm = normalize(wo + wi);
+    TrowbridgeReitzDistribution mfDistrib;
 
-        float3 cdiff = baseColor * (1.0f - metallic);
-        float3 f = cdiff * InvPi;
-        if (energyCompensation)
-            f *= 1 - Epp;
+    public __init(float3 baseColor, float metallic, float roughness, bool energyCompensation = true) {
+        this.baseColor = baseColor;
+        this.metallic = metallic;
+        this.roughness = roughness;
+        this.energyCompensation = energyCompensation;
 
-        float pdf = (1 - probGlossy) * CosineHemispherePDF(ClampedCosTheta(wi));
-        return BSDFSample(f, wi, pdf, BxDFFlags::DiffuseReflection);
+        float alpha = max(MIN_ALPHA, roughness * roughness);
+        this.mfDistrib = TrowbridgeReitzDistribution(alpha, alpha);
     }
-}
+
+    public BxDFFlags Flags() {
+        return BxDFFlags::Reflection | BxDFFlags::Glossy;
+    }
+
+    private float3 TorranceSparrowPreserveEnergy(float3 wo, float3 wi, float3 F0, float3 F90, float2 lutE) {
+        float3 wm = normalize(wo + wi);
+        float3 Fss = SchlickFresnel(F0, F90, AbsDot(wo, wm));
+        float3 Fms = 0.0f;
+        if (energyCompensation) {
+            float3 Epp = F0 * lutE.x + (F90 - F0) * lutE.y;
+            Fms = F0 * (1.0f / Epp - 1.0f) * Fss;
+        }
+        return (Fss + Fms) * mfDistrib.D(wm) * mfDistrib.G(wo, wi) / (4.0f * AbsCosTheta(wo) * AbsCosTheta(wi));
+    }
+
+    public SampledSpectrum f(float3 wo, float3 wi, TransportMode mode) {
+        if (wo.z <= 0 || wi.z <= 0) return 0; // Reflection only
+        float2 lutE = ggxLutE.SampleLevel(lutSampler, float2(AbsCosTheta(wo), roughness), 0);
+        
+        float3 dielF0 = float3(0.04f);
+        float3 dielF90 = float3(1.0f);
+        float3 dielBSDF = TorranceSparrowPreserveEnergy(wo, wi, dielF0, dielF90, lutE);
+        // 1 - R
+        // A helpful assumption is that the energy entering the diffuse lobe *always*
+        // gets out uniformly.
+        // A real mixing node would do a Random Walk with volume attenuation. Check LayeredBxDF in IBxDF.slang
+        float3 dielEpp = dielF0 * lutE.x + (dielF90 - dielF0) * lutE.y;
+        float3 diffuseBSDF = baseColor * InvPi;
+        if (energyCompensation) // Transmitted energy
+            diffuseBSDF *= (1.0f - dielEpp);
+
+        // Base Layer
+        float3 bsdf = dielBSDF + diffuseBSDF;
+
+        // Metal
+        // There's no diffuse lobe anymore (completely absorbed!)
+        // Blender has a F82 tint model for modeling F0, but for convenience's sake
+        // (since glTF never does that) we'll use baseColor for that.
+        float3 metalF0 = baseColor;
+        float3 metalF90 = float3(1.0f);
+        float3 metalBSDF = TorranceSparrowPreserveEnergy(wo, wi, metalF0, metalF90, lutE);
+        bsdf = lerp(bsdf, metalBSDF, metallic);
+        
+        return bsdf;
+    }
+
+    public float PDF(float3 wo, float3 wi, TransportMode mode, BxDFReflTransFlags flags) {
+        float3 wm = normalize(wo + wi);
+        // Probability of choosing glossy vs diffuse
+        // This is not physically *accurate*, as this uses the single-scattering
+        // transmittance approximation for the dielectric layer only.
+        // See also previous 1-Epp for diffuse energy.
+        float sampleGlossy = SchlickFresnel(0.04f, 1.0f, AbsCosTheta(wo));
+
+        // Component PDFs
+        float pdfGlossy = mfDistrib.PDF(wo, wm) / (4.0f * AbsDot(wo, wm));
+        float pdfDiffuse = CosineHemispherePDF(AbsCosTheta(wi));
+        if (mfDistrib.EffectivelySmooth()) pdfGlossy = 0.0f; // Delta handling
+
+        // Base Layer
+        float pdf = sampleGlossy * pdfGlossy + (1.0f - sampleGlossy) * pdfDiffuse;
+
+        // Metal
+        float metal = pdfGlossy;
+        pdf = lerp(pdf, metal, metallic);
+        return pdf;
+    }
+
+
+    public BSDFSample Sample_f(float3 wo, float uc, float2 u, TransportMode mode, BxDFReflTransFlags flags) {
+        float3 wi;
+        BxDFFlags sampledFlag;
+
+        float glossy = SchlickFresnel(0.04f, 1.0f, AbsCosTheta(wo));
+        bool isGlossy = false;
+        bool isMetal = false;
+        // Hierarchical sampling
+        // Select scales the uc term as it goes - don't worry about the uniformity
+        if (Select(uc, metallic))
+            isMetal = isGlossy = true;
+        else {
+            if (Select(uc, glossy))
+                isGlossy = true;
+        }
+
+        if (isGlossy) {
+            // Glossy (dielectric/metal) sample
+            if (mfDistrib.EffectivelySmooth()) {
+                // Delta case. This is not possible to be generated by f() or PDF()
+                // and this case - in itself - is discrete.
+                float2 lutE = ggxLutE.SampleLevel(lutSampler, float2(AbsCosTheta(wo), roughness), 0);
+                wi = float3(-wo.x, -wo.y, wo.z);
+                wi = FaceForward(wi, float3(0,0,1));
+
+                // Mixing F0 stops making sense here as we rely on it to calculate
+                // energy compensation terms.
+                // NVPRO examples mixes F0 to express this mixture only because they're single-scattering.
+                // Thus we make metal/dielectric mix discrete events as well.
+                float3 F0 = isMetal ? baseColor : float3(0.04f);
+                float3 F90 = float3(1.0f);
+
+                float3 Epp = F0 * lutE.x + (F90 - F0) * lutE.y;
+                float3 Fss = SchlickFresnel(F0, F90, AbsDot(wo, normalize(wi+wo)));
+                float3 Fms = energyCompensation ? (F0 * (1.0f/Epp - 1.0f) * Fss) : float3(0);
+
+                float pdf = lerp(glossy, 1.0f, metallic);
+                // vvv Handle PDF like other PBRT impls. Base event is delta -> 1
+                pdf = 1.0f * pdf;
+
+                return BSDFSample((Fss + Fms) / AbsCosTheta(wi), wi, pdf, BxDFFlags::SpecularReflection);
+            }
+            float3 wm = mfDistrib.Sample_wm(wo, u);
+            wi = Reflect(wo, wm);
+            sampledFlag = BxDFFlags::GlossyReflection;
+        } else {
+            // Diffuse Sample
+            wi = SampleCosineHemisphere(u);
+            wi = FaceForward(wi, float3(0,0,1));
+            sampledFlag = BxDFFlags::DiffuseReflection;
+        }
+
+        if (!SameHemisphere(wo, wi)) return BSDFSample();
+        SampledSpectrum val = this.f(wo, wi, mode);
+        float pdf = this.PDF(wo, wi, mode, flags);
+        return BSDFSample(val, wi, pdf, sampledFlag);
+    }
+};
+
 ```
 
 让metallic=0（全电介质）的效果如下：
@@ -1244,37 +1341,33 @@ public BSDFSample Sample_f(float3 wo, float uc, float2 u, TransportMode, BxDFRef
 
 最后，调整完能量守恒前后的该模型在白炉测试中效果如下：
 
-| ![image-20251225180916282](/image-foundation/image-20251225180916282.png) | ![image-20251225180846683](/image-foundation/image-20251225180846683.png) |
-| ------------------------------------------------------------ | ------------------------------------------------------------ |
+![image-20251225180916282](/image-foundation/image-20251225180916282.png) 
 
-##### 遗留问题
-
-- 积累地足够久图像会以某种奇怪的规律变暗？ **UPD:** 解决：是精度问题。积累buffer就别省着用FP16了...换成FP32解决
-![image-20251225181106479](/image-foundation/image-20251225181106479.png)
-
-- nvpro-samples 中见到一个[限制路径roughness消除firefly的trick](https://github.com/nvpro-samples/vk_gltf_renderer/blob/master/shaders/gltf_pathtrace.slang#L761)，但是不知道为什么这样有效（限制PDF？需要考证）
-
-  前后对比如下（注意左上角！）
-  
-  ```c++
-        // Keep track of the maximum roughness to prevent firefly artifacts
-        // by forcing subsequent bounces to be at least as rough
-        maxRoughness     = max(pbrMat.roughness, maxRoughness);
-        pbrMat.roughness = maxRoughness;
-  ```
-
-| ![image-20251225181555333](/image-foundation/image-20251225181555333.png) | ![image-20251225181601057](/image-foundation/image-20251225181601057.png) |
-| ------------------------------------------------------------ | ------------------------------------------------------------ |
+![image-20251226172037447](/image-foundation/image-20251226172037447.png)
 
 #### 样张
 
-嗯..有机会在blender摸鱼了。这里等捏出来几个场景后陆续添加图片...
+Tonemap部分和上一篇一致。此外这里没有透明度检测（sponza有decal需要）——这里需要any hit，是相当昂贵的一个操作。
 
-注意没有透明度/降噪：这一篇文字已经够长了；此外，Tonemap部分和上一篇一致。
+灯光采样用到了 MIS（虽然就太阳光+环境光），但PBRT灯光采样章节只是略过看了下。期末结束放假再来搞搞IBL或者是many light...
+
+##### referencePT Bathroom
+
+很英伟达的浴室，来自 Ray Tracing Gems 2 提到的 https://github.com/boksajak/referencePT/tree/master/models/bathroom
+
+![image-20251226174059253](/image-foundation/image-20251226174059253.png)
+
+为参考起见，以下是Blender Cycles在同样场景的渲染结果。后者开启降噪，Tonemapper为ACES1.3
+
+<details>
+  <summary>Cycles 参考</summary>
+  <img src="/image-foundation/image-20251226174553084.png"></img>
+</details>
+不过这并非书上测试用的室内环境——有机会再添加后者。
 
 ##### Intel Sponza
 
-![image-20251225202112425](/image-foundation/image-20251225202112425.png)
+![image-20251226173107515](/image-foundation/image-20251226173107515.png)
 
 Link: https://github.com/mos9527/Scenes?tab=readme-ov-file#intel-gpu-research-samples---sponza
 
