@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-26T17:53:11.131525
+lastmod: 2025-12-26T18:01:00.441434
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1181,12 +1181,6 @@ Tonemap部分和上一篇一致。此外这里没有透明度检测（sponza有d
   <img src="/image-foundation/image-20251226174553084.png"></img>
 </details>
 不过这并非书上测试用的室内环境——有机会再添加后者。
-
-##### Intel Sponza
-
-![image-20251226173107515](/image-foundation/image-20251226173107515.png)
-
-Link: https://github.com/mos9527/Scenes?tab=readme-ov-file#intel-gpu-research-samples---sponza
 
 #### References
 
