@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-26T18:01:00.441434
+lastmod: 2025-12-26T18:15:40.529870
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -702,7 +702,9 @@ glTF的该模型可以认为是和PBRT中的`DieletricBxDF`与`DiffuseBxDF`做�
 
 可以看到，**电介质**材质有两个BRDF Lobe需要采样：光泽$w$和漫反射$w\prime$。BRDF间的混合并非加法：这样做很显然是能量不守恒的。但从采样的角度出发：在一个点上，这两个$w$都可能是被采样到的光线（参考上图）。如果知道这两者采样**「可能性」**的话，岂不是可以做任意选择而去逼近混合后的结果？
 
-这既是[LayeredBxDF中用到的NEE/Next Event Estimation（次事件估计）的思想](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials#fragment-SamplenexteventforlayeredBSDFevaluationrandomwalk-0)。而回顾我们之间讨论过的菲涅耳方程：我们很清楚有**「多少」**能量会到达下一层（然后反射），又有多少会被直接反射：_反射率_准确地表达了这样的比例！
+这既是[LayeredBxDF中用到的NEE/Next Event Estimation（次事件估计）的思想](https://pbr-book.org/4ed/Light_Transport_II_Volume_Rendering/Scattering_from_Layered_Materials#fragment-SamplenexteventforlayeredBSDFevaluationrandomwalk-0)。而回顾我们之间讨论过的菲涅耳方程：我们很清楚有**「多少」**能量会到达下一层（然后反射），又有多少会被直接反射：_反射率_表达了这样的比例！
+
+当然，这里的比例并不精确——实际上这再次地是一个single scattering模型：ground truth则是PBRT中介面的混合是用 Random Walk 来做的 LayeredBxDF。这方面的补偿会在后面讨论。
 
 #### 菲涅耳项估计
 
