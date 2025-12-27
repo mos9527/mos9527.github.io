@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-26T18:15:40.529870
+lastmod: 2025-12-27T12:59:57.680985
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -15,9 +15,9 @@ Foundation现在(2025/12/16)也有了能用的RT相关API，Editor的GPUScene也
 
 PBRT/[Physically Based Rendering:From Theory To Implementation](https://pbr-book.org/)/[Kanition大佬v3翻译版](https://github.com/kanition/pbrtbook)，[Ray Tracing Gems 2](https://www.realtimerendering.com/raytracinggems/rtg2/index.html), [nvpro-samples/vk_gltf_renderer](https://github.com/nvpro-samples/vk_gltf_renderer/blob/master/shaders/gltf_pathtrace.slang) 将是我们这里主要的信息来源。
 
-### 准备工作
+## 准备工作
 
-#### SBT (Shader Binding Table) 及管线 API
+### SBT (Shader Binding Table) 及管线 API
 
 之前用过了非常方便的Inline Ray Query - 从fragment/pixel，compute可以直接产生光线进行trace：从这里出发进行PT是可行的，这也是[nvpro-samples/vk_mini_path_tracer](https://nvpro-samples.github.io/vk_mini_path_tracer/extras.html#moresamples) 的教学式做法。
 
@@ -64,7 +64,7 @@ renderer->CreatePass(
     });
 ```
 
-#### 随机数生成及采样
+### 随机数生成及采样
 
 参考 [Ray Tracing Gems 2](https://www.realtimerendering.com/raytracinggems/rtg2/index.html) 的 [Reference Path Tracer](https://github.com/boksajak/referencePT/) - 随机数生成使用了书中介绍的 PCG4；参考实现中有个很有趣的hack，从uint32直接产生$[0,1)$区间的浮点数：这里贴出来。
 
@@ -105,7 +105,7 @@ float3 GeneratePrimaryRay(uint2 pixel, PCG rng)
 }
 ```
 
-### BxDF
+## BxDF
 
 重头戏。~~只会复制粘贴公式可使不得 （喂）~~ 
 
@@ -113,7 +113,7 @@ float3 GeneratePrimaryRay(uint2 pixel, PCG rng)
 
 最后作为参考，还请参阅 [PBRT v4 - 9 Reflection Models](https://www.pbr-book.org/4ed/Reflection_Models.html) 以获取最权威信息；此外，这一部分在[Kanition PBRT v3翻译版](https://github.com/kanition/pbrtbook)中尚未完成，自己尝试的翻译和数学解释也许不够准确——如有错误还烦请指正！
 
-#### 漫反射（朗伯反射）
+### 漫反射（朗伯反射）
 
 ![image-20251217172122062](/image-foundation/image-20251217172122062.png)
 
@@ -121,7 +121,7 @@ float3 GeneratePrimaryRay(uint2 pixel, PCG rng)
 
 他的BRDF Lobe很简单：分布是一个半球面，而且能量均匀。我们从评估/Eval（已知入射出射方向）和采样/Sample（已知出射/相机入射未知）两个方向解读 PBRT 的实现。
 
-##### f/Eval
+#### f/Eval
 
 回顾渲染公式：
 $$
@@ -135,7 +135,7 @@ $$
 
 即 $f_r = \frac{R}{\pi}$，对应PBRT界面中的`f()`实现。
 
-##### Sample_f/Sample
+#### Sample_f/Sample
 
 ![image-20251221165710063](/image-foundation/image-20251221165710063.png)
 
@@ -176,7 +176,7 @@ public float CosineHemispherePDF(float cosTheta) {
 }
 ```
 
-##### IBxDF 实现
+#### IBxDF 实现
 
 整理完毕如下。这里（和以后的）的`IBxDF`界面和PBRT书中介绍将保证完全一致。
 
@@ -216,7 +216,7 @@ public struct DiffuseBxDF : IBxDF {
 };
 ```
 
-#### 镜面反射（完美反射）
+### 镜面反射（完美反射）
 
 完美的镜面反射的BRDF Lobe是个“光线”——他的分布**在且仅在一个单独方向**上。这可以用狄拉克$\delta$函数表达：
 
@@ -248,7 +248,7 @@ $$
 f_r(\omega_o, \omega_i) = F_r(w_r)\frac{\delta(w_i-w_r)}{|cos\theta_r|}
 $$
 
-##### f/Eval
+#### f/Eval
 
 BRDF已经给出来了。不过处理他的PDF很棘手：这里是为了镜面反射情况（roughness=0或很小）下的分布：回顾之前的Lobe图案，他只在唯一一个完美反射的方向有信号。
 
@@ -258,7 +258,7 @@ PDF的表达将很困难。该情况概率本身是个狄拉克$\delta$函数：
 
 PBRT在这里对所有方向姑且直接返回$0$。应为单点真去表达的话，你会得到一个无穷亮的像素（firefly）！
 
-##### Sample_f/Sample
+#### Sample_f/Sample
 
 出射向量是易知的。我们在本地切空间计算，那么$n(0,0,1)$，$w_o(x,y,z)$围绕他的反射向量很简单，`Reflect()`后就是$w_r(-x,-y,z)$
 
@@ -283,11 +283,11 @@ For a given incident vector I and surface normal N reflect returns the reflectio
 
 最后，他的PDF仍旧是个狄拉克。但是采样积分继续用$0$表示会很难受：蒙特卡洛会除以这个PDF。PBRT在此规定让狄拉克PDF在采样中的值一直为$1$。
 
-##### IBxDF 实现
+#### IBxDF 实现
 
 没有，也不必要——这里的式子会在后面设计反射的BxDF反复利用...接下来介绍当反射面并非“完美”，而带粗糙度的情况。
 
- #### Microfacet（微面）理论及建模
+ ### Microfacet（微面）理论及建模
 
 在建模光泽（粗糙“镜面”）反射之前，我们需要知道他是怎么「采样」光线的——不同于朗伯反射，材质本身也会影响Lobe的形状，而显得更“光滑”和“粗糙”。现代 PBR 建模会使用Microfacet（微面）理论描述这一情况。
 
@@ -315,7 +315,7 @@ Microfacet 理论中存在以下三种事件：（a）表现 **Masking**，即**
 
 值得注意的是（c）情况在这里并未讨论，这里留了一个伏笔——之后在Multiscatter GGX中会再次提及...
 
-##### VNDF
+#### VNDF
 
 采样/利用$D$直接表达分布确实可以，但是我们有更优的方法。
 
@@ -329,7 +329,7 @@ D_w(w_m) = \frac{D(w_m)G(w,w_m)(w_m \cdot \mathbf n)}{\cos\theta}
 $$
 而这个式子就是VNDF方法——**Visibile Normal Distribution Function**，或可见法线分布函数的所在：不必采样完整的$D$，从视角出发，有多少就采样多少。
 
-#####  重要性采样
+####  重要性采样
 
 ![image-20251221174044698](/image-foundation/image-20251221174044698.png)
 
@@ -438,13 +438,13 @@ public struct TrowbridgeReitzDistribution {
 
     其中$\Lambda$已在实现中给出。
 
-#### 光泽反射 （Torrance-Sparrow）
+### 光泽反射 （Torrance-Sparrow）
 
 PBRT在介绍完漫反射后给出了ConductorBxDF及DieletricBxDF的定义——这里暂时不对他们进行直接介绍，但是其表达“粗糙度”的BRDF模型基础是一样的：来自 [Theory for Off-Specular Reflection From Roughened Surfaces - Torrance, Sparrow 1967](https://www.graphics.cornell.edu/~westin/pubs/TorranceSparrowJOSA1967.pdf)
 
 之前提过对完全镜面/Specular情况的特殊处理，我们先很快地给出他PDF的定义：**恒为0**（回忆他是狄拉克函数$\delta(wi-wr)$）。对应的，其BSDF Eval（f）**也为0**,理解成球面上只「无穷小」的一点能表现入射光的「所有」能量：很显然，要表达将又是个无穷大，而这是做不到的。
 
-##### 雅可比行列式
+#### 雅可比行列式
 
 ![image-20251222083829083](/image-foundation/image-20251222083829083.png)
 
@@ -474,7 +474,7 @@ $$
 
 我们得到了这个变换的雅可比！接下来用于PDF计算也将马上用到。
 
-##### f/Eval
+#### f/Eval
 
 和之前的VNDF理论一致，我们的分布也只关心“可见”部分。他的分布已经给出，但是$D_w(w_m)$是在half-vector空间的：好在我们已经知道了他到入射角变换的雅可比！
 
@@ -507,21 +507,21 @@ f_{\mathrm{r}}\left(\mathrm{p}, \omega_{\mathrm{o}}, \omega_{\mathrm{i}}\right) 
 $$
 此即Torrance-Sparrow BRDF的现代形式。
 
-##### Sample_f/Sample
+#### Sample_f/Sample
 
 VNDF重要性采样和BRDF本身已经介绍过，这里用起来即可。代码将在之后实现各类BxDF时给出。
 
-### 反射与折射
+## 反射与折射
 
 我们已经有了足够的数学工具建模光的「反射」概率模型。PBRT中，[9.3 Specular Reflection and Transmission](https://www.pbr-book.org/4ed/Reflection_Models/Specular_Reflection_and_Transmission.html) 被放在之前介绍，不过前面其实也只有一笔带过的菲涅耳$F$等很少的一部分需要这里的知识，索性~~拖到~~现在记笔记。
 
-#### 反射定律
+### 反射定律
 
 现实中不存在完美的镜面：「能量」在接触表面后多少会被吸收：至于“多少”，这里之后同折射部分一并介绍。
 
 不过就建模*光路*而言，满足入射角=出射角的情况一概归类于此：这里已在前面BxDF部分介绍过，不再多提。
 
-#### 折射定律
+### 折射定律
 
 ![image-20251223140821247](/image-foundation/image-20251223140821247.png)
 
@@ -559,9 +559,9 @@ public bool Refract(float3 wi, float3 n, float eta /* IOR */, out float3 wt, out
 - 全反射情况下返回`false`，即光密到光疏的入射角$\theta_i > \theta_c = \sin^{-1}{\frac{1}{n}}$
 - `etap`接受假设介面为入射面时对应的折射率。计算即$\frac{1}{n}$
 
-#### 菲涅耳方程
+### 菲涅耳方程
 
-##### 实数折射率
+#### 实数折射率
 
 之前提到的 $F_r$ - 菲涅耳定律给出了在光到材质上后，**反射与折射「能量」的关系**。计算本身涉及电磁相关波知识...大物好久没看也基本忘了，这里只给出形式
 
@@ -616,7 +616,7 @@ public float FrDielectric(float cosTheta_i, float eta) {
 
 在电介质材料里，该式子足矣建模其反射/折射能量关系——但对于导体而言则不是如此。
 
-##### 复数折射率
+#### 复数折射率
 
 [9.3.6 The Fresnel Equations for Conductors](https://www.pbr-book.org/4ed/Reflection_Models/Specular_Reflection_and_Transmission#TheFresnelEquationsforConductors) 介绍了折射率为$n - ik$的复数形式时的计算。实现如下：
 
@@ -651,7 +651,7 @@ $k$部分为[「消光系数」](https://en.wikipedia.org/wiki/Refractive_index#
 
 ![image-20251223150031876](/image-foundation/image-20251223150031876.png)
 
-###### n,k 估计
+#### n,k 估计
 
 输入这两个测量值很麻烦。[Artist Friendly Metallic Fresnel, Gulbrandsen 2014](https://jcgt.org/published/0003/04/03/paper.pdf) 给出了由两个RGB参数估计$n,k$的方法。这里只给出实现，来自 [Blender Cycles](https://projects.blender.org/blender/blender/src/commit/91800d13ff20aa4aae5c0b767014fafbab383107/intern/cycles/kernel/closure/bsdf_microfacet.h#L274)：
 
@@ -674,7 +674,7 @@ public void FresnelFromF0(float3 r /* baseColor */, float3 g /* specularTint */,
 
 PBRT里介绍的 [9.4 Conductor BRDF](https://www.pbr-book.org/4ed/Reflection_Models/Conductor_BRDF.html), [9.5 Dielectric BSDF](https://www.pbr-book.org/4ed/Reflection_Models/Dielectric_BSDF.html)暂不直接记录：他们将间接地在接下来的模型中得到体现。
 
-### glTF 材质模型
+## glTF 材质模型
 
 毕竟到目前为止，glTF是我们唯一的场景格式。要实现则需要把他的材质模型映射到我们目前PBRT风格的BxDF中。
 
@@ -682,7 +682,7 @@ PBRT里介绍的 [9.4 Conductor BRDF](https://www.pbr-book.org/4ed/Reflection_Mo
 
 上图来自 [glTF 2.0 Spec Appendix B](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation)——glTF在**电介质**和**导体**间做线性插值，做法对应PBRT的 [MixMaterial](https://www.pbr-book.org/4ed/Textures_and_Materials/Material_Interface_and_Implementations#x1-MixMaterial)。对两者材质本身而言：
 
-#### 电介质模型
+### 电介质模型
 
 <img src="/image-foundation/image-20251223153046049.png" alt="image-20251223153046049" style="zoom:50%;" />
 
@@ -692,13 +692,13 @@ glTF的该模型可以认为是和PBRT中的`DieletricBxDF`与`DiffuseBxDF`做�
 
 再次地，这是一个single-scattering模型：所谓“简化”就是这个意思。PBRT中在介面**多次**NEE做Random Walk，还需考虑介面厚度及衰减问题...这是ground truth答案，虽然跑起来会很慢。在此，我们只做**一次** NEE——这不可避免地会产生能量损失，但这个问题可以留给未来的自己解决...
 
-#### 导体模型
+### 导体模型
 
 <img src="/image-foundation/image-20251223153124455.png" alt="image-20251223153124455" style="zoom:50%;" />
 
 不必担心，这里（假设metallic=1）的表现和`ConductorBxDF`是一致的。我们已经介绍过他的（复数）$F_r$，插入之前我们的光泽反射BSDF即可得到导体情况的BSDF。
 
-#### fresnel_mix 的由来
+### fresnel_mix 的由来
 
 可以看到，**电介质**材质有两个BRDF Lobe需要采样：光泽$w$和漫反射$w\prime$。BRDF间的混合并非加法：这样做很显然是能量不守恒的。但从采样的角度出发：在一个点上，这两个$w$都可能是被采样到的光线（参考上图）。如果知道这两者采样**「可能性」**的话，岂不是可以做任意选择而去逼近混合后的结果？
 
@@ -706,7 +706,7 @@ glTF的该模型可以认为是和PBRT中的`DieletricBxDF`与`DiffuseBxDF`做�
 
 当然，这里的比例并不精确——实际上这再次地是一个single scattering模型：ground truth则是PBRT中介面的混合是用 Random Walk 来做的 LayeredBxDF。这方面的补偿会在后面讨论。
 
-#### 菲涅耳项估计
+### 菲涅耳项估计
 
 计算菲涅耳本身在之前介绍过——而前面用了`ShlickFresnel`。当然，mix `FrDieletric`和`FrConductor`在这里是正确的...但用到的三角函数是不是有些多？
 
@@ -732,7 +732,7 @@ public float SchlickFresnel(float F0, float F90, float cosTheta)
 ```
 
 
-### 能量守恒改进
+## 能量守恒改进
 
 暂时不贴代码：进行白炉测试，可以发现：粗糙度越高球体变得越暗。 同时，球体边缘部分情况更严重。
 
@@ -746,7 +746,7 @@ public float SchlickFresnel(float F0, float F90, float cosTheta)
 
 接下来就Heitz方法简要介绍，并对这里的Kulla and Conty方法进行复现。
 
-#### Random Walk (Heitz 2016)
+### Random Walk (Heitz 2016)
 
 记得$G1$ Masking/Shadowing 函数表达的量：宏观面内沿某视角$\mathbf{v}$可见的微面比例。
 
@@ -766,14 +766,14 @@ public float SchlickFresnel(float F0, float F90, float cosTheta)
 
 未来有机会再尝试复现这里的RW手段。在此之前，实现上更为简单且出图方差更低（不需逼近）的手段即为以下查表方法。
 
-#### 预积分查表（Kulla, Conty & Turquin）
+### 预积分查表（Kulla, Conty & Turquin）
 
 [Blender 4.0 以后](https://projects.blender.org/blender/blender/src/commit/fc680f0287cdf84261a50e1be5bd74b8bd73c65b/intern/cycles/kernel/closure/bsdf_microfacet.h#L359) 采用了查表方法(注意cycles做的$E_{avg}$等查表）。形式上是后者Turquin的公式，不过鉴于其推导离不开Kulla 2017的工作，这里一并复现。方便读者参考，以下为二者链接：
 
 - [Revisiting Physically Based Shading at Imageworks, Kulla, Conty 2017](https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf)
 - [Practical multiple scattering compensation for microfacet models, Turquin 2019](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf)
 
-##### 方向反照率 Albedo  $E(w)$
+#### 方向反照率 Albedo  $E(w)$
 
 <img src="/image-foundation/image-20251224095702067.png" alt="image-20251224095702067" style="zoom:50%;" />
 
@@ -804,7 +804,7 @@ $$
 E(\mu_0) = 2\int_{0}^{1}\mu_id\mu_i = 1
 $$
 
-##### 平均反射率 $F_{avg}$
+#### 平均反射率 $F_{avg}$
 
 假设能量确实守恒的话，从一点，假设环境光照均匀——平均能反射出多少光？**平均反射率**表述的就是这一点：在**没有任何遮蔽的情况下**（包括shadowing-masking），上半球余弦加权的反射率积分。其能量形式如下：
 $$
@@ -846,7 +846,7 @@ $$
 F_{avg} = R_0 + s(R_{90} - R_0) = lerp(R_0, R_{90}, s)
 $$
 
-##### 平均反照率 $E_{avg}$
+#### 平均反照率 $E_{avg}$
 
 在同样环境下,方便起见，我们对$E_{ss}$求一个相似概念：**平均反照率（Average Albedo）**
 $$
@@ -866,7 +866,7 @@ E_{avg} = 2\int_{0}^{1}{E_{ss}(\mu) \mu d\mu}
 $$
 式子和$F_{avg}$推导基本一致。这样我们也能算出平均**丢失能量**，即为$1-E_{avg}$
 
-##### $E,E_{avg}$ 预积分
+#### $E,E_{avg}$ 预积分
 
 回顾前文，$E, E_{avg}$的计算都需要积分，而且（GGX）分析解找不到。参考[Blender cycles_precompute.cpp](https://projects.blender.org/blender/blender/src/commit/00546eb2f34cc95976a640d268deb371b7ca9210/intern/cycles/app/cycles_precompute.cpp) - 接下来给出通过采样预计算这两个值的方法。和前文一致，$\phi$被视作无关。
 
@@ -942,7 +942,7 @@ void integrateGGX_Eavg(uint2 p : SV_DispatchThreadID)
 
 ```
 
-###### Slang 写 Kernel？
+#### Slang 写 Kernel？
 
 Foundation 现在还没有给这种one-shot运行出结果的CS搭脚手架。这当然很有用，不过这并非我们「渲染」引擎想去解决的问题。
 
@@ -985,7 +985,7 @@ integrateGGX_Eavg.dispatch(thread_count=[1,1,1],vars={"output": ggx_Eavg})
 
 就此，我们给出的几个积分计算完毕。
 
-##### $f_{ms}$ 推导
+#### $f_{ms}$ 推导
 
 先不考虑反射率，[Revisiting Physically Based Shading at Imageworks - Kulla, Conty 2017](https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf) 给出了以下$f_{ms}$补偿BRDF中的Fresnel（ss:single scattering, ms: multiple scattering）：
 
@@ -1025,7 +1025,7 @@ f_{ms}\prime =\frac{(1-E_{ss}(w_o))(1-E_{ss}(w_i))F^2_{avg}E_{avg}}{\pi(1-E_{avg
 $$
 幸运的是，这正是 Filament [4.7.2 Energy loss in specular reflectance](https://google.github.io/filament/Filament.md.html#mjx-eqn%3AenergyCompensationLobe) 用的式子！不过有点长，假如可以简化...
 
-##### $f_{ms}$ 简化
+#### $f_{ms}$ 简化
 
 ![image-20251225095845997](/image-foundation/image-20251225095845997.png)
 
@@ -1060,9 +1060,9 @@ float3 f = (Fss + Fms) * mfDistrib.D(wm) * mfDistrib.G(wo, wi) / (4 * AbsCosThet
 return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
 ```
 
-##### 导体
+#### 导体
 
-###### 导体效果
+#### 导体效果
 
 一样的白炉测试效果如下。先令所有`metallic=1.0f`,即只看ConductorBxDF等效部分：
 
@@ -1070,13 +1070,13 @@ return BSDFSample(f, wi, pdf, BxDFFlags::GlossyReflection);
 
 (注：别忘了Sampler用CLAMP_TO_EDGE - -||)
 
-##### 电介质
+#### 电介质
 
 目前为止，我们只对不存在（不考虑：导体中折射即吸收）折射贡献的BRDF做了改进。对于电介质BRDF（及metal<1），这里的工作是不够的：因为算$E$的时候并没有看「折射」后的能量问题。
 
 有一个问题就是这里的参数多了个IOR，ImageWorks (Kulla, Conty)提出使用3D材质查表。不过进行一些数学观察不难发现，这个表其实可以仅用两张表达所有$F_0, F_{90}$的情况。
 
-###### 电介质$E(\mu)$
+#### 电介质$E(\mu)$
 
 回顾之前不考虑$F$（设$F=1$）的$E$计算，和其对应离散/蒙特卡洛形式：
 $$
@@ -1146,7 +1146,7 @@ ggxE[dot(p, uint2(1, 32))] = float2(E / samples, Eprime / samples);
 
 ![image-20251225154851094](/image-foundation/image-20251225154851094.png)
 
-###### 电介质效果
+#### 电介质效果
 
 ImageWorks也提到了对Diffuse lobe的调整（虽然这部分我们也讨论过了）：$E\prime\prime$是补偿过的反射量，那么真正能到达底层diffuse lobe的能量即为$1-E\prime\prime$（回顾反射率关系），刚好允许我们进行正确的能量调整：漫反射一定有入射=出射，$1-E\prime\prime$则是混合glossy lobe后其正确的反照率。
 
@@ -1154,7 +1154,7 @@ ImageWorks也提到了对Diffuse lobe的调整（虽然这部分我们也讨论�
 
 ![image-20251225163746262](/image-foundation/image-20251225163746262.png)
 
-#### 总结
+### 总结
 
 最后，调整完能量守恒前后的该模型在白炉测试中效果如下：
 
@@ -1164,26 +1164,96 @@ ImageWorks也提到了对Diffuse lobe的调整（虽然这部分我们也讨论�
 
 实现部分还有很多细节，尽力也在注释中标注。这里就不贴出来了——有兴趣还请看仓库链接：https://github.com/mos9527/Foundation/blob/vulkan/Editor/Shaders/IBSDF.slang （可能有死链...届时请在在仓库搜索 [PrincipledBSDF](https://github.com/search?q=repo%3Amos9527%2FFoundation%20PrincipledBSDF&type=code) 然后..留个言提醒下？ ）
 
-#### 样张
+### 样张
 
-Tonemap部分和上一篇一致。此外这里没有透明度检测（sponza有decal需要）——这里需要any hit，是相当昂贵的一个操作。
+Tonemap部分和上一篇一致。灯光采样用到了 MIS（Multiple Importance Sampling, 虽然现在就只支持太阳光+环境光..），但PBRT灯光采样章节只是略过看了下。期末结束放假再来搞搞IBL和many light...
 
-灯光采样用到了 MIS（虽然就太阳光+环境光），但PBRT灯光采样章节只是略过看了下。期末结束放假再来搞搞IBL或者是many light...
+此外，自己的渲染器是没有降噪的；同时 glTF 不会存储曝光设置需要手动调整，同Cycles对比场景的亮度会有些许偏差。
 
-##### referencePT Bathroom
+最后放几张渲染器在几个样例场景中的表现。
+
+#### Evermotion - Archinteriors vol. 48 - 008
+
+生产级场景（3M多边形），在Gems书上第十四章也出现过。光泽材质比较少，MIS做对后要达成相似输出还是比较容易的。
+
+链接...无可奉告 ~~（蛤？）~~ 原因是[Evermotion 还在卖这些场景](https://evermotion.org/shop/show_product/archinteriors-vol-48/14307)。你问我买了没有：买了。~~不过是在淘宝买的百度云链接（~~
+
+![image-20251227080333499](/image-foundation/image-20251227080333499.png)
+
+下面是Blender (5.0.1 LTS) Cycles在同样场景的渲染结果：开启降噪，Tonemapper为ACES1.3
+<details>
+  <summary>Cycles 参考</summary>
+  <img src="/image-foundation/image-20251227075358975.png"></img>
+</details>
+
+#### referencePT Bathroom
 
 很英伟达的浴室，来自 Ray Tracing Gems 2 提到的 https://github.com/boksajak/referencePT/tree/master/models/bathroom
 
+这次不少材质都是光泽的（同时包括完美镜面）；Blender的Prinicpled BSDF用Multiscatter GGX保持他们的能量守恒（之前介绍过）——注意洗手台和瓷砖的表现：这里很幸运地和Blender输出一致。
+
 ![image-20251226174059253](/image-foundation/image-20251226174059253.png)
 
-为参考起见，以下是Blender Cycles在同样场景的渲染结果。后者开启降噪，Tonemapper为ACES1.3
+Cycles与之前一个设置的渲染结果如下：
 
 <details>
   <summary>Cycles 参考</summary>
   <img src="/image-foundation/image-20251226174553084.png"></img>
 </details>
-不过这并非书上测试用的室内环境——有机会再添加后者。
+#### Lumberyard Bistro
 
-#### References
+来自 https://github.com/zeux/niagara_bistro。植被渲染需要透明度支持，这里现存的naive实现too simple：他很慢 —— anyhit跑一遍，shadow ray还要跑一遍，没考虑mip就采样等等。
 
-TBD。实在太多...
+不过最近没啥时间继续折腾了。透明度方面的效率问题，仍然留给未来的自己解决...
+
+![image-20251227100611678](/image-foundation/image-20251227100611678.png)
+
+<details>
+  <summary>Cycles 参考</summary>
+  <img src="/image-foundation/image-20251227100632285.png"></img>
+</details>
+#### Blender Classroom
+
+来自 https://www.blender.org/download/demo-files/
+
+原Blend用的BSDF有些魔幻（glossy手动mix diffuse，然后各种奇怪混合方式弄roughness map），算不上现代metal-rough PBR模型资产
+
+结果就是基本手动调了一遍。此外因为没有volume rendering，原场景的体积光在此没有加入。
+
+直接光源+很多（4个...）自发光光源演示。
+
+![image-20251227124745391](/image-foundation/image-20251227124745391.png)
+
+<details>
+  <summary>Cycles 参考</summary>
+  <img src="/image-foundation/image-20251227124800418.png"></img>
+</details>
+
+
+## References
+
+- Real Time Rendering 4th Edition
+- [Physically Based Rendering: From Theory To Implementation (PBRT)](https://pbr-book.org/)
+- [Kanition PBRT v3 翻译版](https://github.com/kanition/pbrtbook)
+- [Ray Tracing Gems 2](https://www.realtimerendering.com/raytracinggems/rtg2/index.html)
+- [Google Filament - Energy loss in specular reflectance](https://google.github.io/filament/Filament.md.html#materialsystem/improvingthebrdfs/energylossinspecularreflectance)
+- [glTF 2.0 Specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html)
+- [Vulkan Specification - Shader Binding Table](https://docs.vulkan.org/spec/latest/chapters/raytracing.html#shader-binding-table)
+- [RefractiveIndex.INFO](https://refractiveindex.info/?shelf=main&page=Rakic)
+- [Sampling the GGX Distribution of Visible Normals](https://jcgt.org/published/0007/04/01/paper.pdf) - Heitz, E. (2018)
+- [Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs](https://jcgt.org/published/0003/02/03/paper.pdf) - Heitz, E. (2014)
+- [Theory for Off-Specular Reflection From Roughened Surfaces](https://www.graphics.cornell.edu/~westin/pubs/TorranceSparrowJOSA1967.pdf) - Torrance, K. E., & Sparrow, E. M. (1967)
+- [Artist Friendly Metallic Fresnel](https://jcgt.org/published/0003/04/03/paper.pdf) - Gulbrandsen, O. (2014)
+- [An Inexpensive BRDF Model for Physically-based Rendering](https://web.archive.org/web/20200510114532/http://cs.virginia.edu/~jdl/bib/appearance/analytic%20models/schlick94b.pdf) - Schlick, C. (1994)
+- [Multiple-Scattering Microfacet BSDFs with the Smith Model](https://eheitzresearch.wordpress.com/240-2/) - Heitz, E., et al. (2016)
+- [Revisiting Physically Based Shading at Imageworks](https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf) - Kulla, C., & Conty, A. (2017)
+- [Practical multiple scattering compensation for microfacet models](https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf) - Turquin, E. (2019)
+- [A Microfacet Based Coupled Specular-Matte BRDF Model with Importance Sampling](https://www.researchgate.net/publication/2378872_A_Microfacet_Based_Coupled_Specular-Matte_BRDF_Model_with_Importance_Sampling) - Kelemen, C., & Szirmay-Kalos, L. (2001)
+- [nvpro-samples/vk_gltf_renderer](https://github.com/nvpro-samples/vk_gltf_renderer/blob/master/shaders/gltf_pathtrace.slang)
+- [nvpro-samples/vk_mini_path_tracer](https://nvpro-samples.github.io/vk_mini_path_tracer/extras.html#moresamples)
+- [boksajak/referencePT](https://github.com/boksajak/referencePT/)
+- [shader-slang/slangpy](https://github.com/shader-slang/slangpy)
+- [Blender Source Code](https://projects.blender.org/blender/blender)
+- [Foundation/IBSDF.slang](https://github.com/mos9527/Foundation/blob/vulkan/Editor/Shaders/IBSDF.slang)
+- [Evermotion Archinteriors vol. 48](https://evermotion.org/shop/show_product/archinteriors-vol-48/14307)
+- [referencePT Bathroom Model](https://github.com/boksajak/referencePT/tree/master/models/bathroom)
