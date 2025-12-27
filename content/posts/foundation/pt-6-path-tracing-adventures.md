@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-27T12:59:57.680985
+lastmod: 2025-12-27T15:22:38.143723
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
@@ -1200,6 +1200,7 @@ Cycles与之前一个设置的渲染结果如下：
   <summary>Cycles 参考</summary>
   <img src="/image-foundation/image-20251226174553084.png"></img>
 </details>
+
 #### Lumberyard Bistro
 
 来自 https://github.com/zeux/niagara_bistro。植被渲染需要透明度支持，这里现存的naive实现too simple：他很慢 —— anyhit跑一遍，shadow ray还要跑一遍，没考虑mip就采样等等。
@@ -1212,6 +1213,7 @@ Cycles与之前一个设置的渲染结果如下：
   <summary>Cycles 参考</summary>
   <img src="/image-foundation/image-20251227100632285.png"></img>
 </details>
+
 #### Blender Classroom
 
 来自 https://www.blender.org/download/demo-files/
@@ -1220,12 +1222,13 @@ Cycles与之前一个设置的渲染结果如下：
 
 结果就是基本手动调了一遍。此外因为没有volume rendering，原场景的体积光在此没有加入。
 
-直接光源+很多（4个...）自发光光源演示。
+直接光源+多个自发光光源演示。
 
 ![image-20251227124745391](/image-foundation/image-20251227124745391.png)
 
 <details>
   <summary>Cycles 参考</summary>
+  （Cycles不知道怎么回事，貌似弄错了BaseColor材质的color space）
   <img src="/image-foundation/image-20251227124800418.png"></img>
 </details>
 
