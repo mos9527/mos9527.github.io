@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-12-24T22:14:53.168619
+lastmod: 2026-02-09T15:33:31.031000+08:00
 title: Foundation 施工笔记 【5】- 纹理与延后渲染初步
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]
