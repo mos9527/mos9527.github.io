@@ -136,11 +136,9 @@ Pass一览无余...*可以说是相当养眼*
 
 #### 渲染模式
 
-Game使用的仍是经典的前向渲染 (Forward Rendering)，没用新鲜的[TBDR](https://developer.apple.com/documentation/metal/tailor_your_apps_for_apple_gpus_and_tile-based_deferred_rendering);貌似URP支持后者？
+[URP](https://media.colorfulpalette.co.jp/n/n51bf8818b89d).
 
 ![image-20250113231200281](/image-shading-reverse/image-20250113231200281.png)
-
-但很显然这里用的其实是SRP
 
 ![image-20250113231746750](/image-shading-reverse/image-20250113231746750.png)
 
