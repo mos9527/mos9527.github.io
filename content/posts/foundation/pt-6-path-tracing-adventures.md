@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2026-02-09T15:33:31.032000+08:00
+lastmod: 2025-12-27
 title: Foundation 施工笔记 【6】- 路径追踪
 tags: ["CG","Vulkan","Foundation"]
 categories: ["CG","Vulkan"]

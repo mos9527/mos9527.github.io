@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2026-02-09T15:33:31.030000+08:00
+lastmod: 2025-12-24
 title: Foundation 施工笔记 【4】- 网格数据量化及压缩
 tags: ["CG","Vulkan","Foundation","meshoptimizer"]
 categories: ["CG","Vulkan"]

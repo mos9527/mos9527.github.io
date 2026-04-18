@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sed -i 's/lastmod: 2026-02-09T15:33:31.028000+08:00/lastmod: 2025-12-24/' content/posts/foundation/pt-1-mesh-shader-continous-lod.md)",
+      "Bash(sed -i 's/lastmod: 2026-02-09T15:33:31.028000+08:00/lastmod: 2025-12-24/' content/posts/foundation/pt-2-gpu-driven-pipeline-with-culling.md)",
+      "Bash(sed -i 's/lastmod: 2026-02-09T15:33:31.030000+08:00/lastmod: 2025-12-06/' content/posts/foundation/pt-3-profiler-and-wave-intrinsics.md)",
+      "Bash(sed -i 's/lastmod: 2026-02-09T15:33:31.030000+08:00/lastmod: 2025-12-24/' content/posts/foundation/pt-4-mesh-quantization.md)",
+      "Bash(sed -i 's/lastmod: 2026-02-09T15:33:31.031000+08:00/lastmod: 2025-12-21/' content/posts/foundation/pt-5-texture-compression-and-gbuffer.md)"
+    ]
+  }
+}
