@@ -1,5 +1,5 @@
 body, body>* {
-    font-family: serif;
+    font-family: monospace, serif;
 }
 code, code>* {
     font-family: monospace, sans-serif !important;

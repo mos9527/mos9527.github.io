@@ -81,6 +81,11 @@ menu:
       name: tags
       url: /tags/
       weight: 20
+    - identifier: about
+      name: about
+      url: /about/
+      weight: 30
     - identifier: extern
       name: "extern"
       url: /posts/links
+      weight: 40

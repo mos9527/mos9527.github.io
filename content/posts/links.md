@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2025-11-20
+lastmod: 2026-07-07
 title: Links
 _build:
   list: false
@@ -24,7 +24,7 @@ _build:
 - Page https://mos9527.com/SonyHeadphonesClient
 ## 项目文档
 ### Foundation
-> Advanced Realtime Rendering Framework / 实时渲染高级魔术
+> Experimental Cross-Platform Vulkan Render Engine with PBRT-Style Path Tracer/实验用 Vulkan 渲染器
 - Repo https://github.com/mos9527/Foundation
 - Page http://mos9527.com/Foundation
 
