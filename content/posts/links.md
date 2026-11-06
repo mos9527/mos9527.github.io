@@ -1,6 +1,6 @@
 ---
 author: mos9527
-lastmod: 2026-07-07
+lastmod: 2026-11-06
 title: Links
 _build:
   list: false
@@ -22,16 +22,12 @@ _build:
 > Cross-platform Sony Sound Connect (formerly Headphones Connect) implementation / 索尼 Sound Connect 第三方实现
 - Repo https://github.com/mos9527/SonyHeadphonesClient
 - Page https://mos9527.com/SonyHeadphonesClient
+
 ## 项目文档
 ### Foundation
 > Experimental Cross-Platform Vulkan Render Engine with PBRT-Style Path Tracer/实验用 Vulkan 渲染器
 - Repo https://github.com/mos9527/Foundation
 - Page http://mos9527.com/Foundation
-
-### PyCriCodecsEx
-> Python Criware formats library for Python based on [@Youjose](https://github.com/Youjose)'s work / Criware 泛用资产库
-- Repo https://github.com/mos9527/PyCriCodecsEx
-- Page https://mos9527.com/PyCriCodecsEx
 
 ## 脚本语料
 ### mgs-corpus
@@ -45,6 +41,10 @@ _build:
 - Page https://disco.mos9527.com
 
 ## 汉化工作
+### PWSF
+> METAL GEAR SOLID: PEACE WALKER STEAM 简中补丁
+- Repo https://github.com/mos9527/PWSF
+
 ### chn-patch-zhs
 > CHAOS;HEAD NOAH / 混沌之脑：诺亚 Steam Patch 简中计划
 - Repo https://github.com/mos9527/chn-patch-zhs
